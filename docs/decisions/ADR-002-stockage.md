@@ -1,100 +1,72 @@
-# ADR-002 — Stockage des connaissances
+# ADR-002 — Stratégie de stockage des connaissances
 
-- **Statut :** Proposé
+- **Statut :** Acceptée
     
 - **Date :** 2026-10-28
-    
-- **Décideur :** Projet DevKnowledge
     
 
 ## Contexte
 
-DevKnowledge stockera des notes, des articles, des commandes, des extraits de code, des procédures et des références documentaires.
+DevKnowledge doit permettre de stocker, organiser et retrouver des connaissances techniques personnelles : notes de cours, extraits de code, commandes, procédures, documentations et solutions à des problèmes rencontrés.
 
-Les contenus peuvent avoir des métadonnées variables : catégories, tags, dates, sources, versions et relations entre connaissances.
+L'application doit fonctionner hors ligne et conserver la maîtrise des données par l'utilisateur.
 
-L'application doit fonctionner localement et permettre la reconstruction de l'index de recherche sémantique à partir des données métier.
+## Décision
 
-## Décision envisagée
+### Stockage principal
 
-Utiliser MongoDB comme stockage principal des documents de connaissances.
+MongoDB constitue la source de vérité pour les connaissances structurées et les métadonnées.
 
-Le Knowledge Service sera le seul service responsable des opérations métier sur ces documents.
+Les données sont conservées localement, dans un volume persistant. La suppression ou la reconstruction de l'index vectoriel ne doit pas entraîner la perte des connaissances originales.
 
-ChromaDB sera utilisé comme index vectoriel distinct. Il ne constituera pas la source de vérité.
+### Recherche sémantique
 
-## Alternatives étudiées
+ChromaDB est utilisé comme index vectoriel pour la recherche sémantique.
 
-### SQLite
+Les embeddings sont générés localement par un service dédié. L'index vectoriel peut être reconstruit à partir des connaissances conservées dans MongoDB.
 
-- Léger, simple à sauvegarder et adapté à un fonctionnement local.
+### Sauvegardes
+
+Les sauvegardes sont facultatives et initiées ou configurées par l'utilisateur.
+
+La stratégie devra prévoir :
+
+- des sauvegardes locales régulières ;
     
-- Approprié aux données relationnelles et aux petits déploiements.
+- une possibilité de sauvegarde externe chiffrée ;
     
-- Moins naturel pour des documents aux structures variables et une architecture comportant plusieurs services.
+- une procédure documentée de restauration ;
     
-
-### PostgreSQL
-
-- Transactions, contraintes relationnelles et requêtes SQL puissantes.
-    
-- Convient aux données structurées et peut également proposer des capacités vectorielles.
-    
-- Demande un modèle relationnel plus explicite pour des contenus hétérogènes.
-    
-
-### MongoDB
-
-- Modèle documentaire adapté aux structures de connaissances variables.
-    
-- Possibilité d'indexer les champs utilisés par les recherches métier.
-    
-- Nécessite une validation rigoureuse des documents et une conception attentive des index.
+- des tests de restauration périodiques.
     
 
-## Justification
+Aucune synchronisation distante automatique n'est imposée.
 
-MongoDB correspond à l'orientation documentaire de DevKnowledge et au modèle proposé dans le blueprint BrainBlox.
+### Réseau et confidentialité
 
-Ce choix ne dispense pas de définir un schéma logique, des règles de validation, des identifiants stables et des règles d'accès.
+Les services communiquent au moyen du réseau Docker local. Les ports exposés à la machine hôte sont limités au nécessaire.
 
-## Conséquences positives
+Aucune connaissance personnelle ne doit être transmise à un service cloud sans décision explicite de l'utilisateur.
 
-- Stockage documentaire des connaissances.
-    
-- Métadonnées extensibles.
-    
-- Séparation entre données métier et index vectoriel.
-    
-- Possibilité de reconstruire l'index vectoriel depuis les données sources.
-    
+## Conséquences
 
-## Conséquences négatives
-
-- Une base supplémentaire à administrer et à sauvegarder.
+- MongoDB conserve les connaissances de référence.
     
-- Nécessité de gérer les migrations et l'évolution des documents.
+- ChromaDB conserve les vecteurs et les données nécessaires à la recherche sémantique.
     
-- Cohérence entre le contenu métier et son indexation à organiser explicitement.
+- Les volumes Docker doivent être persistants.
+    
+- La perte de l'index vectoriel doit être récupérable sans perte des connaissances originales.
+    
+- La sauvegarde et la restauration doivent être testées avant une utilisation réelle.
+    
+- La stratégie de chiffrement des sauvegardes externes sera définie avant leur mise en place.
     
 
-## Règles de conception
+## Alternatives écartées
 
-- Le Knowledge Service est propriétaire des connaissances.
+- **Stockage exclusivement vectoriel :** écarté, car l'index ne doit pas être l'unique source de vérité.
     
-- Les autres services utilisent son API plutôt que sa base.
+- **Stockage cloud obligatoire :** écarté, car il contredit le fonctionnement local prioritaire.
     
-- Les suppressions et modifications déclenchent une mise à jour ou une réindexation contrôlée.
-    
-- Les sauvegardes MongoDB et ChromaDB sont traitées séparément.
-    
-- La stratégie de sauvegarde distante sera documentée dans un ADR distinct.
-    
-
-## Conditions de validation
-
-Valider ce choix après avoir défini un modèle de connaissance représentatif et testé les opérations de création, lecture, modification, suppression et recherche.
-
-## Réévaluation
-
-Réexaminer cette décision si les exigences de transactions, de relations ou de requêtes analytiques rendent une base relationnelle plus appropriée.
+- **Synchronisation bidirectionnelle automatique :** reportée, car elle exige une stratégie explicite de gestion des conflits.
