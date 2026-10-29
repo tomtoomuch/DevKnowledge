@@ -1,10 +1,12 @@
 const app = require("./app");
 
 const PORT = process.env.GATEWAY_PORT || 3000;
-const HOST = process.env.GATEWAY_HOST || "127.0.0.1";
+const HOST = process.env.GATEWAY_HOST || "0.0.0.0";
 
 const server = app.listen(PORT, HOST, () => {
-    console.log(`API Gateway démarrée sur http://${HOST}:${PORT}`);
+    console.log(
+        `API Gateway démarrée sur http://${HOST}:${PORT}`
+    );
 });
 
 function shutdown() {
