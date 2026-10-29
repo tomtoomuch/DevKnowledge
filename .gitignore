@@ -1,0 +1,45 @@
+# Secrets et configuration locale
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Node.js / Angular
+node_modules/
+dist/
+.angular/
+coverage/
+npm-debug.log*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Bases de données et index locaux
+data/
+mongodb-data/
+chroma-data/
+*.sqlite
+*.sqlite3
+*.db
+
+# Journaux
+logs/
+*.log
+
+# IDE et système
+.vscode/
+.obsidian/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Fichiers temporaires
+*.tmp
+*.bak
