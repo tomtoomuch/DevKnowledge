@@ -23,6 +23,12 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 
+# Python - outils complémentaires
+*.egg-info/
+.tox/
+.nox/
+.coverage.*
+
 # Bases de données et index locaux
 data/
 mongodb-data/
