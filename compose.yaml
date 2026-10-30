@@ -25,11 +25,21 @@ services:
     restart: unless-stopped
 
   api-kms:
-    image: api-kms
+    image: api-kms:latest
     build:
       context: ./backend/knowledge-service
+    environment:
+      MONGODB_HOST: mongodb
+      MONGODB_PORT: ${MONGODB_PORT}
+      MONGODB_DATABASE: ${MONGODB_DATABASE}
+      MONGODB_USERNAME: ${MONGODB_APP_USERNAME}
+      MONGODB_PASSWORD: ${MONGODB_APP_PASSWORD}
+      MONGODB_AUTH_SOURCE: ${MONGODB_AUTH_SOURCE}
     ports:
       - "127.0.0.1:8000:8000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
     healthcheck:
       test:
         - CMD
@@ -45,8 +55,8 @@ services:
   mongodb:
     image: mongo:8.0
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGODB_USERNAME}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_PASSWORD}
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
     volumes:
       - mongodb:/data/db
     healthcheck:
