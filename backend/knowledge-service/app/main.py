@@ -14,8 +14,8 @@ from pymongo.errors import PyMongoError
 MONGODB_HOST = os.getenv("MONGODB_HOST", "localhost")
 MONGODB_PORT = int(os.getenv("MONGODB_PORT", "27017"))
 MONGODB_DATABASE = os.getenv("MONGODB_DATABASE", "devknowledge")
-MONGODB_USERNAME = os.getenv("MONGODB_APP_USERNAME")
-MONGODB_PASSWORD = os.getenv("MONGODB_APP_PASSWORD")
+MONGODB_USERNAME = os.getenv("MONGODB_USERNAME")
+MONGODB_PASSWORD = os.getenv("MONGODB_PASSWORD")
 MONGODB_AUTH_SOURCE = os.getenv(
     "MONGODB_AUTH_SOURCE",
     MONGODB_DATABASE,

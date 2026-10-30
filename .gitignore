@@ -12,12 +12,14 @@ dist/
 coverage/
 npm-debug.log*
 
-# Python
+# Python et pytest
 __pycache__/
 *.py[cod]
 .venv/
 venv/
 .pytest_cache/
+.coverage
+htmlcov/
 .mypy_cache/
 .ruff_cache/
 
