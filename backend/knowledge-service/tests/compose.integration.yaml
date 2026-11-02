@@ -1,0 +1,52 @@
+# Disposable, unpublished MongoDB; no development volumes or credentials.
+services:
+  mongodb-test:
+    image: mongo:8.0
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: kms_test_only
+      MONGO_INITDB_ROOT_PASSWORD: kms_test_only
+    tmpfs:
+      - /data/db
+      - /data/configdb
+    healthcheck:
+      test: [CMD, mongosh, --quiet, --eval, "db.adminCommand('ping').ok"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  api-kms-test:
+    image: devknowledge-kms-crud-test:local
+    build:
+      context: ..
+    environment:
+      MONGODB_HOST: mongodb-test
+      MONGODB_PORT: 27017
+      MONGODB_DATABASE: devknowledge_test_compose
+      MONGODB_USERNAME: kms_test_only
+      MONGODB_PASSWORD: kms_test_only
+      MONGODB_AUTH_SOURCE: admin
+    depends_on:
+      mongodb-test:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"]
+      interval: 2s
+      timeout: 5s
+      retries: 20
+
+  kms-tests:
+    image: devknowledge-kms-crud-test:local
+    environment:
+      KMS_TEST_MONGODB_URI: mongodb://kms_test_only:kms_test_only@mongodb-test:27017/?authSource=admin
+      KMS_TEST_HTTP_URL: http://api-kms-test:8000
+    volumes:
+      - .:/app/tests:ro
+      - ../pytest.ini:/app/pytest.ini:ro
+    command: [python, -m, pytest, -o, "addopts=", --cov=app, --cov-report=term-missing, tests]
+    depends_on:
+      api-kms-test:
+        condition: service_healthy
+
+networks:
+  default:
+    internal: true

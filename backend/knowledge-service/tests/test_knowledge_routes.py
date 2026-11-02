@@ -1,0 +1,335 @@
+"""HTTP contracts exercised without a running MongoDB server."""
+
+from copy import deepcopy
+from datetime import datetime, timezone
+from uuid import UUID, uuid4
+
+import pytest
+from fastapi.testclient import TestClient
+from pymongo.errors import ServerSelectionTimeoutError
+
+from app.api.routes.knowledges import get_knowledge_service
+from app.main import app
+from app.services.knowledge_service import KnowledgeService
+
+
+BASE = "/api/v1/knowledges"
+VALID_PAYLOAD = {
+    "knowledge_type": "CODE_SNIPPET",
+    "title": "Un exemple Python",
+    "content": "print('bonjour')\n",
+}
+
+
+class MemoryRepository:
+    """A repository double, injected at the HTTP composition boundary."""
+
+    def __init__(self):
+        self.items = {}
+        self.fail = False
+
+    def check_available(self):
+        if self.fail:
+            raise ServerSelectionTimeoutError("secret-message-password")
+
+    async def create(self, item):
+        self.check_available()
+        self.items[item["knowledge_id"]] = deepcopy(item)
+        return deepcopy(item)
+
+    async def get(self, knowledge_id):
+        self.check_available()
+        item = self.items.get(knowledge_id)
+        if item is None or item["deleted_at"] is not None:
+            return None
+        return deepcopy(item)
+
+    async def list(self, *, skip, limit, knowledge_type=None, status=None):
+        self.check_available()
+        items = [
+            deepcopy(item)
+            for item in self.items.values()
+            if item["deleted_at"] is None
+            and (knowledge_type is None or item["knowledge_type"] == knowledge_type)
+            and (status is None or item["status"] == status)
+        ]
+        items.sort(key=lambda item: (-item["created_at"].timestamp(), str(item["knowledge_id"])))
+        return items[skip : skip + limit], len(items)
+
+    async def update(self, knowledge_id, changes):
+        self.check_available()
+        if await self.get(knowledge_id) is None:
+            return None
+        self.items[knowledge_id].update(deepcopy(changes))
+        return deepcopy(self.items[knowledge_id])
+
+    async def soft_delete(self, knowledge_id, deleted_at):
+        self.check_available()
+        if await self.get(knowledge_id) is None:
+            return False
+        self.items[knowledge_id].update(deleted_at=deleted_at, updated_at=deleted_at)
+        return True
+
+
+@pytest.fixture
+def api():
+    repository = MemoryRepository()
+    app.dependency_overrides[get_knowledge_service] = lambda: KnowledgeService(repository)
+    # Deliberately do not enter TestClient: lifespan would need a real database.
+    client = TestClient(app)
+    try:
+        yield client, repository
+    finally:
+        client.close()
+        app.dependency_overrides.pop(get_knowledge_service, None)
+
+
+def create(client, **changes):
+    response = client.post(BASE, json={**VALID_PAYLOAD, **changes})
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+def test_create_defaults_uuid_and_utc_serialization(api):
+    client, repository = api
+    item = create(client)
+    knowledge_id = UUID(item["knowledge_id"])
+    assert knowledge_id.version == 4
+    assert str(knowledge_id) == item["knowledge_id"]
+    assert item["status"] == "DRAFT"
+    assert item["is_favorite"] is False
+    assert item["created_by_user_id"] is None
+    assert item["validated_at"] is None
+    assert item["deleted_at"] is None
+    assert item["content"] == VALID_PAYLOAD["content"]
+    for field in ("created_at", "updated_at"):
+        value = datetime.fromisoformat(item[field].replace("Z", "+00:00"))
+        assert value.utcoffset().total_seconds() == 0
+        assert repository.items[knowledge_id][field].tzinfo is not None
+    assert item["created_at"] == item["updated_at"]
+    assert "_id" not in item
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"knowledge_type": "UNKNOWN"},
+        {"knowledge_type": None},
+        {"title": " "},
+        {"title": "x" * 151},
+        {"title": None},
+        {"content": "\n\t"},
+        {"content": None},
+        {"status": " "},
+        {"status": "x" * 31},
+        {"language_code": "x" * 11},
+        {"difficulty_level": "x" * 31},
+        {"is_favorite": "false"},
+        {"is_favorite": None},
+        {"knowledge_id": str(uuid4())},
+        {"knowledge_type_id": str(uuid4())},
+        {"created_by_user_id": str(uuid4())},
+        {"created_at": "2026-01-01T00:00:00Z"},
+        {"updated_at": "2026-01-01T00:00:00Z"},
+        {"validated_at": "2026-01-01T00:00:00Z"},
+        {"deleted_at": "2026-01-01T00:00:00Z"},
+        {"unexpected": True},
+    ],
+)
+def test_create_invalid_and_internal_fields_are_rejected(api, change):
+    client, repository = api
+    response = client.post(BASE, json={**VALID_PAYLOAD, **change})
+    assert response.status_code == 422
+    assert repository.items == {}
+
+
+@pytest.mark.parametrize("missing", ["title", "content", "knowledge_type"])
+def test_create_required_fields(api, missing):
+    client, _ = api
+    payload = dict(VALID_PAYLOAD)
+    del payload[missing]
+    assert client.post(BASE, json=payload).status_code == 422
+
+
+@pytest.mark.parametrize(
+    "knowledge_type",
+    [
+        "CODE_SNIPPET", "TERMINAL_COMMAND", "TECHNICAL_PROCEDURE", "COURSE_NOTE",
+        "BUG_FIX", "DOCUMENTATION_RESOURCE", "BEST_PRACTICE", "COMPLIANCE_STANDARD",
+    ],
+)
+def test_all_eight_knowledge_types_are_accepted(api, knowledge_type):
+    client, _ = api
+    assert create(client, knowledge_type=knowledge_type)["knowledge_type"] == knowledge_type
+
+
+def test_get_existing_and_missing(api):
+    client, _ = api
+    item = create(client)
+    response = client.get(f"{BASE}/{item['knowledge_id']}")
+    assert response.status_code == 200
+    assert response.json() == item
+    assert client.get(f"{BASE}/{uuid4()}").status_code == 404
+
+
+@pytest.mark.parametrize("method", ["get", "patch", "delete"])
+def test_invalid_uuid_returns_422(api, method):
+    client, _ = api
+    kwargs = {"json": {"title": "Updated"}} if method == "patch" else {}
+    assert getattr(client, method)(f"{BASE}/invalid-id", **kwargs).status_code == 422
+
+
+def test_list_empty(api):
+    client, _ = api
+    response = client.get(BASE)
+    assert response.status_code == 200
+    assert response.json() == {"items": [], "total": 0, "skip": 0, "limit": 20}
+
+
+def test_list_pagination_and_filters(api):
+    client, repository = api
+    first = create(client, title="First", status="PUBLISHED")
+    second = create(client, title="Second", knowledge_type="BUG_FIX", status="PUBLISHED")
+    third = create(client, title="Third", knowledge_type="BUG_FIX")
+    # Equal dates exercise the documented UUID tie-breaker deterministically.
+    for item in repository.items.values():
+        item["created_at"] = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    expected_ids = sorted([item["knowledge_id"] for item in (first, second, third)])
+    page = client.get(BASE, params={"skip": 1, "limit": 1}).json()
+    assert page["total"] == 3
+    assert page["skip"] == 1
+    assert page["limit"] == 1
+    assert [item["knowledge_id"] for item in page["items"]] == expected_ids[1:2]
+    assert client.get(BASE, params={"skip": 99}).json()["items"] == []
+    by_type = client.get(BASE, params={"knowledge_type": "BUG_FIX"}).json()
+    assert by_type["total"] == 2
+    by_status = client.get(BASE, params={"status": "PUBLISHED"}).json()
+    assert by_status["total"] == 2
+    combined = client.get(BASE, params={"knowledge_type": "BUG_FIX", "status": "PUBLISHED"}).json()
+    assert combined["total"] == 1
+    assert combined["items"][0]["knowledge_id"] == second["knowledge_id"]
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {"skip": -1}, {"skip": "invalid"}, {"limit": 0}, {"limit": 101},
+        {"knowledge_type": "UNKNOWN"}, {"status": " "}, {"status": "x" * 31},
+    ],
+)
+def test_invalid_list_parameters(api, params):
+    client, _ = api
+    assert client.get(BASE, params=params).status_code == 422
+
+
+def test_patch_only_supplied_fields_and_optional_null(api):
+    client, _ = api
+    item = create(client, description="Description", language_code="fr", difficulty_level="intermediate")
+    response = client.patch(f"{BASE}/{item['knowledge_id']}", json={"title": "Nouveau titre", "description": None})
+    assert response.status_code == 200
+    updated = response.json()
+    assert updated["title"] == "Nouveau titre"
+    assert updated["description"] is None
+    for field in ("knowledge_id", "created_at", "created_by_user_id", "content", "status", "is_favorite", "language_code", "difficulty_level"):
+        assert updated[field] == item[field]
+    assert datetime.fromisoformat(updated["updated_at"].replace("Z", "+00:00")) >= datetime.fromisoformat(item["updated_at"].replace("Z", "+00:00"))
+    assert client.patch(f"{BASE}/{uuid4()}", json={"title": "Updated"}).status_code == 404
+
+
+def test_patch_can_change_each_mutable_field(api):
+    client, _ = api
+    item = create(client)
+    changes = {
+        "knowledge_type": "TERMINAL_COMMAND", "title": "Commande",
+        "content": "git status\n", "description": "Voir les changements",
+        "language_code": "fr", "difficulty_level": "beginner",
+        "status": "PUBLISHED", "is_favorite": True,
+    }
+    response = client.patch(f"{BASE}/{item['knowledge_id']}", json=changes)
+    assert response.status_code == 200
+    assert all(response.json()[field] == value for field, value in changes.items())
+    clear_response = client.patch(
+        f"{BASE}/{item['knowledge_id']}", json={"language_code": None, "difficulty_level": None},
+    )
+    assert clear_response.status_code == 200
+    assert clear_response.json()["language_code"] is None
+    assert clear_response.json()["difficulty_level"] is None
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {}, {"title": None}, {"content": None}, {"knowledge_type": None},
+        {"status": None}, {"is_favorite": None}, {"title": " "}, {"content": "\n\t"},
+        {"knowledge_id": str(uuid4())}, {"created_by_user_id": str(uuid4())},
+        {"created_at": "2026-01-01T00:00:00Z"}, {"updated_at": "2026-01-01T00:00:00Z"},
+        {"validated_at": None}, {"deleted_at": None}, {"unknown": "field"},
+    ],
+)
+def test_patch_forbidden_invalid_and_empty_inputs(api, payload):
+    client, _ = api
+    item = create(client)
+    assert client.patch(f"{BASE}/{item['knowledge_id']}", json=payload).status_code == 422
+    assert client.get(f"{BASE}/{item['knowledge_id']}").json() == item
+
+
+def test_soft_delete_hides_resource_and_double_delete_returns_404(api):
+    client, repository = api
+    item = create(client)
+    resource = f"{BASE}/{item['knowledge_id']}"
+    response = client.delete(resource)
+    assert response.status_code == 204
+    assert response.content == b""
+    stored = repository.items[UUID(item["knowledge_id"])]
+    assert stored["deleted_at"].tzinfo is not None
+    assert stored["content"] == item["content"]
+    assert client.get(resource).status_code == 404
+    assert client.patch(resource, json={"title": "Updated"}).status_code == 404
+    assert client.delete(resource).status_code == 404
+    assert client.delete(f"{BASE}/{uuid4()}").status_code == 404
+    assert client.get(BASE).json()["total"] == 0
+
+
+@pytest.mark.parametrize("operation", ["create", "get", "list", "update", "delete"])
+def test_mongodb_unavailable_returns_sanitized_503(api, caplog, operation):
+    client, repository = api
+    item = create(client)
+    resource = f"{BASE}/{item['knowledge_id']}"
+    repository.fail = True
+    requests = {
+        "create": lambda: client.post(BASE, json=VALID_PAYLOAD),
+        "get": lambda: client.get(resource),
+        "list": lambda: client.get(BASE),
+        "update": lambda: client.patch(resource, json={"title": "Updated"}),
+        "delete": lambda: client.delete(resource),
+    }
+    response = requests[operation]()
+    assert response.status_code == 503
+    assert "secret-message-password" not in response.text
+    assert "secret-message-password" not in caplog.text
+
+
+def test_uninitialized_database_returns_503(monkeypatch):
+    monkeypatch.setattr(app.state, "mongodb_database", None, raising=False)
+    client = TestClient(app)
+    try:
+        response = client.get(BASE)
+    finally:
+        client.close()
+    assert response.status_code == 503
+
+
+def test_openapi_exposes_crud_and_validation_contract():
+    schema = app.openapi()
+    assert set(schema["paths"][BASE]) == {"post", "get"}
+    assert set(schema["paths"][BASE + "/{knowledge_id}"]) == {"get", "patch", "delete"}
+    assert "201" in schema["paths"][BASE]["post"]["responses"]
+    assert "204" in schema["paths"][BASE + "/{knowledge_id}"]["delete"]["responses"]
+    assert "422" in schema["paths"][BASE]["post"]["responses"]
+    patch_schema = schema["components"]["schemas"]["KnowledgeUpdate"]
+    assert patch_schema["minProperties"] == 1
+    assert "required" not in patch_schema
+    for field in ("knowledge_type", "title", "content", "status", "is_favorite"):
+        assert {"type": "null"} not in patch_schema["properties"][field].get("anyOf", [])
+        assert patch_schema["properties"][field].get("type") != "null"
+    assert {"type": "null"} in patch_schema["properties"]["description"]["anyOf"]
