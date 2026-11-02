@@ -1,0 +1,37 @@
+# Cartographie initiale des compétences RNCP
+
+## BC01 — Collecte, stockage et mise à disposition des données
+
+| **Compétence** | **Connaissances mobilisables** | **Preuves à rechercher** |
+| :--------- | :------------------------- | :------------------- |
+| BC01-C01 Extraction multi-sources | Python, ETL, commandes, procédures | Scripts d'extraction, sources |
+| BC01-C02 Requêtes SQL | SQL, bases de données, notes de cours | Requêtes SQL commentées |
+| BC01-C03 Agrégation et nettoyage | Pandas, ETL, traitement de données | Scripts ETL, tests de qualité |
+| BC01-C04 Modélisation et stockage conforme au RGPD | Modélisation, SQL, conformité | MCD, MLD, schéma physique, documentation RGPD |
+| BC01-C05 API REST de données | Node.js, Express, API | Routes, contrôleurs, tests, documentation API |
+
+## BC02 — Intégration des modèles et services IA
+
+| **Compétence** | **Connaissances mobilisables** | **Preuves à rechercher** |
+| :--------- | :------------------------- | :------------------- |
+| BC02-C01 Veille technique et réglementaire | Documentation, conformité, bonnes pratiques | Sources sélectionnées, synthèse de veille |
+| BC02-C02 Benchmark de services IA | Notes de cours, ressources documentaires | Tableau comparatif, justification du choix |
+| BC02-C03 Paramétrage d'un service IA | Ollama, Docker, procédures | Configuration et démonstration |
+| BC02-C04 Exposition d'un modèle par API REST | Python, FastAPI, Node.js | API fonctionnelle et tests |
+| BC02-C05 Intégration d'une API IA | MCP, Ollama, Express | Appels API et démonstration |
+| BC02-C06 Monitoring de modèles | MLOps, métriques, supervision | Tableaux de bord et alertes |
+| BC02-C07 Tests automatisés de modèles | Python, pytest, ML | Tests de données, évaluation de modèle |
+| BC02-C08 Livraison continue MLOps | Docker, GitHub Actions, CI/CD | Pipeline, packaging et déploiement |
+
+## BC03 — Développement d'une application intégrant l'IA
+
+| Compétence | Connaissances mobilisables | Preuves à rechercher |
+| :--------- | :------------------------- | :------------------- |
+| BC03-C01 Analyse du besoin | Cahier des charges, user stories | Spécifications fonctionnelles |
+| BC03-C02 Architecture technique | Architecture microservices, ADR, Docker | Diagrammes et décisions d'architecture |
+| BC03-C03 Coordination agile et MLOps | Git, roadmap, gestion de projet | Backlog, tickets, historique |
+| BC03-C04 Développement des interfaces et composants | Angular, Node.js, Python | Code, captures, démonstrations |
+| BC03-C05 Tests automatisés et CI | Jest, pytest, GitHub Actions | Tests et rapports de couverture |
+| BC03-C06 Livraison continue | Docker, CI/CD | Pipeline et déploiement |
+| BC03-C07 Monitoring et journalisation | Logs, healthchecks, supervision | Configuration et démonstration |
+| BC03-C08 Résolution des incidents | Debugging, documentation, tests | Rapport d'incident avant/après |
