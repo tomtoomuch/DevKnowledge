@@ -1,13 +1,13 @@
 ---
 title: "DevKnowledge — Itération 2 : stabilisation du socle"
 date: "2026-11-04"
-status: "Plan proposé — à exécuter ensemble"
+status: "STAB-01/02 déposées, validation Docker en attente"
 tags: [devknowledge, stabilisation, qualite, tests, docker, ci]
 ---
 
 # Itération 2 — Stabilisation du socle
 
-> **Statut : préparation.** Ce document décrit les activités et leurs critères d'acceptation ; les corrections et validations ne sont pas encore exécutées. Source de l'état initial : [[point-avancement-2026-11-04]].
+> **Statut : stabilisation engagée.** Les correctifs STAB-01/02 et leur test isolé sont déposés sur `chat`, mais les validations Docker restent à réaliser ensemble. Source de l'état initial : [[point-avancement-2026-11-04]].
 
 ## Objectif
 
@@ -20,6 +20,17 @@ Disposer d'un socle **reproductible, testable et documenté** (Gateway Express, 
 **À arbitrer :** intégrer dès ce cycle le relais minimal Gateway → KMS ou le garder pour un incrément immédiatement suivant. Ne pas annoncer de point d'entrée unique tant que le relais n'existe pas.
 
 **Exclus :** Angular, utilisateurs et RBAC, huit spécialisations, RNCP, RAG, embeddings, MCP, MLOps, refonte du MLD et migration de données existantes.
+
+## Travaux déposés — 4 novembre 2026
+
+- **STAB-01 :** `.env.example` et `compose.yaml` utilisent maintenant `MONGODB_APP_USERNAME`, avec contrôle des variables obligatoires.
+- **STAB-02 :** le script `backend/mongodb/init/01-create-app-user.js` crée le compte `readWrite` sur un volume vierge.
+- **Test d'acceptation préparé :** `backend/mongodb/tests/compose.bootstrap.yaml` (MongoDB jetable sur `tmpfs`, vérification du rôle, lecture/écriture, KMS `/health/ready`).
+- **Vérification actuelle :** 9 contrôles statiques ciblés réussis sur le code récupéré de GitHub.
+- **Reste à faire :** exécution Docker et revue de l'environnement existant ; les cases d'acceptation restent ouvertes.
+- **Important :** les scripts d'initialisation ne s'appliquent pas rétroactivement aux volumes existants.
+
+Guide : [[../operations/mongodb-bootstrap]].
 
 ## Préparation commune : état initial et sécurité des données
 
