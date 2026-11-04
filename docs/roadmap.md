@@ -23,7 +23,7 @@ tags: [devknowledge, roadmap, stabilisation]
 | Modélisation | Modèle logique v0.2 à relire | 56 tables, huit spécialisations, utilisateurs/RBAC, RNCP et RAG ; aucune garantie d'implémentation physique globale |
 | Socle Docker / Express / FastAPI / MongoDB | Présent, non stabilisé | Trois services Compose, contrôles de santé, stockage local |
 | Itération 1 — CRUD générique KMS | Livrée, tests historiques positifs | `knowledge_items` ; routes, schémas, services, repository et tests |
-| **Itération 2 — Stabilisation** | **Prochaine étape, non exécutée** | Config/env, compte MongoDB, readiness, tests, CI, reproductibilité, accès Gateway |
+| **Itération 2 — Stabilisation** | **Engagée : STAB-01/02 déposés, validation Docker en attente** | Config/env, compte MongoDB, readiness, tests, CI, reproductibilité, accès Gateway |
 | Identité, rôles et droits | Non commencée | `users`, `roles`, `permissions`, `user_roles`, `role_permissions` ; arbitrage local/OIDC |
 | Classification, spécialisations et historique | Non commencée | Référentiel `knowledge_types` ; huit spécialisations ; tags, technologies, sources, versions |
 | Certification RNCP et preuves | Non commencée | Versions du RNCP 37827, compétences, critères, correspondances, preuves |
@@ -35,7 +35,7 @@ tags: [devknowledge, roadmap, stabilisation]
 
 Voir [[iterations/iteration-2-stabilisation]].
 
-**Priorité 1 :** démarrage sur volume vierge et compte MongoDB limité ; corriger l'écart `MONGODB_APP_USER` / `MONGODB_APP_USERNAME`.
+**Priorité 1 :** variables MongoDB et script de compte limité déposés sur `chat` ; validation du démarrage sur volume vierge, du rôle et de la readiness à conduire via [[operations/mongodb-bootstrap]].
 
 **Priorité 2 :** cohérence Gateway, readiness KMS, exécution répétable des tests et CI GitHub Actions ; préciser quand le relais Gateway → KMS sera livré.
 
