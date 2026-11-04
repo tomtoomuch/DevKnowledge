@@ -5,6 +5,7 @@
 - [[iterations/point-avancement-2026-11-04|Point d'avancement — 4 novembre 2026]]
 - [[iterations/iteration-2-stabilisation|Itération 2 — Plan de stabilisation à réaliser ensemble]]
 - [[roadmap|Feuille de route actualisée]]
+- [[operations/mongodb-bootstrap|MongoDB : provisionnement et smoke test isolé]]
 
 ## Implémentation et référentiel
 
