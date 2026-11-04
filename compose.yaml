@@ -12,7 +12,7 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
-        
+
     healthcheck:
       test:
         - CMD
@@ -31,11 +31,11 @@ services:
       context: ./backend/knowledge-service
     environment:
       MONGODB_HOST: mongodb
-      MONGODB_PORT: ${MONGODB_PORT}
-      MONGODB_DATABASE: ${MONGODB_DATABASE}
-      MONGODB_USERNAME: ${MONGODB_APP_USERNAME}
-      MONGODB_PASSWORD: ${MONGODB_APP_PASSWORD}
-      MONGODB_AUTH_SOURCE: ${MONGODB_AUTH_SOURCE}
+      MONGODB_PORT: ${MONGODB_PORT:-27017}
+      MONGODB_DATABASE: ${MONGODB_DATABASE:?MONGODB_DATABASE_required}
+      MONGODB_USERNAME: ${MONGODB_APP_USERNAME:?MONGODB_APP_USERNAME_required}
+      MONGODB_PASSWORD: ${MONGODB_APP_PASSWORD:?MONGODB_APP_PASSWORD_required}
+      MONGODB_AUTH_SOURCE: ${MONGODB_AUTH_SOURCE:?MONGODB_AUTH_SOURCE_required}
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
@@ -56,10 +56,16 @@ services:
   mongodb:
     image: mongo:8.0
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:?MONGO_INITDB_ROOT_USERNAME_required}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:?MONGO_INITDB_ROOT_PASSWORD_required}
+      MONGO_INITDB_DATABASE: ${MONGODB_DATABASE:?MONGODB_DATABASE_required}
+      MONGODB_DATABASE: ${MONGODB_DATABASE:?MONGODB_DATABASE_required}
+      MONGODB_APP_USERNAME: ${MONGODB_APP_USERNAME:?MONGODB_APP_USERNAME_required}
+      MONGODB_APP_PASSWORD: ${MONGODB_APP_PASSWORD:?MONGODB_APP_PASSWORD_required}
     volumes:
       - mongodb:/data/db
+      # Scripts officiels d'initialisation : executes uniquement sur volume vierge.
+      - ./backend/mongodb/init/01-create-app-user.js:/docker-entrypoint-initdb.d/01-create-app-user.js:ro
     healthcheck:
       test:
         - CMD
