@@ -4,7 +4,7 @@ Assistant personnel de gestion des connaissances, conçu pour fonctionner locale
 
 ## État du projet (4 novembre 2026)
 
-Le KMS propose le CRUD générique `/api/v1/knowledges`, avec validation, pagination, filtres et suppression logique. **Le CRUD générique est livré, mais la phase de stabilisation n'a pas encore été exécutée.** Le frontend Angular, l'authentification/RBAC, les huit spécialisations et le RAG sont des étapes ultérieures.
+Le KMS propose le CRUD générique `/api/v1/knowledges`, avec validation, pagination, filtres et suppression logique. **Le CRUD générique est livré. La stabilisation est engagée avec STAB-01/02 : correctifs déposés, validations Docker restant à effectuer.** Le frontend Angular, l'authentification/RBAC, les huit spécialisations et le RAG sont des étapes ultérieures.
 
 La Gateway ne relaie **pas encore** les routes CRUD : le KMS reste accessible directement sur `127.0.0.1:8000` en développement. Aucune protection d'accès applicative n'est encore en place ; ne pas exposer l'API sur une interface publique.
 
@@ -29,7 +29,7 @@ docker compose ps
 
 La Gateway écoute par défaut sur `127.0.0.1:3000`, le KMS sur `127.0.0.1:8000` ; MongoDB n'est pas publié sur l'hôte. OpenAPI : [Swagger UI du KMS](http://127.0.0.1:8000/docs).
 
-**Installation neuve :** la configuration `.env.example` et le provisionnement du compte applicatif MongoDB nécessitent une stabilisation (notamment `MONGODB_APP_USER` vs `MONGODB_APP_USERNAME`). Ne pas supposer qu'une copie directe de ce fichier permet déjà un démarrage vierge sans intervention. Préserver les volumes existants et ne pas utiliser `down --volumes` sur le Compose de développement.
+**Installation neuve :** `.env.example` et `compose.yaml` sont désormais alignés ; le compte MongoDB applicatif limité est initialisé sur un volume vierge. **Le démarrage réel reste à tester.** Ne pas écraser un `.env` existant : le bootstrap ne se rejoue pas sur un volume déjà initialisé. Voir le [guide de provisionnement et test isolé](docs/operations/mongodb-bootstrap.md). Ne jamais supprimer les volumes de développement par inadvertance.
 
 ## Tests
 
