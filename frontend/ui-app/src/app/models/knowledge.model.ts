@@ -25,6 +25,9 @@ export interface KnowledgeWrite {
   is_favorite: boolean;
   /** IDs of reusable catalog tags (empty on legacy knowledge). */
   tag_ids?: string[];
+  /** Generic technology links and specific version links must not overlap. */
+  technology_ids?: string[];
+  technology_version_ids?: string[];
   /** Optional for historical generic knowledge; filled for specialized records. */
   details?: KnowledgeDetails | null;
 }
@@ -54,6 +57,8 @@ export interface KnowledgeQuery {
   q?: string;
   is_favorite?: boolean;
   tag_id?: string;
+  technology_id?: string;
+  technology_version_id?: string;
 }
 
 export function knowledgeTypeLabel(code: string): string {

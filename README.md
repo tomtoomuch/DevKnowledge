@@ -71,6 +71,28 @@ La collection physique `tags` est distincte ; la relation logique `knowledge_tag
 
 Voir [itération 7 — tags et limites](docs/iterations/iteration-7-tags.md).
 
+## Itération 7B — Technologies et versions (PR #10, dépendante de #9)
+
+Le lot B implémente `technologies` et `technology_versions` comme collections
+MongoDB de référence immuables, avec UUID, unicité des noms et versions par
+technologie, catégorie facultative et date de publication facultative.
+
+Les relations `knowledge_technologies` et `knowledge_technology_versions` du
+MLD v0.2 sont physiquement stockées dans les tableaux `technology_ids` et
+`technology_version_ids` des documents `knowledge_items`. Le KMS vérifie
+l'existence des références et refuse la combinaison d'un lien générique avec un
+lien de version du **même** produit. Les mises à jour restent atomiques et
+conditionnées par `If-Match`. Le frontend sous `frontend/ui-app/` permet de
+créer, choisir, afficher et filtrer les références.
+
+Les API `GET/POST /api/v1/technologies` et `GET/POST /api/v1/technology-versions`
+exposent des catalogues paginés (consultation individuelle par UUID). Les
+requêtes `GET /api/v1/knowledges` acceptent aussi `technology_id` (association
+générique) et `technology_version_id` (association à une version précise).
+Ces filtres sont distincts, combinables et appliqués avant pagination.
+
+Voir [spécification et limites du lot B](docs/iterations/iteration-7b-technologies.md).
+
 ## Lancement local
 
 À la racine, avec une configuration `.env` locale existante et valide :

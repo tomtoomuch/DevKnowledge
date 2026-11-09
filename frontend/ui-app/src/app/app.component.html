@@ -35,10 +35,9 @@
         <button type="button" class="nav-link" [class.active]="section() === 'users'"
           (click)="showSection('users')"><span aria-hidden="true">♙</span> Utilisateurs</button>
       }
-      <div class="nav-link upcoming"><span aria-hidden="true">⌗</span> Technologies <small>À venir</small></div>
       <button type="button" class="nav-link" [class.active]="section() === 'monitoring'"
         (click)="showSection('monitoring')"><span aria-hidden="true">◉</span> Monitoring</button>
-      <div class="nav-link upcoming"><span aria-hidden="true">⌗</span> Classification <small>À venir</small></div>
+      <div class="nav-link upcoming"><span aria-hidden="true">⌗</span> Sources <small>À venir</small></div>
       <div class="nav-link upcoming"><span aria-hidden="true">▧</span> Projets <small>À venir</small></div>
       <div class="nav-link upcoming"><span aria-hidden="true">♢</span> Compétences RNCP <small>À venir</small></div>
       <div class="nav-link upcoming"><span aria-hidden="true">◉</span> Assistant IA <small>À venir</small></div>
@@ -115,11 +114,29 @@
             </select>
           </label>
         </div>
+        <div class="technology-filters">
+          <label>Technologie générique
+            <select [formControl]="technologyFilter" aria-label="Filtrer par technologie générique">
+              <option value="">Toutes les technologies</option>
+              @for (tech of technologies(); track tech.technology_id) {
+                <option [value]="tech.technology_id">{{ tech.name }}</option>
+              }
+            </select>
+          </label>
+          <label>Version précise
+            <select [formControl]="versionFilter" aria-label="Filtrer par version technologique">
+              <option value="">Toutes les versions</option>
+              @for (version of technologyVersions(); track version.technology_version_id) {
+                <option [value]="version.technology_version_id">{{ versionLabel(version.technology_version_id) }}</option>
+              }
+            </select>
+          </label>
+        </div>
         <div class="filter-bottom">
           <label class="check-line"><input type="checkbox" [formControl]="favoritesFilter" /> Favoris uniquement</label>
           <button class="quiet" type="button" (click)="resetFilters()">Effacer les filtres</button>
         </div>
-        <div class="list-meta">Recherche dans les contenus · filtres type, statut, favoris et tags cumulables</div>
+        <div class="list-meta">Filtres cumulables : type, statut, favoris, tags, technologies génériques et versions précises</div>
 
         @if (busy()) { <p class="empty" role="status">Chargement des connaissances…</p> }
         @else if (visibleItems().length === 0) {
@@ -186,6 +203,19 @@
               </div>
             </section>
           }
+          @if (item.technology_ids?.length || item.technology_version_ids?.length) {
+            <section class="technology-view" aria-label="Technologies de la connaissance">
+              <h3>Technologies et versions</h3>
+              <div class="tag-chips">
+                @for (techId of item.technology_ids ?? []; track techId) {
+                  <span class="tag-chip">{{ technologyLabel(techId) }} (générique)</span>
+                }
+                @for (versionId of item.technology_version_ids ?? []; track versionId) {
+                  <span class="tag-chip">{{ versionLabel(versionId) }}</span>
+                }
+              </div>
+            </section>
+          }
           <div class="content-card"><h3>Contenu</h3><pre class="content-text">{{ item.content }}</pre></div>
           @if (detailsToShow(item).length > 0) {
             <section class="specialization-view" aria-label="Détails spécialisés">
@@ -245,6 +275,67 @@
                 </div>
               }
               @if (tagError()) { <p class="field-error" role="alert">{{ tagError() }}</p> }
+            </section>
+            <section class="technology-editor" aria-label="Classification par technologies">
+              <h3>Technologies et versions</h3>
+              <p class="specialization-hint">Une technologie peut être liée génériquement ou par version précise. Sélectionner un mode retire l'autre pour cette technologie. 30 liens maximum dans chaque catégorie.</p>
+              @if (technologies().length > 0) {
+                <h4>Technologies génériques</h4>
+                <div class="tag-choices">
+                  @for (tech of technologies(); track tech.technology_id) {
+                    <label class="tag-choice">
+                      <input type="checkbox" [checked]="isTechnologySelected(tech.technology_id)"
+                        [disabled]="!isTechnologySelected(tech.technology_id) && technologySelection().length >= 30"
+                        (change)="toggleTechnology(tech.technology_id, $any($event.target).checked)" />
+                      {{ tech.name }} @if (tech.category) { <small>· {{ tech.category }}</small> }
+                    </label>
+                  }
+                </div>
+              }
+              @if (technologyVersions().length > 0) {
+                <h4>Versions précises</h4>
+                <div class="tag-choices">
+                  @for (version of technologyVersions(); track version.technology_version_id) {
+                    <label class="tag-choice">
+                      <input type="checkbox" [checked]="isVersionSelected(version.technology_version_id)"
+                        [disabled]="!isVersionSelected(version.technology_version_id) && versionSelection().length >= 30"
+                        (change)="toggleVersion(version.technology_version_id, $any($event.target).checked)" />
+                      {{ versionLabel(version.technology_version_id) }}
+                      @if (version.release_date) { <small>· {{ version.release_date }}</small> }
+                    </label>
+                  }
+                </div>
+              }
+              @if (can('knowledge.create')) {
+                <div class="catalog-forms">
+                  <div class="catalog-form">
+                    <h4>Nouvelle technologie</h4>
+                    <label for="technology-name">Nom</label>
+                    <input id="technology-name" [formControl]="newTechnologyName" maxlength="100" placeholder="Ex. Python" />
+                    <label for="technology-category">Catégorie (facultative)</label>
+                    <input id="technology-category" [formControl]="newTechnologyCategory" maxlength="100" placeholder="Ex. Langage" />
+                    <button type="button" class="outline" (click)="createTechnology()"
+                      [disabled]="savingTechnology() || newTechnologyName.invalid || technologySelection().length >= 30">Créer la technologie</button>
+                  </div>
+                  <div class="catalog-form">
+                    <h4>Nouvelle version</h4>
+                    <label for="version-technology">Technologie</label>
+                    <select id="version-technology" [formControl]="newVersionTechnology">
+                      <option value="">Choisir une technologie</option>
+                      @for (tech of technologies(); track tech.technology_id) {
+                        <option [value]="tech.technology_id">{{ tech.name }}</option>
+                      }
+                    </select>
+                    <label for="version-name">Version</label>
+                    <input id="version-name" [formControl]="newVersionName" maxlength="50" placeholder="Ex. 3.14" />
+                    <label for="version-date">Date de publication (facultative)</label>
+                    <input id="version-date" type="date" [formControl]="newVersionDate" />
+                    <button type="button" class="outline" (click)="createVersion()"
+                      [disabled]="savingTechnology() || newVersionTechnology.invalid || newVersionName.invalid || versionSelection().length >= 30">Créer la version</button>
+                  </div>
+                </div>
+              }
+              @if (technologyError()) { <p class="field-error" role="alert">{{ technologyError() }}</p> }
             </section>
             <section class="specialization-editor" aria-label="Champs spécialisés">
               <label class="editor-favorite">

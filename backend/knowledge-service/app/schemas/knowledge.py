@@ -32,6 +32,8 @@ class KnowledgeCreate(BaseModel):
     status: Status = "DRAFT"
     is_favorite: StrictBool = False
     tag_ids: list[UUID] = Field(default_factory=list, max_length=30)
+    technology_ids: list[UUID] = Field(default_factory=list, max_length=30)
+    technology_version_ids: list[UUID] = Field(default_factory=list, max_length=30)
     # No details is valid for pre-existing generic knowledge documents.
     details: dict[str, Any] | None = None
 
@@ -41,7 +43,7 @@ class KnowledgeCreate(BaseModel):
             self.details = normalize_details(self.knowledge_type, self.details)
         return self
 
-    @field_validator("tag_ids")
+    @field_validator("tag_ids", "technology_ids", "technology_version_ids")
     @classmethod
     def unique_tags(cls, value: list[UUID]) -> list[UUID]:
         if len(value) != len(set(value)):
@@ -70,6 +72,8 @@ class KnowledgeUpdate(BaseModel):
     status: Status | SkipJsonSchema[None] = None
     is_favorite: StrictBool | SkipJsonSchema[None] = None
     tag_ids: Annotated[list[UUID], Field(max_length=30)] | SkipJsonSchema[None] = None
+    technology_ids: Annotated[list[UUID], Field(max_length=30)] | SkipJsonSchema[None] = None
+    technology_version_ids: Annotated[list[UUID], Field(max_length=30)] | SkipJsonSchema[None] = None
     # PATCH replaces the complete specialization. A null clears it.
     details: dict[str, Any] | None = None
 
@@ -77,12 +81,15 @@ class KnowledgeUpdate(BaseModel):
     def validate_patch(self) -> "KnowledgeUpdate":
         if not self.model_fields_set:
             raise ValueError("At least one field is required")
-        non_nullable = {"knowledge_type", "title", "content", "status", "is_favorite", "tag_ids"}
+        non_nullable = {"knowledge_type", "title", "content", "status", "is_favorite", "tag_ids",
+                        "technology_ids", "technology_version_ids"}
         for name in self.model_fields_set & non_nullable:
             if getattr(self, name) is None:
                 raise ValueError(f"{name} must not be null")
-        if self.tag_ids is not None and len(self.tag_ids) != len(set(self.tag_ids)):
-            raise ValueError("tag_ids must be unique")
+        for name in ("tag_ids", "technology_ids", "technology_version_ids"):
+            values = getattr(self, name)
+            if values is not None and len(values) != len(set(values)):
+                raise ValueError(f"{name} must be unique")
         if self.content is not None and not self.content.strip():
             raise ValueError("Content must not be blank")
         return self

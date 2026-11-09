@@ -153,6 +153,31 @@ ne sont qu'un confort d'interface. Ne jamais publier les ports en dehors de
    d'une fiche ; vérifier que les connaissances historiques sans `tag_ids`
    restent consultables.
 
+## Recette des technologies et versions (itération 7B)
+
+1. Sur une fiche en création, ajouter une technologie `Python` (catégorie
+   `Langage`), puis créer une version `3.14`, avec date facultative.
+2. Vérifier que la sélection de la version retire l'association générique
+   à `Python` ; en revanche `Docker` peut rester associé génériquement.
+3. Enregistrer la fiche et retrouver les deux références dans la vue détail.
+4. Filtrer la bibliothèque par `Docker` générique puis par version `Python
+   3.14`. Le filtrage se fait sur toutes les connaissances avant pagination.
+5. Tester un nom de technologie en doublon (409), la même version en doublon
+   pour le même parent (409), les références absentes (422), et l'association
+   générique+version d'une même technologie (422).
+6. Vérifier qu'un PATCH avec un ETag dépassé échoue en 412. Ajouter/retirer
+   les associations avec un ETag actuel ; vérifier l'incrément de révision.
+7. Vérifier les permissions : READER ne peut ni créer des entrées de catalogue
+   ni modifier les connaissances ; les anciens documents sans listes
+   `technology_ids` et `technology_version_ids` restent consultables.
+
+**Limites :** 100 technologies et 100 versions maximum chargées
+initialement dans l'éditeur. Les références non encore chargées s'affichent
+par UUID ; l'API possède la pagination nécessaire à une interface de
+recherche avancée. Les catalogues sont immuables : pas de renommage ni
+de suppression dans cette itération. La création d'une référence de catalogue
+est immédiate, même si l'édition de la fiche est ensuite abandonnée.
+
 ## Recette manuelle
 
 1. Créer une connaissance, choisir l'un des huit types et enregistrer.

@@ -462,3 +462,27 @@ def test_tag_ids_are_validated_and_legacy_records_stay_compatible(api):
     assert updated.json()["tag_ids"] == [str(tag)]
     assert patch(client, path, json={"tag_ids": []}).status_code == 200
     assert patch(client, path, json={"tag_ids": []}).json()["tag_ids"] == []
+
+
+def test_technology_id_contracts_and_legacy_defaults(api):
+    client, _ = api
+    tech, version = str(uuid4()), str(uuid4())
+    created = create(client)
+    assert created["technology_ids"] == []
+    assert created["technology_version_ids"] == []
+    path = f"{BASE}/{created['knowledge_id']}"
+    for name in ("technology_ids", "technology_version_ids"):
+        for value in (None, ["not-uuid"], [tech, tech], [str(uuid4())] * 31):
+            response = patch(client, path, json={name: value})
+            assert response.status_code == 422, response.text
+        assert client.post(BASE, json={**VALID_PAYLOAD, name: [tech, tech]}).status_code == 422
+    # MemoryRepository is a shallow fake: referential integrity is exercised in Mongo integration.
+    updated = patch(client, path, json={
+        "technology_ids": [tech], "technology_version_ids": [version],
+    })
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["technology_ids"] == [tech]
+    assert updated.json()["technology_version_ids"] == [version]
+    assert patch(client, path, json={
+        "technology_ids": [], "technology_version_ids": [],
+    }).status_code == 200

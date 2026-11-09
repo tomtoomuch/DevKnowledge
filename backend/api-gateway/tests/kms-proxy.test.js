@@ -266,6 +266,25 @@ test("relays tag catalog read/create and lookup without exposing unrelated route
     expect(received).toHaveLength(3);
 });
 
+
+test("proxies technology and technology-version catalogs using only required methods", async () => {
+    await request(app).get("/api/v1/technologies?skip=0&limit=10").expect(200);
+    expect(received[0].url).toBe("/api/v1/technologies?skip=0&limit=10");
+    await request(app).post("/api/v1/technologies")
+        .set("Content-Type", "application/json").send({ name: "Python" }).expect(200);
+    expect(JSON.parse(received[1].body)).toEqual({ name: "Python" });
+    await request(app).get("/api/v1/technologies/abc-123").expect(200);
+    await request(app).get("/api/v1/technology-versions?technology_id=abc-123").expect(200);
+    await request(app).post("/api/v1/technology-versions")
+        .set("Content-Type", "application/json")
+        .send({ technology_id: "abc-123", version: "3.14" }).expect(200);
+    expect(JSON.parse(received[4].body)).toEqual({ technology_id: "abc-123", version: "3.14" });
+    await request(app).get("/api/v1/technology-versions/abc-123").expect(200);
+    await request(app).patch("/api/v1/technologies/abc-123").send({ name: "evil" }).expect(404);
+    await request(app).delete("/api/v1/technology-versions/abc-123").expect(404);
+    expect(received).toHaveLength(6);
+});
+
 test("monitoring is a read-only same-origin Gateway route with scoped authentication", async () => {
     respond = (req, res) => res.writeHead(200, {
         "content-type": "application/json", "cache-control": "no-store",

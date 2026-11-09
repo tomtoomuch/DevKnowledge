@@ -71,6 +71,16 @@ describe('KnowledgeApiService', () => {
     req.flush({ items: [], total: 0, skip: 0, limit: 20 });
   });
 
+  it('transmits technology and version filters', () => {
+    const tech = 'e627de24-880c-4a22-b18e-7884ee0396a3';
+    const version = 'a607237e-9050-4992-88b5-34c36b46d044';
+    api.list({ skip: 0, limit: 20, technology_id: tech, technology_version_id: version }).subscribe();
+    const req = mock.expectOne((request) => request.url === '/api/v1/knowledges');
+    expect(req.request.params.get('technology_id')).toBe(tech);
+    expect(req.request.params.get('technology_version_id')).toBe(version);
+    req.flush({ items: [], total: 0, skip: 0, limit: 20 });
+  });
+
   it('does not set optional filters for unfiltered requests', () => {
     api.list({ skip: 0, limit: 20 }).subscribe();
     const req = mock.expectOne('/api/v1/knowledges?skip=0&limit=20');

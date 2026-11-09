@@ -74,6 +74,8 @@ async def list_knowledges(
     q: Annotated[str | None, Query(min_length=1, max_length=100)] = None,
     is_favorite: Annotated[bool | None, Query()] = None,
     tag_id: UUID | None = None,
+    technology_id: UUID | None = None,
+    technology_version_id: UUID | None = None,
 ) -> KnowledgePage:
     require(requester, "knowledge.read")
     if q is not None:
@@ -86,6 +88,10 @@ async def list_knowledges(
     )
     if tag_id is not None:
         filters["tag_id"] = tag_id
+    if technology_id is not None:
+        filters["technology_id"] = technology_id
+    if technology_version_id is not None:
+        filters["technology_version_id"] = technology_version_id
     return await service.list(**filters)
 
 

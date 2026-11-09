@@ -226,3 +226,42 @@ def test_tag_filter_is_applied_before_pagination(repository, collection, item):
     assert total == 1 and len(results) == 1
     assert collection.find.call_args.args[0]["tag_ids"] == str(tag_id)
     assert collection.count_documents.await_args.args[0]["tag_ids"] == str(tag_id)
+
+
+def test_technology_lists_encode_decode_and_validate_links(repository, collection, item):
+    tech, version = uuid4(), uuid4()
+    repository.technologies.ensure_links = AsyncMock()
+    item["technology_ids"] = [tech]
+    item["technology_version_ids"] = [version]
+    assert run(repository.create(item))["technology_ids"] == [tech]
+    repository.technologies.ensure_links.assert_awaited_once_with([tech], [version])
+    assert collection.insert_one.await_args.args[0]["technology_ids"] == [str(tech)]
+    assert collection.insert_one.await_args.args[0]["technology_version_ids"] == [str(version)]
+    current = repository._encode(item)
+    collection.find_one.return_value = current
+    collection.find_one_and_update.return_value = repository._encode({**item, "revision": 2})
+    changed = run(repository.update(item["knowledge_id"], {"technology_ids": []}, 1))
+    assert changed["technology_version_ids"] == [version]
+    repository.technologies.ensure_links.assert_awaited_with([], [version])
+    assert collection.find_one_and_update.await_args.args[1]["$set"]["technology_ids"] == []
+    assert collection.find_one.call_args.kwargs["projection"] == {
+        "technology_ids": 1, "technology_version_ids": 1,
+    }
+
+
+def test_technology_filters_compose_with_tag_and_text(repository, collection, item):
+    technology, version = uuid4(), uuid4()
+    cursor = MagicMock()
+    collection.find.return_value = cursor
+    cursor.sort.return_value = cursor
+    cursor.skip.return_value = cursor
+    cursor.limit.return_value = cursor
+    cursor.to_list = AsyncMock(return_value=[repository._encode(item)])
+    collection.count_documents.return_value = 1
+    page, _ = run(repository.list(skip=0, limit=5, technology_id=technology,
+                                  technology_version_id=version, q="print"))
+    assert len(page) == 1
+    query = collection.find.call_args.args[0]
+    assert query["technology_ids"] == str(technology)
+    assert query["technology_version_ids"] == str(version)
+    assert query["$or"]

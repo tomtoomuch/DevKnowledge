@@ -17,6 +17,8 @@ export class KnowledgeApiService {
     if (query.q) params = params.set('q', query.q);
     if (query.is_favorite !== undefined) params = params.set('is_favorite', query.is_favorite);
     if (query.tag_id) params = params.set('tag_id', query.tag_id);
+    if (query.technology_id) params = params.set('technology_id', query.technology_id);
+    if (query.technology_version_id) params = params.set('technology_version_id', query.technology_version_id);
     return this.http.get<KnowledgePage>(this.base, { params });
   }
 

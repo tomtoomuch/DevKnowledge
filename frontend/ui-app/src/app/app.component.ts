@@ -14,6 +14,8 @@ import {
 import { KnowledgeApiService } from './services/knowledge-api.service';
 import { TagApiService } from './services/tag-api.service';
 import { TagRecord } from './models/tag.model';
+import { TechnologyApiService } from './services/technology-api.service';
+import { TechnologyRecord, TechnologyVersionRecord } from './models/technology.model';
 import { AuthService, LocalIdentity } from './services/auth.service';
 import { UserAdminComponent } from './components/user-admin.component';
 import { MonitoringComponent } from './components/monitoring.component';
@@ -32,6 +34,7 @@ const PAGE_SIZE = 20;
 export class AppComponent implements OnInit {
   private readonly api = inject(KnowledgeApiService);
   private readonly tagApi = inject(TagApiService);
+  private readonly technologyApi = inject(TechnologyApiService);
   private readonly auth = inject(AuthService);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -74,6 +77,26 @@ export class AppComponent implements OnInit {
   readonly tagName = new FormControl('', {
     nonNullable: true, validators: [Validators.required, Validators.maxLength(100)],
   });
+  readonly technologies = signal<TechnologyRecord[]>([]);
+  readonly technologyVersions = signal<TechnologyVersionRecord[]>([]);
+  readonly technologySelection = signal<string[]>([]);
+  readonly versionSelection = signal<string[]>([]);
+  readonly technologySelectionDirty = signal(false);
+  readonly technologyError = signal('');
+  readonly savingTechnology = signal(false);
+  readonly newTechnologyName = new FormControl('', {
+    nonNullable: true, validators: [Validators.required, Validators.maxLength(100)],
+  });
+  readonly newTechnologyCategory = new FormControl('', {
+    nonNullable: true, validators: [Validators.maxLength(100)],
+  });
+  readonly newVersionTechnology = new FormControl('', {
+    nonNullable: true, validators: [Validators.required],
+  });
+  readonly newVersionName = new FormControl('', {
+    nonNullable: true, validators: [Validators.required, Validators.maxLength(50)],
+  });
+  readonly newVersionDate = new FormControl('', { nonNullable: true });
 
   // The KMS now performs all list filters before pagination.
   readonly visibleItems = computed(() => this.items());
@@ -87,6 +110,8 @@ export class AppComponent implements OnInit {
   readonly statusFilter = new FormControl('', { nonNullable: true });
   readonly favoritesFilter = new FormControl(false, { nonNullable: true });
   readonly tagFilter = new FormControl('', { nonNullable: true });
+  readonly technologyFilter = new FormControl('', { nonNullable: true });
+  readonly versionFilter = new FormControl('', { nonNullable: true });
 
   readonly editor = new FormGroup({
     knowledge_type: new FormControl<KnowledgeType>('CODE_SNIPPET', {
@@ -125,6 +150,8 @@ export class AppComponent implements OnInit {
     this.typeFilter.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.resetPage());
     this.statusFilter.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.resetPage());
     this.tagFilter.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.resetPage());
+    this.technologyFilter.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.resetPage());
+    this.versionFilter.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.resetPage());
     this.favoritesFilter.valueChanges.pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((value) => {
         this.favoritesOnly.set(value);
@@ -194,6 +221,7 @@ export class AppComponent implements OnInit {
     this.authMode.set('active');
     this.loginError.set('');
     this.loadTags();
+    this.loadTechnologies();
     this.loadPage();
   }
 
@@ -223,11 +251,25 @@ export class AppComponent implements OnInit {
     this.tagSelection.set([]);
     this.tagSelectionDirty.set(false);
     this.tagName.reset('', { emitEvent: false });
+    this.technologies.set([]);
+    this.technologyVersions.set([]);
+    this.technologySelection.set([]);
+    this.versionSelection.set([]);
+    this.technologySelectionDirty.set(false);
+    this.technologyError.set('');
+    this.savingTechnology.set(false);
+    this.newTechnologyName.reset('', { emitEvent: false });
+    this.newTechnologyCategory.reset('', { emitEvent: false });
+    this.newVersionTechnology.reset('', { emitEvent: false });
+    this.newVersionName.reset('', { emitEvent: false });
+    this.newVersionDate.reset('', { emitEvent: false });
     this.search.setValue('', { emitEvent: false });
     this.typeFilter.setValue('', { emitEvent: false });
     this.statusFilter.setValue('', { emitEvent: false });
     this.favoritesFilter.setValue(false, { emitEvent: false });
     this.tagFilter.setValue('', { emitEvent: false });
+    this.technologyFilter.setValue('', { emitEvent: false });
+    this.versionFilter.setValue('', { emitEvent: false });
     this.editor.reset({
       knowledge_type: 'CODE_SNIPPET', title: '', content: '', description: '',
       language_code: '', difficulty_level: '', status: 'DRAFT', is_favorite: false,
@@ -301,6 +343,141 @@ export class AppComponent implements OnInit {
     });
   }
 
+  technologyLabel(technologyId: string): string {
+    return this.technologies().find(item => item.technology_id === technologyId)?.name ?? technologyId;
+  }
+
+  versionLabel(versionId: string): string {
+    const record = this.technologyVersions().find(item => item.technology_version_id === versionId);
+    return record ? this.technologyLabel(record.technology_id) + ' · ' + record.version : versionId;
+  }
+
+  isTechnologySelected(id: string): boolean {
+    return this.technologySelection().includes(id);
+  }
+
+  isVersionSelected(id: string): boolean {
+    return this.versionSelection().includes(id);
+  }
+
+  hasVersionForTechnology(id: string): boolean {
+    return this.technologyVersions().some(version =>
+      version.technology_id === id && this.isVersionSelected(version.technology_version_id));
+  }
+
+  toggleTechnology(id: string, checked: boolean): void {
+    this.technologySelection.update(ids => checked
+      ? (ids.includes(id) ? ids : [...ids, id])
+      : ids.filter(item => item !== id));
+    if (checked) {
+      // A generic link replaces precise links for the same technology.
+      const versions = new Set(this.technologyVersions()
+        .filter(version => version.technology_id === id).map(version => version.technology_version_id));
+      this.versionSelection.update(ids => ids.filter(item => !versions.has(item)));
+    }
+    this.technologySelectionDirty.set(true);
+  }
+
+  toggleVersion(id: string, checked: boolean): void {
+    const version = this.technologyVersions().find(item => item.technology_version_id === id);
+    if (checked && version) {
+      // Precise version links take precedence over the generic association.
+      this.technologySelection.update(ids => ids.filter(item => item !== version.technology_id));
+    }
+    this.versionSelection.update(ids => checked
+      ? (ids.includes(id) ? ids : [...ids, id])
+      : ids.filter(item => item !== id));
+    this.technologySelectionDirty.set(true);
+  }
+
+  private loadTechnologies(): void {
+    const generation = this.authGeneration;
+    this.technologyError.set('');
+    this.technologyApi.listTechnologies().subscribe({
+      next: page => {
+        if (generation !== this.authGeneration) return;
+        this.technologies.set(page.items);
+        if (page.total > page.items.length) {
+          this.technologyError.set('Plus de 100 technologies : seules les premières sont proposées.');
+        }
+      },
+      error: (error: unknown) => {
+        if (generation === this.authGeneration) this.technologyError.set(this.errorMessage(error));
+      },
+    });
+    this.technologyApi.listVersions().subscribe({
+      next: page => {
+        if (generation !== this.authGeneration) return;
+        this.technologyVersions.set(page.items);
+        if (page.total > page.items.length) {
+          this.technologyError.set('Plus de 100 versions : seules les premières sont proposées.');
+        }
+      },
+      error: (error: unknown) => {
+        if (generation === this.authGeneration) this.technologyError.set(this.errorMessage(error));
+      },
+    });
+  }
+
+  createTechnology(): void {
+    if (!this.can('knowledge.create') || this.savingTechnology() || this.newTechnologyName.invalid) return;
+    const name = this.newTechnologyName.value.trim();
+    if (!name) return;
+    const generation = this.authGeneration;
+    this.technologyError.set('');
+    this.savingTechnology.set(true);
+    this.technologyApi.createTechnology(
+      name, this.newTechnologyCategory.value.trim() || null,
+    ).pipe(finalize(() => this.savingTechnology.set(false))).subscribe({
+      next: record => {
+        if (generation !== this.authGeneration) return;
+        this.technologies.update(items => [...items, record]
+          .sort((a, b) => a.name.localeCompare(b.name, 'fr')));
+        this.toggleTechnology(record.technology_id, true);
+        this.newVersionTechnology.setValue(record.technology_id);
+        this.newTechnologyName.setValue('');
+        this.newTechnologyCategory.setValue('');
+        this.notice.set('Technologie créée : enregistre la connaissance pour la lier.');
+      },
+      error: (error: unknown) => {
+        if (generation !== this.authGeneration) return;
+        this.technologyError.set(error instanceof HttpErrorResponse && error.status === 409
+          ? 'Cette technologie existe déjà.' : this.errorMessage(error));
+      },
+    });
+  }
+
+  createVersion(): void {
+    if (!this.can('knowledge.create') || this.savingTechnology() ||
+        this.newVersionName.invalid || this.newVersionTechnology.invalid) return;
+    const techId = this.newVersionTechnology.value;
+    const version = this.newVersionName.value.trim();
+    if (!techId || !version) return;
+    const date = this.newVersionDate.value || null;
+    const generation = this.authGeneration;
+    this.technologyError.set('');
+    this.savingTechnology.set(true);
+    this.technologyApi.createVersion(techId, version, date).pipe(
+      finalize(() => this.savingTechnology.set(false)),
+    ).subscribe({
+      next: record => {
+        if (generation !== this.authGeneration) return;
+        this.technologyVersions.update(items => [...items, record].sort((a, b) =>
+          (this.technologyLabel(a.technology_id) + a.version).localeCompare(
+            this.technologyLabel(b.technology_id) + b.version, 'fr')));
+        this.toggleVersion(record.technology_version_id, true);
+        this.newVersionName.setValue('');
+        this.newVersionDate.setValue('');
+        this.notice.set('Version créée : enregistre la connaissance pour la lier.');
+      },
+      error: (error: unknown) => {
+        if (generation !== this.authGeneration) return;
+        this.technologyError.set(error instanceof HttpErrorResponse && error.status === 409
+          ? 'Cette version existe déjà pour cette technologie.' : this.errorMessage(error));
+      },
+    });
+  }
+
   dateLabel(value: string): string {
     return new Date(value).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
   }
@@ -311,6 +488,8 @@ export class AppComponent implements OnInit {
     this.typeFilter.setValue('');
     this.statusFilter.setValue('');
     this.tagFilter.setValue('');
+    this.technologyFilter.setValue('');
+    this.versionFilter.setValue('');
   }
 
   reload(): void {
@@ -341,6 +520,11 @@ export class AppComponent implements OnInit {
     this.tagSelection.set([]);
     this.tagSelectionDirty.set(false);
     this.tagName.setValue('');
+    this.technologySelection.set([]);
+    this.versionSelection.set([]);
+    this.technologySelectionDirty.set(false);
+    this.newTechnologyName.setValue('');
+    this.newVersionName.setValue('');
     this.editor.reset({
       knowledge_type: 'CODE_SNIPPET',
       title: '', content: '', description: '',
@@ -383,6 +567,7 @@ export class AppComponent implements OnInit {
     this.detailsForm.markAsPristine();
     this.detailsEnabled.markAsPristine();
     this.tagSelectionDirty.set(false);
+    this.technologySelectionDirty.set(false);
   }
 
   saveKnowledge(): void {
@@ -406,6 +591,8 @@ export class AppComponent implements OnInit {
       status: value.status.trim(),
       is_favorite: value.is_favorite,
       tag_ids: this.tagSelection(),
+      technology_ids: this.technologySelection(),
+      technology_version_ids: this.versionSelection(),
     };
     if (!payload.title || !payload.content.trim()) {
       this.formError.set('Le titre et le contenu ne peuvent pas être vides.');
@@ -444,6 +631,7 @@ export class AppComponent implements OnInit {
         this.detailsForm.markAsPristine();
         this.detailsEnabled.markAsPristine();
         this.tagSelectionDirty.set(false);
+        this.technologySelectionDirty.set(false);
         this.loadPage();
       },
       error: (error: unknown) => {
@@ -510,6 +698,8 @@ export class AppComponent implements OnInit {
       ...(q ? { q } : {}),
       ...(this.favoritesOnly() ? { is_favorite: true } : {}),
       ...(this.tagFilter.value ? { tag_id: this.tagFilter.value } : {}),
+      ...(this.technologyFilter.value ? { technology_id: this.technologyFilter.value } : {}),
+      ...(this.versionFilter.value ? { technology_version_id: this.versionFilter.value } : {}),
     }).pipe(finalize(() => {
       if (sequence === this.listSequence && generation === this.authGeneration) this.busy.set(false);
     })).subscribe({
@@ -579,6 +769,9 @@ export class AppComponent implements OnInit {
     this.detailsEnabled.markAsPristine();
     this.tagSelection.set(item.tag_ids ?? []);
     this.tagSelectionDirty.set(false);
+    this.technologySelection.set(item.technology_ids ?? []);
+    this.versionSelection.set(item.technology_version_ids ?? []);
+    this.technologySelectionDirty.set(false);
     this.editor.markAsPristine();
   }
 
@@ -617,7 +810,8 @@ export class AppComponent implements OnInit {
   private mayLeaveEditor(): boolean {
     return this.mode() === 'view' ||
       (!this.editor.dirty && !this.detailsForm.dirty &&
-        !this.detailsEnabled.dirty && !this.tagSelectionDirty()) ||
+        !this.detailsEnabled.dirty && !this.tagSelectionDirty() &&
+        !this.technologySelectionDirty()) ||
       window.confirm('Abandonner les modifications non enregistrées ?');
   }
 

@@ -25,7 +25,7 @@ tags: [devknowledge, roadmap, stabilisation]
 | Itération 1 — CRUD générique KMS | Livrée, tests historiques positifs | `knowledge_items` ; routes, schémas, services, repository et tests |
 | **Itération 2 — Stabilisation** | **STAB-01 à 08 implémentés ; revue de sortie à mener** | Config/env, compte MongoDB, readiness, tests, CI, reproductibilité, accès Gateway |
 | Identité, rôles et droits | Prototype local + création/consultation de comptes Angular (itération 5), revue de sécurité à conduire | `users`, `roles`, `permissions`, `user_roles`, `role_permissions` ; arbitrage local/OIDC |
-| Classification, spécialisations et historique | **Spécialisations v1 livrées ; tags en implémentation dans la PR #9 ; autres relations et historique à faire** | `knowledge_types` et huit modèles typés ; catalogue `tags`, association et filtre de connaissances proposés ; technologies, versions, sources et historique non réalisés |
+| Classification, spécialisations et historique | **Spécialisations intégrées ; tags PR #9 et technologies/versions PR #10 en cours** | `knowledge_types` et huit modèles ; catalogues `tags`, `technologies`, `technology_versions` et associations atomiques proposés ; sources, relations entre connaissances et historique encore non réalisés |
 | Certification RNCP et preuves | Non commencée | Versions du RNCP 37827, compétences, critères, correspondances, preuves |
 | Recherche et assistant RAG local | Recherche textuelle générique implémentée dans l'itération 4 ; index sémantique/RAG non commencés | ChromaDB, chunking, embeddings, Ollama, citations, réponse « informations insuffisantes » |
 | MCP, évaluation IA et MLOps | Non commencée | Outils contrôlés, tests d'autorisation, suivi MLflow |
@@ -85,9 +85,11 @@ tests sur base jetable. Voir [[iterations/iteration-7-tags]].
 Cette projection doit être prise en compte lors de l'implémentation des
 relations complexes et des opérations d'administration.
 
-**Prochains lots :** `technologies`, `technology_versions`,
-`knowledge_technologies`, `knowledge_technology_versions` ;
-liens entre connaissances ; sources partagées et historique versionné.
+**Lot suivant déjà engagé :** `technologies`, `technology_versions`,
+`knowledge_technologies`, `knowledge_technology_versions` (PR #10, empilée
+sur #9). Voir [[iterations/iteration-7b-technologies]].
+
+**Après le lot B :** liens entre connaissances, sources partagées et historique versionné.
 
 ## Ordre recommandé après stabilisation
 

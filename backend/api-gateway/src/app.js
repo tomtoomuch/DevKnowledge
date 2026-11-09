@@ -60,6 +60,9 @@ function createApp({
     app.get(/^\/api\/v1\/tags\/?$/, relay);
     app.post(/^\/api\/v1\/tags\/?$/, rawJson, relay);
     app.get(/^\/api\/v1\/tags\/[a-zA-Z0-9-]+\/?$/, relay);
+    app.get(/^\/api\/v1\/(?:technologies|technology-versions)\/?$/, relay);
+    app.post(/^\/api\/v1\/(?:technologies|technology-versions)\/?$/, rawJson, relay);
+    app.get(/^\/api\/v1\/(?:technologies|technology-versions)\/[a-zA-Z0-9-]+\/?$/, relay);
     // Monitoring is authenticated by KMS and always traverses the Gateway.
     app.get("/api/v1/monitoring/services", relay);
     // Raw bytes preserve KMS validation (including malformed JSON -> 422).
