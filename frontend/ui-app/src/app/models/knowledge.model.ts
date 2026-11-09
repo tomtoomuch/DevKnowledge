@@ -1,4 +1,5 @@
-/** Public KMS generic knowledge contract, not the future specialized tables. */
+/** Public KMS knowledge contract: generic data plus typed specialization. */
+import type { KnowledgeDetails } from './specialization-fields';
 export const KNOWLEDGE_TYPES = [
   { code: 'CODE_SNIPPET', label: 'Extrait de code', icon: '⌘' },
   { code: 'TERMINAL_COMMAND', label: 'Commande terminal', icon: '>_' },
@@ -22,6 +23,8 @@ export interface KnowledgeWrite {
   difficulty_level: string | null;
   status: string;
   is_favorite: boolean;
+  /** Optional for historical generic knowledge; filled for specialized records. */
+  details?: KnowledgeDetails | null;
 }
 
 export interface Knowledge extends KnowledgeWrite {

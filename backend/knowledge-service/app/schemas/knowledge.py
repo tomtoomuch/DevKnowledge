@@ -1,6 +1,6 @@
 """Public contracts for generic knowledge items; audit fields are server owned."""
 
-from enum import StrEnum
+from typing import Any
 from typing import Annotated
 from uuid import UUID
 
@@ -10,16 +10,7 @@ from pydantic import (
 )
 from pydantic.json_schema import SkipJsonSchema
 
-
-class KnowledgeType(StrEnum):
-    CODE_SNIPPET = "CODE_SNIPPET"
-    TERMINAL_COMMAND = "TERMINAL_COMMAND"
-    TECHNICAL_PROCEDURE = "TECHNICAL_PROCEDURE"
-    COURSE_NOTE = "COURSE_NOTE"
-    BUG_FIX = "BUG_FIX"
-    DOCUMENTATION_RESOURCE = "DOCUMENTATION_RESOURCE"
-    BEST_PRACTICE = "BEST_PRACTICE"
-    COMPLIANCE_STANDARD = "COMPLIANCE_STANDARD"
+from app.schemas.specializations import KnowledgeType, normalize_details
 
 
 Title = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=150)]
@@ -40,6 +31,14 @@ class KnowledgeCreate(BaseModel):
     difficulty_level: Difficulty | None = None
     status: Status = "DRAFT"
     is_favorite: StrictBool = False
+    # No details is valid for pre-existing generic knowledge documents.
+    details: dict[str, Any] | None = None
+
+    @model_validator(mode="after")
+    def validate_details_kind(self) -> "KnowledgeCreate":
+        if self.details is not None:
+            self.details = normalize_details(self.knowledge_type, self.details)
+        return self
 
     @field_validator("content")
     @classmethod
@@ -62,6 +61,8 @@ class KnowledgeUpdate(BaseModel):
     difficulty_level: Difficulty | None = None
     status: Status | SkipJsonSchema[None] = None
     is_favorite: StrictBool | SkipJsonSchema[None] = None
+    # PATCH replaces the complete specialization. A null clears it.
+    details: dict[str, Any] | None = None
 
     @model_validator(mode="after")
     def validate_patch(self) -> "KnowledgeUpdate":

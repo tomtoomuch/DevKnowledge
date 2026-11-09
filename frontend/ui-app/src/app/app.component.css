@@ -5,3 +5,15 @@
 .sidebar nav button.nav-link:not(.active):hover{background:#182844;color:#fff}
 .header-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 @media(max-width:900px){.header-actions{margin-top:10px}.sidebar nav{display:none}}
+
+/* Specialization editor: all eight models share the same dynamic layout. */
+.specialization-editor,.specialization-view{border:1px solid #344561;border-radius:12px;padding:18px;background:#101b30;margin-top:15px}
+.specialization-editor .editor-favorite{font-weight:650;font-size:13px}
+.specialization-hint{font-size:12px;color:#a9bddb;line-height:1.55;margin:10px 0 16px}
+.specialization-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px}
+.specialization-fields .field:has(textarea){grid-column:1/-1}
+.specialization-view h3{font-size:14px;margin:0 0 15px;color:#b4caff}
+.details-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:0}
+.detail-entry{min-width:0;border:1px solid #2b3a55;border-radius:9px;padding:12px;background:#0b1427}
+.detail-entry dt{font-size:11px;color:#a7b8d4;font-weight:700;margin:0 0 7px}
+.detail-entry dd{font-size:13px;color:#e7efff;margin:0;white-space:pre-wrap;overflow-wrap:anywhere}

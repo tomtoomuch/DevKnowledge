@@ -44,7 +44,7 @@
       <p>Compte : <strong>{{ principal()?.username }}</strong> · {{ principal()?.roles?.join(', ') }}</p>
       <button type="button" class="quiet" (click)="logout()">Se déconnecter</button>
       <span class="offline-dot" aria-hidden="true"></span> Local · via API Gateway
-      <p>Une interface CRUD générique. Les champs spécialisés arriveront après leurs API.</p>
+      <p>CRUD générique et huit formulaires spécialisés · stockage local.</p>
     </div>
   </aside>
 
@@ -162,7 +162,21 @@
             @if (item.difficulty_level) { <span>Niveau <b>{{ item.difficulty_level }}</b></span> }
           </div>
           <div class="content-card"><h3>Contenu</h3><pre class="content-text">{{ item.content }}</pre></div>
-          <div class="info-note">Le contenu générique est enregistré. Les tables propres au type {{ typeLabel(item.knowledge_type) }} ne sont pas encore disponibles dans cette API.</div>
+          @if (detailsToShow(item).length > 0) {
+            <section class="specialization-view" aria-label="Détails spécialisés">
+              <h3>Détails · {{ typeLabel(item.knowledge_type) }}</h3>
+              <dl class="details-grid">
+                @for (entry of detailsToShow(item); track entry.label) {
+                  <div class="detail-entry">
+                    <dt>{{ entry.label }}</dt>
+                    <dd>{{ entry.value }}</dd>
+                  </div>
+                }
+              </dl>
+            </section>
+          } @else {
+            <div class="info-note">Cette connaissance ne contient pas encore de données spécialisées. Tu peux les compléter avec « Modifier ».</div>
+          }
         } @else {
           <div class="detail-head">
             <div><span class="eyebrow">{{ mode() === 'create' ? 'NOUVELLE ENTRÉE' : 'MODIFICATION' }}</span><h2>{{ mode() === 'create' ? 'Créer une connaissance' : 'Modifier la connaissance' }}</h2><p>Les informations sont enregistrées dans le KMS via la Gateway.</p></div>
@@ -180,7 +194,55 @@
               <div class="field"><label for="status">Statut *</label><select id="status" formControlName="status"><option value="DRAFT">Brouillon</option><option value="VALIDATED">Validé</option><option value="ARCHIVED">Archivé</option></select></div>
               <label class="editor-favorite"><input type="checkbox" formControlName="is_favorite" /> ★ Ajouter aux favoris</label>
             </div>
-            <div class="info-note">Les huit catégories sont disponibles, mais seules les propriétés génériques sont persistées. Les champs spécialisés seront ajoutés lorsque le backend les exposera.</div>
+            <section class="specialization-editor" aria-label="Champs spécialisés">
+              <label class="editor-favorite">
+                <input type="checkbox" [formControl]="detailsEnabled" />
+                Activer les champs propres au type « {{ typeLabel(currentType()) }} »
+              </label>
+              @if (detailsEnabled.value) {
+                <p class="specialization-hint">Les champs marqués * sont obligatoires. L'enregistrement remplace entièrement les détails spécialisés et conserve le reste de la connaissance.</p>
+                <div [formGroup]="detailsForm" class="specialization-fields">
+                  @for (field of specializationFields(); track field.key) {
+                    <div class="field">
+                      <label [attr.for]="'detail-' + field.key">{{ field.label }}</label>
+                      @switch (field.kind) {
+                        @case ('multiline') {
+                          <textarea [id]="'detail-' + field.key" [formControlName]="field.key"
+                            class="code-input" rows="4" spellcheck="false"></textarea>
+                        }
+                        @case ('boolean') {
+                          <select [id]="'detail-' + field.key" [formControlName]="field.key">
+                            <option value="">Non précisé</option>
+                            <option value="true">Oui</option>
+                            <option value="false">Non</option>
+                          </select>
+                        }
+                        @case ('integer') {
+                          <input [id]="'detail-' + field.key" type="number" step="1"
+                            [attr.min]="field.min ?? null" [attr.max]="field.max ?? null"
+                            [formControlName]="field.key" />
+                        }
+                        @case ('date') {
+                          <input [id]="'detail-' + field.key" type="date" [formControlName]="field.key" />
+                        }
+                        @case ('datetime') {
+                          <input [id]="'detail-' + field.key" type="datetime-local" [formControlName]="field.key" />
+                        }
+                        @default {
+                          <input [id]="'detail-' + field.key" type="text"
+                            [attr.maxlength]="field.maxLength ?? null" [formControlName]="field.key" />
+                        }
+                      }
+                      @if (detailsForm.controls[field.key].touched && detailsForm.controls[field.key].invalid) {
+                        <small class="field-error">Valeur invalide ou champ obligatoire manquant.</small>
+                      }
+                    </div>
+                  }
+                </div>
+              } @else {
+                <p class="specialization-hint">L'enregistrement reste possible en mode générique. Désactiver ces champs efface les données spécialisées lors de l'enregistrement.</p>
+              }
+            </section>
             @if (formError()) { <div class="error-banner" role="alert">{{ formError() }}</div> }
             <div class="button-line editor-buttons"><button type="button" class="outline" (click)="cancelEdit()" [disabled]="saving()">Annuler</button><button type="submit" class="primary" [disabled]="saving()">{{ saving() ? 'Enregistrement…' : (mode() === 'create' ? 'Créer la connaissance' : 'Enregistrer les modifications') }}</button></div>
           </form>

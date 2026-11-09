@@ -25,7 +25,7 @@ tags: [devknowledge, roadmap, stabilisation]
 | Itération 1 — CRUD générique KMS | Livrée, tests historiques positifs | `knowledge_items` ; routes, schémas, services, repository et tests |
 | **Itération 2 — Stabilisation** | **STAB-01 à 08 implémentés ; revue de sortie à mener** | Config/env, compte MongoDB, readiness, tests, CI, reproductibilité, accès Gateway |
 | Identité, rôles et droits | Prototype local + création/consultation de comptes Angular (itération 5), revue de sécurité à conduire | `users`, `roles`, `permissions`, `user_roles`, `role_permissions` ; arbitrage local/OIDC |
-| Classification, spécialisations et historique | Non commencée | Référentiel `knowledge_types` ; huit spécialisations ; tags, technologies, sources, versions |
+| Classification, spécialisations et historique | **Spécialisations v1 implémentées dans la PR #8 ; classification transversale et historique à faire** | `knowledge_types` initialisé, huit schémas Pydantic, détails atomiques embarqués dans `knowledge_items`, éditeur Angular ; tags, technologies, sources et versions non réalisés |
 | Certification RNCP et preuves | Non commencée | Versions du RNCP 37827, compétences, critères, correspondances, preuves |
 | Recherche et assistant RAG local | Recherche textuelle générique implémentée dans l'itération 4 ; index sémantique/RAG non commencés | ChromaDB, chunking, embeddings, Ollama, citations, réponse « informations insuffisantes » |
 | MCP, évaluation IA et MLOps | Non commencée | Outils contrôlés, tests d'autorisation, suivi MLflow |
@@ -61,6 +61,16 @@ des corpus volumineux reste à planifier. Voir
 [[iterations/iteration-4-search]].
 
 L'ADR-003 demeure à valider avant l'authentification/RBAC.
+
+## Itération 6 — Spécialisations métier (PR #8)
+
+- **Implémenté sur la branche `feature/knowledge-specializations` :** référentiel MongoDB `knowledge_types` (8 entrées initialisées au démarrage) et route sécurisée `GET /api/v1/knowledge-types` à travers la Gateway.
+- Chaque catégorie du MLD v0.2 possède un contrat Pydantic `details` avec champs spécialisés, validation des types et refus des champs inconnus.
+- L'interface Angular existante (`frontend/ui-app/`) propose des formulaires dynamiques, la lecture et le remplacement des détails sur les routes CRUD existantes.
+- **Compatibilité :** les connaissances génériques historiques restent lisibles et modifiables sans spécialisation. `PATCH` conserve la précondition `If-Match` ; le changement de type efface les détails incompatibles et l'annulation ne touche pas MongoDB.
+- **Implémentation physique choisie :** `details` est un sous-document de `knowledge_items` pour garantir la modification atomique dans une seule collection MongoDB. Les huit tables spécialisées décrites au MLD sont **logiques** et ne sont pas huit collections physiques supplémentaires.
+- **À mener après recette :** migrations et validations d'intégrité des références métier, tables associées (étapes, dépendances, cours, etc.), classification, sources et historique. Voir [[iterations/iteration-6-specializations]].
+- **Validation :** ne considérer l'itération livrée qu'après une CI entièrement verte et une recette manuelle sur une base sauvegardée ou jetable.
 
 ## Ordre recommandé après stabilisation
 

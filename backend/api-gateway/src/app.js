@@ -56,6 +56,7 @@ function createApp({
     app.post("/api/v1/auth/login", throttleLogin, rawJson, relay);
     app.all(/^\/api\/v1\/auth\/(?:me|logout)\/?$/, rawJson, relay);
     app.all(/^\/api\/v1\/users\/?$/, rawJson, relay);
+    app.get("/api/v1/knowledge-types", relay);
     // Raw bytes preserve KMS validation (including malformed JSON -> 422).
     // Only the collection and one identifier segment can reach the fixed upstream.
     app.all(/^\/api\/v1\/knowledges(?:\/[a-zA-Z0-9-]+)?\/?$/,

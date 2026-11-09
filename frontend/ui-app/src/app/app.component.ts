@@ -7,6 +7,10 @@ import { debounceTime, distinctUntilChanged, finalize } from 'rxjs';
 import {
   Knowledge, KnowledgeType, KnowledgeWrite, KNOWLEDGE_TYPES, knowledgeTypeLabel,
 } from './models/knowledge.model';
+import {
+  SPECIALIZATION_FIELDS, DetailValue, KnowledgeDetails,
+  detailToFormValue, displayDetailValue, toSpecialization,
+} from './models/specialization-fields';
 import { KnowledgeApiService } from './services/knowledge-api.service';
 import { AuthService, LocalIdentity } from './services/auth.service';
 import { UserAdminComponent } from './components/user-admin.component';
@@ -38,6 +42,10 @@ export class AppComponent implements OnInit {
   });
 
   readonly types = KNOWLEDGE_TYPES;
+  readonly currentType = signal<KnowledgeType>('CODE_SNIPPET');
+  readonly specializationFields = computed(() => SPECIALIZATION_FIELDS[this.currentType()]);
+  readonly detailsEnabled = new FormControl(false, { nonNullable: true });
+  detailsForm = new FormGroup<Record<string, FormControl<string>>>({});
   readonly pageSize = PAGE_SIZE;
   readonly mode = signal<EditorMode>('view');
   readonly items = signal<Knowledge[]>([]);
@@ -87,6 +95,14 @@ export class AppComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    this.configureDetails(this.editor.controls.knowledge_type.value);
+    this.editor.controls.knowledge_type.valueChanges.pipe(
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe(kind => {
+      this.configureDetails(kind);
+      // Switching type keeps specialization opt-in but replaces incompatible fields.
+      this.detailsForm.markAsDirty();
+    });
     this.search.valueChanges.pipe(
       debounceTime(300), distinctUntilChanged(), takeUntilDestroyed(this.destroyRef),
     ).subscribe((value) => {
@@ -194,6 +210,9 @@ export class AppComponent implements OnInit {
       knowledge_type: 'CODE_SNIPPET', title: '', content: '', description: '',
       language_code: '', difficulty_level: '', status: 'DRAFT', is_favorite: false,
     });
+    this.detailsEnabled.setValue(false, { emitEvent: false });
+    this.detailsEnabled.markAsPristine();
+    this.configureDetails('CODE_SNIPPET');
     this.editor.markAsPristine();
   }
 
@@ -242,6 +261,9 @@ export class AppComponent implements OnInit {
       title: '', content: '', description: '',
       language_code: '', difficulty_level: '', status: 'DRAFT', is_favorite: false,
     });
+    this.detailsEnabled.setValue(false, { emitEvent: false });
+    this.detailsEnabled.markAsPristine();
+    this.configureDetails('CODE_SNIPPET');
     this.editor.markAsPristine();
     this.mode.set('create');
   }
@@ -273,15 +295,18 @@ export class AppComponent implements OnInit {
     this.confirmingDelete.set(false);
     this.formError.set('');
     this.editor.markAsPristine();
+    this.detailsForm.markAsPristine();
+    this.detailsEnabled.markAsPristine();
   }
 
   saveKnowledge(): void {
     if ((this.mode() === 'create' && !this.can('knowledge.create')) ||
         (this.mode() === 'edit' && !this.can('knowledge.update'))) return;
     if (this.saving()) return;
-    if (this.editor.invalid) {
+    if (this.editor.invalid || (this.detailsEnabled.value && this.detailsForm.invalid)) {
       this.editor.markAllAsTouched();
-      this.formError.set('Vérifie les champs obligatoires et les longueurs maximales.');
+      if (this.detailsEnabled.value) this.detailsForm.markAllAsTouched();
+      this.formError.set('Vérifie les champs obligatoires, les formats et les limites du type sélectionné.');
       return;
     }
     const value = this.editor.getRawValue();
@@ -297,6 +322,16 @@ export class AppComponent implements OnInit {
     };
     if (!payload.title || !payload.content.trim()) {
       this.formError.set('Le titre et le contenu ne peuvent pas être vides.');
+      return;
+    }
+    try {
+      // A PATCH contains the complete specialization, never a partial merge.
+      // An explicit null removes a previous specialization without deleting the knowledge.
+      payload.details = this.detailsEnabled.value
+        ? toSpecialization(this.specializationFields(), this.detailsForm.getRawValue())
+        : null;
+    } catch (error) {
+      this.formError.set(error instanceof Error ? error.message : 'Détails spécialisés invalides.');
       return;
     }
     this.formError.set('');
@@ -319,6 +354,8 @@ export class AppComponent implements OnInit {
         this.notice.set(this.mode() === 'create' ? 'Connaissance créée.' : 'Modifications enregistrées.');
         this.mode.set('view');
         this.editor.markAsPristine();
+        this.detailsForm.markAsPristine();
+        this.detailsEnabled.markAsPristine();
         this.loadPage();
       },
       error: (error: unknown) => {
@@ -448,11 +485,47 @@ export class AppComponent implements OnInit {
       status: item.status,
       is_favorite: item.is_favorite,
     });
+    this.configureDetails(item.knowledge_type, item.details);
+    this.detailsEnabled.setValue(item.details != null, { emitEvent: false });
+    this.detailsEnabled.markAsPristine();
     this.editor.markAsPristine();
   }
 
+  private configureDetails(kind: KnowledgeType, details?: KnowledgeDetails | null): void {
+    this.currentType.set(kind);
+    this.detailsForm = new FormGroup<Record<string, FormControl<string>>>({});
+    for (const field of SPECIALIZATION_FIELDS[kind]) {
+      const validators = [];
+      if (field.required) validators.push(Validators.required, Validators.pattern(/[\s\S]*\S[\s\S]*/));
+      if (field.maxLength !== undefined) validators.push(Validators.maxLength(field.maxLength));
+      if (field.kind === 'integer') {
+        validators.push(Validators.pattern(/^-?\d+$/));
+        if (field.min !== undefined) validators.push(Validators.min(field.min));
+        if (field.max !== undefined) validators.push(Validators.max(field.max));
+      }
+      if (field.kind === 'uuid') {
+        validators.push(Validators.pattern(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/));
+      }
+      this.detailsForm.addControl(field.key, new FormControl(
+        detailToFormValue(field, details), { nonNullable: true, validators },
+      ));
+    }
+    this.detailsForm.markAsPristine();
+  }
+
+  detailsToShow(item: Knowledge): { label: string; value: string }[] {
+    if (!item.details) return [];
+    return SPECIALIZATION_FIELDS[item.knowledge_type]
+      .filter(field => item.details?.[field.key] !== undefined && item.details?.[field.key] !== null)
+      .map(field => ({
+        label: field.label.replace(/ \*$/, ''),
+        value: displayDetailValue(field, item.details![field.key] as DetailValue),
+      }));
+  }
+
   private mayLeaveEditor(): boolean {
-    return this.mode() === 'view' || !this.editor.dirty ||
+    return this.mode() === 'view' ||
+      (!this.editor.dirty && !this.detailsForm.dirty && !this.detailsEnabled.dirty) ||
       window.confirm('Abandonner les modifications non enregistrées ?');
   }
 

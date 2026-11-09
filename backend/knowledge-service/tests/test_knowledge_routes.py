@@ -414,3 +414,32 @@ def test_revision_is_server_owned(api):
     assert client.post(BASE, json={**VALID_PAYLOAD, "revision": 90}).status_code == 422
     item = create(client)
     assert patch(client, f"{BASE}/{item['knowledge_id']}", json={"revision": 90}).status_code == 422
+
+
+def test_specialization_is_validated_and_persisted_through_the_existing_http_contract(api):
+    client, repository = api
+    bad = client.post(BASE, json={
+        **VALID_PAYLOAD, "details": {"shell": "bash", "command": "ls"},
+    })
+    assert bad.status_code == 422
+    assert repository.items == {}
+    created = client.post(BASE, json={
+        **VALID_PAYLOAD,
+        "details": {"code": "print(1)", "programming_language": "Python"},
+    })
+    assert created.status_code == 201
+    ident = created.json()["knowledge_id"]
+    assert created.json()["details"]["code"] == "print(1)"
+    assert client.get(f"{BASE}/{ident}").json()["details"]["programming_language"] == "Python"
+    invalid = client.patch(f"{BASE}/{ident}", headers={"If-Match": '"1"'},
+                           json={"details": {"shell": "bash", "command": "ls"}})
+    assert invalid.status_code == 422
+    assert client.get(f"{BASE}/{ident}").json()["revision"] == 1
+    success = client.patch(f"{BASE}/{ident}", headers={"If-Match": '"1"'},
+                           json={"knowledge_type": "BUG_FIX"})
+    assert success.status_code == 200
+    assert success.json()["details"] is None
+    assert success.json()["revision"] == 2
+    assert client.patch(f"{BASE}/{ident}", headers={"If-Match": '"1"'},
+                        json={"details": {"root_cause": "stale"}}).status_code == 412
+    assert client.get(f"{BASE}/{ident}").json()["details"] is None
