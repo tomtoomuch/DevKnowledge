@@ -38,7 +38,7 @@ consultation, la création, la modification conditionnelle avec ETag/If-Match
 et la suppression logique sont prises en charge. L'interface ne persiste que
 les champs génériques, pas les spécialisations prévues au MLD.
 
-Lire le [guide frontend](frontend/README.md) avant la première utilisation.
+Lire le [guide frontend](frontend/ui-app/README.md) avant la première utilisation.
 
 ## Itération 4 — recherche globale et favoris
 
@@ -65,7 +65,7 @@ docker compose -f compose.yaml ps
 ```
 
 Le dépôt est composé de trois images applicatives, chacune avec son
-`Dockerfile` : `frontend/Dockerfile`, `backend/api-gateway/Dockerfile`
+`Dockerfile` : `frontend/ui-app/Dockerfile`, `backend/api-gateway/Dockerfile`
 et `backend/knowledge-service/Dockerfile`. **Il n'existe pas de
 Dockerfile à la racine : utiliser Docker Compose, et non
 `docker build .`.** Le script de vérification examine les chemins

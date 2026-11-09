@@ -4,7 +4,7 @@ services:
       GATEWAY_PORT: ${GATEWAY_PORT:-3000}
     image: devknowledge-frontend:latest
     build:
-      context: ./frontend
+      context: ./frontend/ui-app
       dockerfile: Dockerfile
     ports:
       - "127.0.0.1:${FRONTEND_PORT:-4200}:80"

@@ -15,7 +15,7 @@ utiliser depuis la racine :
 
 Si un Dockerfile est annoncé absent, vérifier la branche active avec
 `git branch --show-current`, puis `git fetch origin` et
-`git ls-files frontend/Dockerfile backend/api-gateway/Dockerfile backend/knowledge-service/Dockerfile`.
+`git ls-files frontend/ui-app/Dockerfile backend/api-gateway/Dockerfile backend/knowledge-service/Dockerfile`.
 Depuis un sous-dossier, revenir à la racine avant de lancer Compose ;
 ne pas utiliser une configuration `COMPOSE_FILE` pointant vers un autre dépôt.
 
@@ -46,7 +46,7 @@ arrêter le projet contenant tes données de développement.
 
 Démarrer d'abord la Gateway, puis avec Node.js compatible Angular 20 :
 
-    cd frontend
+    cd frontend/ui-app
     npm install
     npm start
 

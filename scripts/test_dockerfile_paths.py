@@ -55,5 +55,24 @@ class DockerfilePathsTest(unittest.TestCase):
                     }}}})
 
 
+    def test_real_frontend_layout_is_only_inside_ui_app(self):
+        repo = Path(__file__).resolve().parents[1]
+        app = repo / "frontend" / "ui-app"
+        for name in ("Dockerfile", ".dockerignore", "README.md", "angular.json",
+                     "package.json", "nginx.conf", "proxy.conf.json",
+                     "tsconfig.json", "tsconfig.app.json", "tsconfig.spec.json"):
+            self.assertTrue((app / name).is_file(), name)
+            self.assertFalse((repo / "frontend" / name).exists(), name)
+        for name in ("src/main.ts", "src/app/app.component.ts",
+                     "src/app/components/user-admin.component.ts",
+                     "src/app/services/knowledge-api.service.ts"):
+            self.assertTrue((app / name).is_file(), name)
+            self.assertFalse((repo / "frontend" / name).exists(), name)
+        self.assertIn("context: ./frontend/ui-app",
+                      (repo / "compose.yaml").read_text(encoding="utf-8"))
+        self.assertIn("working-directory: frontend/ui-app",
+                      (repo / ".github/workflows/ci.yml").read_text(encoding="utf-8"))
+
+
 if __name__ == "__main__":
     unittest.main()

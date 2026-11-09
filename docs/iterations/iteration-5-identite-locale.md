@@ -114,7 +114,7 @@ si un reverse proxy TLS est introduit, coordonner `https` et
 ## Validation des Dockerfiles
 
 Les trois chemins de construction du Compose principal sont explicites :
-`frontend/Dockerfile`, `backend/api-gateway/Dockerfile` et
+`frontend/ui-app/Dockerfile`, `backend/api-gateway/Dockerfile` et
 `backend/knowledge-service/Dockerfile`. Le script
 `python scripts/check_dockerfiles.py --compose compose.yaml --env-file .env`
 utilise `docker compose config --format json` pour vérifier l'existence du
