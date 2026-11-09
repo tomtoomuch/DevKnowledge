@@ -11,6 +11,7 @@ from pathlib import Path
 import subprocess
 import time
 from uuid import uuid4
+from mongodb_backup import backup, restore, read_backup
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -144,6 +145,48 @@ def main():
         passed("fresh bootstrap, least privileges, indexes, custom Gateway port 3107")
         print(kms_python((ROOT / "tests/gateway_contract.py").read_text(encoding="utf-8")), flush=True)
         passed("Gateway end-to-end CRUD and validation errors")
+        # Keep one active knowledge alongside the soft-deleted CRUD fixture.
+        active_id = kms_python("""
+import json, urllib.request
+payload = json.dumps({'knowledge_type': 'COURSE_NOTE', 'title': 'Backup active fixture',
+                      'content': 'Preserve active knowledge and its revision'}).encode()
+request = urllib.request.Request('http://api-gateway:3107/api/v1/knowledges', data=payload,
+                                 headers={'Content-Type': 'application/json'}, method='POST')
+with urllib.request.urlopen(request) as response:
+    assert response.status == 201
+    print(json.load(response)['knowledge_id'])
+""")
+        backup_dir = RESULTS / ("backup-fixture-" + uuid4().hex)
+        manifest = backup(COMPOSE, backup_dir, env=ENV)
+        restored = restore(COMPOSE, backup_dir, env=ENV, keep_volume=True)
+        volume = restored["volume"]
+        require(volume.startswith("devknowledge-restored-"), "Unexpected recovery volume name")
+        try:
+            require(restored["verified"], "Restore verification failed")
+            run(["docker", "volume", "inspect", volume])
+            require(manifest["snapshot"]["collections"], "Backup fixture was empty")
+            items = next(item for item in manifest["snapshot"]["collections"] if item["name"] == "knowledge_items")
+            require(items["count"] == {"$numberInt": "2"},
+                    "Backup must include active and soft-deleted knowledge")
+        finally:
+            run(["docker", "volume", "rm", volume])
+        # Verify corruption is detected before any restoration resources are created.
+        archive = backup_dir / "database.archive.gz"
+        original = archive.read_bytes()
+        archive.write_bytes(original + b"corrupt")
+        try:
+            try:
+                read_backup(backup_dir)
+            except ValueError:
+                pass
+            else:
+                raise AssertionError("Corrupted backup accepted")
+        finally:
+            archive.write_bytes(original)
+        eventually(lambda: gateway_status("/health/ready") == 200, "Writers resume after backup")
+        require(gateway_status("/api/v1/knowledges/" + active_id) == 200, "Source knowledge must remain readable")
+        database_check()
+        passed("BSON backup/restore: documents, revisions, soft deletions, indexes, checksum and isolated recovery volume")
 
         compose("stop")
         compose("up", "-d", "--wait", "--wait-timeout", "120", timeout=180)

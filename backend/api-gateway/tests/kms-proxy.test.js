@@ -52,6 +52,15 @@ test("leaves JSON validation to KMS", async () => {
     expect(received[0].body).toBe('{"broken":');
 });
 
+test("relays If-Match and ETag for conditional writes", async () => {
+    respond = (req, res) => res.writeHead(412, { "etag": '"2"', "cache-control": "no-store" }).end();
+    const response = await request(app).patch("/api/v1/knowledges/abc")
+        .set("If-Match", '"1"').send({ title: "stale" }).expect(412);
+    expect(received[0].headers["if-match"]).toBe('"1"');
+    expect(response.headers.etag).toBe('"2"');
+    expect(response.headers["cache-control"]).toBe("no-store");
+});
+
 test("does not relay identity, credentials, forwarding or hop-by-hop headers", async () => {
     respond = (req, res) => res.writeHead(200, {
         "content-type": "application/json", "set-cookie": "secret=bad",

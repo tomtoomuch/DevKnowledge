@@ -77,6 +77,8 @@ class KnowledgeUpdate(BaseModel):
 
 
 class KnowledgeRead(KnowledgeCreate):
+    # Legacy documents without this field are read as revision zero.
+    revision: int = Field(default=0, ge=0)
     knowledge_id: UUID
     created_at: AwareDatetime
     updated_at: AwareDatetime

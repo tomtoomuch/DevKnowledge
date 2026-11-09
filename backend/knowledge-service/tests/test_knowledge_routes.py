@@ -56,18 +56,19 @@ class MemoryRepository:
         items.sort(key=lambda item: (-item["created_at"].timestamp(), str(item["knowledge_id"])))
         return items[skip : skip + limit], len(items)
 
-    async def update(self, knowledge_id, changes):
+    async def update(self, knowledge_id, changes, expected_revision=0):
         self.check_available()
-        if await self.get(knowledge_id) is None:
+        if await self.get(knowledge_id) is None or self.items[knowledge_id].get("revision", 0) != expected_revision:
             return None
         self.items[knowledge_id].update(deepcopy(changes))
+        self.items[knowledge_id]["revision"] = expected_revision + 1
         return deepcopy(self.items[knowledge_id])
 
-    async def soft_delete(self, knowledge_id, deleted_at):
+    async def soft_delete(self, knowledge_id, deleted_at, expected_revision=0):
         self.check_available()
-        if await self.get(knowledge_id) is None:
+        if await self.get(knowledge_id) is None or self.items[knowledge_id].get("revision", 0) != expected_revision:
             return False
-        self.items[knowledge_id].update(deleted_at=deleted_at, updated_at=deleted_at)
+        self.items[knowledge_id].update(deleted_at=deleted_at, updated_at=deleted_at, revision=expected_revision + 1)
         return True
 
 
@@ -176,7 +177,7 @@ def test_get_existing_and_missing(api):
 def test_invalid_uuid_returns_422(api, method):
     client, _ = api
     kwargs = {"json": {"title": "Updated"}} if method == "patch" else {}
-    assert getattr(client, method)(f"{BASE}/invalid-id", **kwargs).status_code == 422
+    assert getattr(client, method)(f"{BASE}/invalid-id", headers={"If-Match": '"0"'}, **kwargs).status_code == 422
 
 
 def test_list_empty(api):
@@ -225,7 +226,7 @@ def test_invalid_list_parameters(api, params):
 def test_patch_only_supplied_fields_and_optional_null(api):
     client, _ = api
     item = create(client, description="Description", language_code="fr", difficulty_level="intermediate")
-    response = client.patch(f"{BASE}/{item['knowledge_id']}", json={"title": "Nouveau titre", "description": None})
+    response = patch(client, f"{BASE}/{item['knowledge_id']}", json={"title": "Nouveau titre", "description": None})
     assert response.status_code == 200
     updated = response.json()
     assert updated["title"] == "Nouveau titre"
@@ -233,7 +234,7 @@ def test_patch_only_supplied_fields_and_optional_null(api):
     for field in ("knowledge_id", "created_at", "created_by_user_id", "content", "status", "is_favorite", "language_code", "difficulty_level"):
         assert updated[field] == item[field]
     assert datetime.fromisoformat(updated["updated_at"].replace("Z", "+00:00")) >= datetime.fromisoformat(item["updated_at"].replace("Z", "+00:00"))
-    assert client.patch(f"{BASE}/{uuid4()}", json={"title": "Updated"}).status_code == 404
+    assert patch(client, f"{BASE}/{uuid4()}", json={"title": "Updated"}).status_code == 404
 
 
 def test_patch_can_change_each_mutable_field(api):
@@ -245,10 +246,10 @@ def test_patch_can_change_each_mutable_field(api):
         "language_code": "fr", "difficulty_level": "beginner",
         "status": "PUBLISHED", "is_favorite": True,
     }
-    response = client.patch(f"{BASE}/{item['knowledge_id']}", json=changes)
+    response = patch(client, f"{BASE}/{item['knowledge_id']}", json=changes)
     assert response.status_code == 200
     assert all(response.json()[field] == value for field, value in changes.items())
-    clear_response = client.patch(
+    clear_response = patch(client,
         f"{BASE}/{item['knowledge_id']}", json={"language_code": None, "difficulty_level": None},
     )
     assert clear_response.status_code == 200
@@ -269,7 +270,7 @@ def test_patch_can_change_each_mutable_field(api):
 def test_patch_forbidden_invalid_and_empty_inputs(api, payload):
     client, _ = api
     item = create(client)
-    assert client.patch(f"{BASE}/{item['knowledge_id']}", json=payload).status_code == 422
+    assert patch(client, f"{BASE}/{item['knowledge_id']}", json=payload).status_code == 422
     assert client.get(f"{BASE}/{item['knowledge_id']}").json() == item
 
 
@@ -277,16 +278,16 @@ def test_soft_delete_hides_resource_and_double_delete_returns_404(api):
     client, repository = api
     item = create(client)
     resource = f"{BASE}/{item['knowledge_id']}"
-    response = client.delete(resource)
+    response = delete(client, resource)
     assert response.status_code == 204
     assert response.content == b""
     stored = repository.items[UUID(item["knowledge_id"])]
     assert stored["deleted_at"].tzinfo is not None
     assert stored["content"] == item["content"]
     assert client.get(resource).status_code == 404
-    assert client.patch(resource, json={"title": "Updated"}).status_code == 404
-    assert client.delete(resource).status_code == 404
-    assert client.delete(f"{BASE}/{uuid4()}").status_code == 404
+    assert patch(client, resource, json={"title": "Updated"}).status_code == 404
+    assert delete(client, resource).status_code == 404
+    assert delete(client, f"{BASE}/{uuid4()}").status_code == 404
     assert client.get(BASE).json()["total"] == 0
 
 
@@ -300,8 +301,8 @@ def test_mongodb_unavailable_returns_sanitized_503(api, caplog, operation):
         "create": lambda: client.post(BASE, json=VALID_PAYLOAD),
         "get": lambda: client.get(resource),
         "list": lambda: client.get(BASE),
-        "update": lambda: client.patch(resource, json={"title": "Updated"}),
-        "delete": lambda: client.delete(resource),
+        "update": lambda: patch(client, resource, json={"title": "Updated"}),
+        "delete": lambda: delete(client, resource),
     }
     response = requests[operation]()
     assert response.status_code == 503
@@ -333,3 +334,53 @@ def test_openapi_exposes_crud_and_validation_contract():
         assert {"type": "null"} not in patch_schema["properties"][field].get("anyOf", [])
         assert patch_schema["properties"][field].get("type") != "null"
     assert {"type": "null"} in patch_schema["properties"]["description"]["anyOf"]
+
+
+def patch(client, path, **kwargs):
+    headers = {"If-Match": client.get(path).headers.get("etag", '"0"')}
+    return client.patch(path, headers=headers, **kwargs)
+
+
+def delete(client, path, **kwargs):
+    headers = {"If-Match": client.get(path).headers.get("etag", '"0"')}
+    return client.delete(path, headers=headers, **kwargs)
+
+
+def test_revision_and_etag_prevent_lost_update_and_stale_delete(api):
+    client, repository = api
+    created = client.post(BASE, json=VALID_PAYLOAD)
+    path = f"{BASE}/{created.json()['knowledge_id']}"
+    assert created.json()["revision"] == 1
+    assert created.headers["etag"] == '"1"'
+    assert client.get(path).headers["etag"] == '"1"'
+    assert client.patch(path, json={"title": "missing"}).status_code == 428
+    assert client.delete(path).status_code == 428
+    updated = client.patch(path, headers={"If-Match": '"1"'}, json={"title": "winner"})
+    assert updated.status_code == 200 and updated.json()["revision"] == 2
+    assert updated.headers["etag"] == '"2"'
+    assert client.patch(path, headers={"If-Match": '"1"'}, json={"title": "lost"}).status_code == 412
+    assert client.delete(path, headers={"If-Match": '"1"'}).status_code == 412
+    assert client.get(path).json()["title"] == "winner"
+    assert client.delete(path, headers={"If-Match": '"2"'}).status_code == 204
+
+
+@pytest.mark.parametrize("tag", ['*', 'W/"1"', '1', '"-1"', '"01"', '"1", "2"', '"9223372036854775807"'])
+def test_invalid_precondition_does_not_modify_data(api, tag):
+    client, _ = api
+    item = create(client)
+    path = f"{BASE}/{item['knowledge_id']}"
+    assert client.patch(path, headers={"If-Match": tag}, json={"title": "bad"}).status_code == 400
+    assert client.get(path).json() == item
+
+
+def test_duplicate_if_match_headers_rejected(api):
+    client, _ = api
+    item = create(client)
+    assert client.delete(f"{BASE}/{item['knowledge_id']}", headers=[("If-Match", '"1"'), ("If-Match", '"2"')]).status_code == 400
+
+
+def test_revision_is_server_owned(api):
+    client, _ = api
+    assert client.post(BASE, json={**VALID_PAYLOAD, "revision": 90}).status_code == 422
+    item = create(client)
+    assert patch(client, f"{BASE}/{item['knowledge_id']}", json={"revision": 90}).status_code == 422
