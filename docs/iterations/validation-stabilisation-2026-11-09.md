@@ -43,8 +43,14 @@ le tableau ci-dessus décrit uniquement la campagne locale.
 La première exécution distante (`42629736571`) a validé Gateway et les deux
 jobs unitaires KMS, mais MongoDB a refusé de démarrer sur le noyau du runner
 `ubuntu-latest` (Ubuntu 26.04). Son journal renvoie à
-[SERVER-121912](https://jira.mongodb.org/browse/SERVER-121912). Le job Docker
-utilise donc explicitement `ubuntu-24.04` et consigne le noyau dans ses artefacts.
+[SERVER-121912](https://jira.mongodb.org/browse/SERVER-121912). Le runner
+Ubuntu 24.04 a présenté le même refus avec son noyau `7.0.0-1017-azure`
+(`42630151860`). Le problème de détection du noyau Ubuntu est suivi dans
+[SERVER-136848](https://jira.mongodb.org/browse/SERVER-136848).
+Le job Docker utilise donc `ubuntu-22.04`, dont l'image publiée utilise
+Linux 6.8, et consigne le noyau dans ses artefacts. Ce choix devra être revu
+avant le retrait annoncé de ce runner en avril 2027 :
+[inventaire officiel du runner](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2204-Readme.md).
 Les tests unitaires Linux restent sur `ubuntu-latest`. Le workflow a également
 passé la validation statique `actionlint`.
 

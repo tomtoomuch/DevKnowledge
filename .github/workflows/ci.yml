@@ -64,9 +64,10 @@ jobs:
           retention-days: 14
 
   docker:
-    # MongoDB 8.0 currently refuses the kernel on ubuntu-26.04 runners.
-    # See SERVER-121912; keep unit tests on ubuntu-latest independently.
-    runs-on: ubuntu-24.04
+    # MongoDB 8.0 refuses the 7.0 Azure kernel on 24.04/26.04 runners.
+    # 22.04 currently uses 6.8; revisit before its April 2027 retirement.
+    # See SERVER-136848; unit tests still exercise ubuntu-latest.
+    runs-on: ubuntu-22.04
     timeout-minutes: 20
     defaults:
       run:
