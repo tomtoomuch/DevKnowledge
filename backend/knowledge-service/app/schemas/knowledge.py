@@ -69,7 +69,7 @@ class KnowledgeUpdate(BaseModel):
     difficulty_level: Difficulty | None = None
     status: Status | SkipJsonSchema[None] = None
     is_favorite: StrictBool | SkipJsonSchema[None] = None
-    tag_ids: list[UUID] | SkipJsonSchema[None] = Field(default=None, max_length=30)
+    tag_ids: Annotated[list[UUID], Field(max_length=30)] | SkipJsonSchema[None] = None
     # PATCH replaces the complete specialization. A null clears it.
     details: dict[str, Any] | None = None
 
