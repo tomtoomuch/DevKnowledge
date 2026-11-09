@@ -5,6 +5,7 @@ services:
     image: devknowledge-frontend:latest
     build:
       context: ./frontend
+      dockerfile: Dockerfile
     ports:
       - "127.0.0.1:${FRONTEND_PORT:-4200}:80"
     depends_on:
@@ -16,11 +17,13 @@ services:
     image: api-gateway:latest
     build:
       context: ./backend/api-gateway
+      dockerfile: Dockerfile
     environment:
       GATEWAY_HOST: "0.0.0.0"
       GATEWAY_PORT: ${GATEWAY_PORT:-3000}
       KMS_BASE_URL: http://api-kms:8000
       KMS_TIMEOUT_MS: ${KMS_TIMEOUT_MS:-10000}
+      GATEWAY_PUBLIC_SCHEME: ${GATEWAY_PUBLIC_SCHEME:-http}
       NODE_ENV: production
     ports:
       - "127.0.0.1:${GATEWAY_PORT:-3000}:${GATEWAY_PORT:-3000}"
@@ -44,6 +47,7 @@ services:
     image: api-kms:latest
     build:
       context: ./backend/knowledge-service
+      dockerfile: Dockerfile
     environment:
       MONGODB_HOST: mongodb
       MONGODB_PORT: ${MONGODB_PORT:-27017}
@@ -51,6 +55,8 @@ services:
       MONGODB_USERNAME: ${MONGODB_APP_USERNAME:?MONGODB_APP_USERNAME_required}
       MONGODB_PASSWORD: ${MONGODB_APP_PASSWORD:?MONGODB_APP_PASSWORD_required}
       MONGODB_AUTH_SOURCE: ${MONGODB_AUTH_SOURCE:?MONGODB_AUTH_SOURCE_required}
+      AUTH_MODE: required
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-false}
     depends_on:
       mongodb:
         condition: service_healthy

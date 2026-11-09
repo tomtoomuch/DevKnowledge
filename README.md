@@ -4,11 +4,11 @@ Assistant personnel de gestion des connaissances, conçu pour fonctionner locale
 
 ## État du projet (9 novembre 2026)
 
-Le KMS propose le CRUD générique `/api/v1/knowledges`, avec validation, pagination, filtres et suppression logique. **Bootstrap MongoDB, configuration Gateway et readiness sont validés localement ; la CI est définie et les dépendances Python sont verrouillées.** Le frontend Angular implémente le CRUD générique dans une branche dédiée. L'authentification/RBAC, les huit spécialisations persistées et le RAG restent des étapes ultérieures.
+Le KMS propose le CRUD générique `/api/v1/knowledges` (validation, pagination, filtres, suppression logique). **Bootstrap MongoDB, Gateway, readiness et exécution hors ligne après préparation sont vérifiés en CI.** Le frontend Angular inclut la bibliothèque et, dans l'itération 5 proposée, une authentification locale/RBAC avec une administration de comptes limitée à la consultation et la création. Les spécialisations persistées et le RAG restent à développer.
 
 **PATCH et DELETE exigent désormais `If-Match` avec la révision lue** (428 sans précondition, 412 si elle est dépassée). Les GET individuels renvoient l’ETag correspondant.
 
-La Gateway relaie les routes CRUD sur `127.0.0.1:3000/api/v1/knowledges`. Le KMS est interne au réseau Compose par défaut ; son port de diagnostic est optionnel. Aucune protection d'accès applicative n'est encore en place ; ne pas exposer l'API sur une interface publique.
+La Gateway relaie les routes CRUD et d'authentification sur `127.0.0.1:3000/api/v1`. Le KMS est interne au réseau Compose par défaut ; son port de diagnostic est optionnel. Le prototype utilise des sessions locales et des permissions vérifiées par le KMS. Il reste strictement privé et ne doit pas être exposé à Internet.
 
 - [Validation du 9 novembre 2026 et limites restantes](docs/iterations/validation-stabilisation-2026-11-09.md)
 - [CI GitHub Actions](https://github.com/tomtoomuch/DevKnowledge/actions/workflows/ci.yml)
@@ -57,10 +57,19 @@ Voir [la spécification de l'itération 4](docs/iterations/iteration-4-search.md
 À la racine, avec une configuration `.env` locale existante et valide :
 
 ```bash
-docker compose config --quiet
-docker compose up -d --build
-docker compose ps
+# Vérifie que les Dockerfiles et leurs contextes existent réellement.
+python scripts/check_dockerfiles.py --compose compose.yaml --env-file .env
+docker compose -f compose.yaml config --quiet
+docker compose -f compose.yaml up -d --build
+docker compose -f compose.yaml ps
 ```
+
+Le dépôt est composé de trois images applicatives, chacune avec son
+`Dockerfile` : `frontend/Dockerfile`, `backend/api-gateway/Dockerfile`
+et `backend/knowledge-service/Dockerfile`. **Il n'existe pas de
+Dockerfile à la racine : utiliser Docker Compose, et non
+`docker build .`.** Le script de vérification examine les chemins
+effectivement calculés par Compose avant toute construction.
 
 Le frontend écoute par défaut sur `127.0.0.1:4200` ; la Gateway sur `127.0.0.1:3000` ; le KMS et MongoDB ne sont pas publiés sur l'hôte. Pour Swagger ou le diagnostic direct, utiliser `docker compose -f compose.yaml -f compose.debug.yaml up -d --build`, puis [Swagger UI du KMS](http://127.0.0.1:8000/docs).
 
@@ -107,3 +116,33 @@ Après cette préparation, `python scripts/check_stabilization.py --offline`
 rejoue les contrôles sans build ni téléchargement, vérifie l'isolation réseau
 et produit `test-results/stabilization-offline.json`. Cela qualifie l'exécution
 du socle préparé ; un build complet hors ligne reste à qualifier.
+
+
+## Itération 5 — identité locale et autorisations RBAC
+
+Après démarrage avec Docker Compose, créer le premier administrateur dans
+le conteneur KMS (une seule fois, sans mot de passe dans les arguments) :
+
+```bash
+docker compose exec api-kms python -m app.auth.bootstrap_admin --username admin
+```
+
+L'interface Angular présente ensuite un écran de connexion locale. Le KMS
+vérifie les permissions à chaque requête ; les rôles intégrés sont ADMIN,
+EDITOR et READER. Les mots de passe ne sont pas enregistrés en clair ; les
+sessions sont révocables et leur jeton opaque n'est pas stocké en clair.
+Voir [la documentation de l'identité](docs/iterations/iteration-5-identite-locale.md).
+
+**Attention :** cette authentification n'autorise pas l'exposition publique
+du projet ; les ports restent liés à 127.0.0.1 et la revue de sécurité est
+à mener avant une éventuelle publication distante.
+
+
+### Comptes locaux (itération 5)
+
+Créer le premier administrateur via la CLI du conteneur KMS, puis utiliser
+l'écran de connexion Angular. Le rôle ADMIN dispose maintenant d'une vue
+**Utilisateurs** pour consulter les rôles et créer un compte local ;
+EDITOR et READER ne voient pas cette vue, et le serveur refuse leurs requêtes.
+Aucun mécanisme d'inscription publique ou de récupération de mot de passe
+n'est exposé. Voir [l'itération 5](docs/iterations/iteration-5-identite-locale.md).

@@ -25,6 +25,7 @@ services:
   api-kms-bootstrap:
     build:
       context: ../../knowledge-service
+      dockerfile: Dockerfile
     environment:
       MONGODB_HOST: mongodb-bootstrap
       MONGODB_PORT: 27017

@@ -8,6 +8,8 @@ import {
   Knowledge, KnowledgeType, KnowledgeWrite, KNOWLEDGE_TYPES, knowledgeTypeLabel,
 } from './models/knowledge.model';
 import { KnowledgeApiService } from './services/knowledge-api.service';
+import { AuthService, LocalIdentity } from './services/auth.service';
+import { UserAdminComponent } from './components/user-admin.component';
 
 type EditorMode = 'view' | 'create' | 'edit';
 const PAGE_SIZE = 20;
@@ -15,14 +17,25 @@ const PAGE_SIZE = 20;
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, UserAdminComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppComponent implements OnInit {
   private readonly api = inject(KnowledgeApiService);
+  private readonly auth = inject(AuthService);
   private readonly destroyRef = inject(DestroyRef);
+
+  readonly authMode = signal<'checking' | 'login' | 'active'>('checking');
+  readonly principal = signal<LocalIdentity | null>(null);
+  readonly section = signal<'knowledge' | 'users'>('knowledge');
+  readonly loginError = signal('');
+  readonly loggingIn = signal(false);
+  readonly loginForm = new FormGroup({
+    username: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+    password: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+  });
 
   readonly types = KNOWLEDGE_TYPES;
   readonly pageSize = PAGE_SIZE;
@@ -45,6 +58,7 @@ export class AppComponent implements OnInit {
   // The KMS now performs all list filters before pagination.
   readonly visibleItems = computed(() => this.items());
   private listSequence = 0;
+  private authGeneration = 0;
   readonly pageCount = computed(() => Math.max(1, Math.ceil(this.total() / PAGE_SIZE)));
   readonly currentPage = computed(() => this.pageIndex() + 1);
 
@@ -86,7 +100,101 @@ export class AppComponent implements OnInit {
         this.favoritesOnly.set(value);
         this.resetPage();
       });
+    this.checkAuth();
+  }
+
+  can(permission: string): boolean {
+    return this.principal()?.permissions.includes(permission) ?? false;
+  }
+
+  showSection(next: 'knowledge' | 'users'): void {
+    if (next === 'users' && !this.can('users.manage')) return;
+    if (next === this.section() || !this.mayLeaveEditor()) return;
+    this.section.set(next);
+  }
+
+  checkAuth(): void {
+    this.authMode.set('checking');
+    this.auth.me().subscribe({
+      next: principal => this.signedIn(principal),
+      error: (error: unknown) => {
+        this.authMode.set('login');
+        this.principal.set(null);
+        if (error instanceof HttpErrorResponse && error.status !== 401) {
+          this.loginError.set('Vérification de session impossible. Vérifie les conteneurs.');
+        }
+      },
+    });
+  }
+
+  submitLogin(): void {
+    if (this.loginForm.invalid || this.loggingIn()) return;
+    this.loginError.set('');
+    this.loggingIn.set(true);
+    const credentials = this.loginForm.getRawValue();
+    this.auth.login(credentials.username, credentials.password).pipe(
+      finalize(() => this.loggingIn.set(false)),
+    ).subscribe({
+      next: principal => {
+        this.loginForm.controls.password.reset();
+        this.signedIn(principal);
+      },
+      error: (error: unknown) => {
+        this.loginError.set(error instanceof HttpErrorResponse && error.status === 429
+          ? 'Trop de tentatives. Réessaie après une minute.'
+          : 'Connexion refusée. Vérifie les identifiants et le compte administrateur initial.');
+      },
+    });
+  }
+
+  logout(): void {
+    this.auth.logout().subscribe({
+      next: () => {
+        this.clearWorkspace();
+        this.authMode.set('login');
+        this.loginForm.reset({ username: '', password: '' });
+      },
+      error: () => this.error.set('Déconnexion impossible. Réessaie.'),
+    });
+  }
+
+  private signedIn(principal: LocalIdentity): void {
+    this.clearWorkspace();
+    this.principal.set(principal);
+    this.authMode.set('active');
+    this.loginError.set('');
     this.loadPage();
+  }
+
+  private clearWorkspace(): void {
+    this.section.set('knowledge');
+    ++this.authGeneration;
+    ++this.listSequence;
+    this.principal.set(null);
+    this.items.set([]);
+    this.total.set(0);
+    this.selected.set(null);
+    this.etag.set(null);
+    this.pageIndex.set(0);
+    this.mode.set('view');
+    this.busy.set(false);
+    this.detailLoading.set(false);
+    this.saving.set(false);
+    this.confirmingDelete.set(false);
+    this.notice.set('');
+    this.error.set('');
+    this.formError.set('');
+    this.searchTerm.set('');
+    this.favoritesOnly.set(false);
+    this.search.setValue('', { emitEvent: false });
+    this.typeFilter.setValue('', { emitEvent: false });
+    this.statusFilter.setValue('', { emitEvent: false });
+    this.favoritesFilter.setValue(false, { emitEvent: false });
+    this.editor.reset({
+      knowledge_type: 'CODE_SNIPPET', title: '', content: '', description: '',
+      language_code: '', difficulty_level: '', status: 'DRAFT', is_favorite: false,
+    });
+    this.editor.markAsPristine();
   }
 
   typeLabel(code: string): string {
@@ -122,7 +230,7 @@ export class AppComponent implements OnInit {
   }
 
   createKnowledge(): void {
-    if (!this.mayLeaveEditor()) return;
+    if (!this.can('knowledge.create') || !this.mayLeaveEditor()) return;
     this.notice.set('');
     this.formError.set('');
     this.error.set('');
@@ -151,6 +259,7 @@ export class AppComponent implements OnInit {
   }
 
   beginEdit(): void {
+    if (!this.can('knowledge.update')) return;
     const item = this.selected();
     if (!item) return;
     this.fillEditor(item);
@@ -167,6 +276,8 @@ export class AppComponent implements OnInit {
   }
 
   saveKnowledge(): void {
+    if ((this.mode() === 'create' && !this.can('knowledge.create')) ||
+        (this.mode() === 'edit' && !this.can('knowledge.update'))) return;
     if (this.saving()) return;
     if (this.editor.invalid) {
       this.editor.markAllAsTouched();
@@ -196,23 +307,28 @@ export class AppComponent implements OnInit {
       this.formError.set('Révision absente : recharge la fiche avant toute modification.');
       return;
     }
+    const generation = this.authGeneration;
     this.saving.set(true);
     const operation = this.mode() === 'create'
       ? this.api.create(payload)
       : this.api.update(current!.knowledge_id, payload, tag!);
     operation.pipe(finalize(() => this.saving.set(false))).subscribe({
       next: (response) => {
+        if (generation !== this.authGeneration) return;
         this.acceptSaved(response);
         this.notice.set(this.mode() === 'create' ? 'Connaissance créée.' : 'Modifications enregistrées.');
         this.mode.set('view');
         this.editor.markAsPristine();
         this.loadPage();
       },
-      error: (error: unknown) => this.formError.set(this.errorMessage(error)),
+      error: (error: unknown) => {
+        if (generation === this.authGeneration) this.formError.set(this.errorMessage(error));
+      },
     });
   }
 
   askDelete(): void {
+    if (!this.can('knowledge.delete')) return;
     this.confirmingDelete.set(true);
     this.formError.set('');
   }
@@ -228,10 +344,12 @@ export class AppComponent implements OnInit {
       this.formError.set('Révision absente : recharge la fiche avant toute suppression.');
       return;
     }
+    const generation = this.authGeneration;
     this.saving.set(true);
     this.formError.set('');
     this.api.delete(item.knowledge_id, tag).pipe(finalize(() => this.saving.set(false))).subscribe({
       next: () => {
+        if (generation !== this.authGeneration) return;
         this.selected.set(null);
         this.etag.set(null);
         this.confirmingDelete.set(false);
@@ -240,7 +358,9 @@ export class AppComponent implements OnInit {
         if (this.pageIndex() > 0 && this.items().length === 1) this.pageIndex.update((value) => value - 1);
         this.loadPage();
       },
-      error: (error: unknown) => this.formError.set(this.errorMessage(error)),
+      error: (error: unknown) => {
+        if (generation === this.authGeneration) this.formError.set(this.errorMessage(error));
+      },
     });
   }
 
@@ -251,6 +371,7 @@ export class AppComponent implements OnInit {
 
   private loadPage(): void {
     const sequence = ++this.listSequence;
+    const generation = this.authGeneration;
     this.busy.set(true);
     this.error.set('');
     const type = this.typeFilter.value;
@@ -264,16 +385,16 @@ export class AppComponent implements OnInit {
       ...(q ? { q } : {}),
       ...(this.favoritesOnly() ? { is_favorite: true } : {}),
     }).pipe(finalize(() => {
-      if (sequence === this.listSequence) this.busy.set(false);
+      if (sequence === this.listSequence && generation === this.authGeneration) this.busy.set(false);
     })).subscribe({
       next: (page) => {
         // Ignore responses to superseded searches and filter changes.
-        if (sequence !== this.listSequence) return;
+        if (sequence !== this.listSequence || generation !== this.authGeneration) return;
         this.items.set(page.items);
         this.total.set(page.total);
       },
       error: (error: unknown) => {
-        if (sequence !== this.listSequence) return;
+        if (sequence !== this.listSequence || generation !== this.authGeneration) return;
         this.items.set([]);
         this.total.set(0);
         this.error.set(this.errorMessage(error));
@@ -282,12 +403,16 @@ export class AppComponent implements OnInit {
   }
 
   private fetchDetail(id: string): void {
+    const generation = this.authGeneration;
     this.detailLoading.set(true);
     this.formError.set('');
     this.error.set('');
     this.confirmingDelete.set(false);
-    this.api.get(id).pipe(finalize(() => this.detailLoading.set(false))).subscribe({
+    this.api.get(id).pipe(finalize(() => {
+      if (generation === this.authGeneration) this.detailLoading.set(false);
+    })).subscribe({
       next: (response) => {
+        if (generation !== this.authGeneration) return;
         const item = response.body;
         if (!item) {
           this.error.set('Réponse vide du service de connaissances.');
@@ -298,7 +423,9 @@ export class AppComponent implements OnInit {
         this.mode.set('view');
         this.editor.markAsPristine();
       },
-      error: (error: unknown) => this.error.set(this.errorMessage(error)),
+      error: (error: unknown) => {
+        if (generation === this.authGeneration) this.error.set(this.errorMessage(error));
+      },
     });
   }
 
@@ -333,6 +460,12 @@ export class AppComponent implements OnInit {
     if (!(error instanceof HttpErrorResponse)) return 'Une erreur inattendue est survenue.';
     switch (error.status) {
       case 0: return 'Connexion impossible. Vérifie que le frontend et la Gateway fonctionnent.';
+      case 401:
+        this.clearWorkspace();
+        this.authMode.set('login');
+        this.loginError.set('Session expirée. Connecte-toi à nouveau.');
+        return 'Session expirée.';
+      case 403: return 'Permissions insuffisantes pour cette opération.';
       case 400: return 'Précondition de version invalide. Recharge la connaissance.';
       case 404: return 'Cette connaissance est introuvable ou a été supprimée.';
       case 412: return 'Conflit de modification (412) : une autre version existe. Recharge et compare avant de réessayer.';

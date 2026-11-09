@@ -1,9 +1,23 @@
 # Frontend Angular — DevKnowledge
 
-Première interface graphique locale du CRUD générique existant.
-Le navigateur communique uniquement avec la Gateway Express.
+Interface locale du CRUD de connaissances. Le navigateur communique
+uniquement avec la Gateway Express. L'authentification locale est obligatoire
+en exploitation, et les permissions sont appliquées côté KMS.
 
 ## Docker Compose (recommandé)
+
+Les chemins sont relatifs au fichier Compose, pas au dossier d'où est invoquée
+la commande. Tous les contextes et Dockerfiles sont déclarés explicitement
+dans `compose.yaml`. Pour vérifier les chemins sans démarrer de conteneur,
+utiliser depuis la racine :
+
+    python scripts/check_dockerfiles.py --compose compose.yaml --env-file .env
+
+Si un Dockerfile est annoncé absent, vérifier la branche active avec
+`git branch --show-current`, puis `git fetch origin` et
+`git ls-files frontend/Dockerfile backend/api-gateway/Dockerfile backend/knowledge-service/Dockerfile`.
+Depuis un sous-dossier, revenir à la racine avant de lancer Compose ;
+ne pas utiliser une configuration `COMPOSE_FILE` pointant vers un autre dépôt.
 
 Avec la configuration .env locale existante, depuis la racine :
 
@@ -11,7 +25,18 @@ Avec la configuration .env locale existante, depuis la racine :
     docker compose up -d --build
     docker compose ps
 
-Ouvrir http://127.0.0.1:4200 (paramètre FRONTEND_PORT pour le port hôte).
+À la première installation, les conteneurs démarrent mais les connaissances
+restent privées jusqu'à la création de l'administrateur. Depuis la racine :
+
+    docker compose exec api-kms python -m app.auth.bootstrap_admin --username admin
+
+La commande demande deux fois un mot de passe de 12 à 256 caractères, sans
+l'inscrire dans l'historique Git Bash ou dans .env. Ne l'exécuter qu'une
+seule fois sur une base vierge d'utilisateurs. Elle refuse de s'exécuter si
+un compte existe déjà ou si le marqueur de bootstrap est présent.
+
+Ouvrir http://127.0.0.1:4200 (paramètre FRONTEND_PORT pour le port hôte)
+et se connecter avec le compte créé.
 Le conteneur Nginx sert les fichiers Angular et relaie /api/ vers
 api-gateway sur le port GATEWAY_PORT au sein du réseau Compose. Les conteneurs KMS et MongoDB
 ne sont pas exposés à Internet. Ne jamais utiliser down --volumes pour
@@ -69,8 +94,12 @@ balayage regex de la collection et **n'est pas indexée** : une recherche
 textuelle spécialisée devra remplacer ce mécanisme pour les gros corpus. Les statuts DRAFT / VALIDATED / ARCHIVED sont des conventions UI
 temporaires, pas une certification de leur valeur métier.
 
-Il n'y a pas encore d'authentification ni de rôles actifs : ne jamais publier
-l'interface sur 0.0.0.0 ou via un reverse proxy accessible publiquement.
+Les comptes et rôles locaux sont actifs. Les administrateurs disposent de
+tous les droits de connaissance et de l'API de création des utilisateurs.
+EDITOR lit, crée et modifie, mais ne supprime pas ; READER lit seulement.
+Les contrôles serveur restent obligatoires ; les boutons masqués dans Angular
+ne sont qu'un confort d'interface. Ne jamais publier les ports en dehors de
+127.0.0.1 ; une exposition distante exige HTTPS et une revue de sécurité.
 
 ## Recette manuelle
 
@@ -85,3 +114,14 @@ l'interface sur 0.0.0.0 ou via un reverse proxy accessible publiquement.
 7. Confirmer la suppression logique, puis constater la disparition.
 8. Couper la Gateway : un message d'erreur doit apparaître sans fausse
    confirmation d'enregistrement.
+
+## Administration locale des comptes
+
+Une fois connecté en tant qu'ADMIN, utiliser **Utilisateurs** dans la barre
+latérale (ou **Gestion des utilisateurs** dans l'en-tête sur mobile).
+La page permet de consulter les 100 premiers utilisateurs et leurs rôles,
+puis de créer un nouveau compte local avec un rôle initial parmi
+READER, EDITOR et ADMIN. Aucun mot de passe n'est affiché ou sauvegardé
+par Angular, et le formulaire vide ses champs secrets après l'envoi.
+La modification des rôles, les réinitialisations de mot de passe et la
+révocation globale restent hors périmètre.

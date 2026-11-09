@@ -13,6 +13,7 @@ class RequesterIdentity:
     """Trusted identity adapter for future authentication; anonymous for now."""
 
     user_id: UUID | None = None
+    permissions: frozenset[str] = frozenset()
 
 
 class KnowledgeRepository(Protocol):

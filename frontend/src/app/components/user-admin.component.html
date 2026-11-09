@@ -1,0 +1,57 @@
+<div class="admin-layout">
+  <section class="admin-panel" aria-label="Créer un compte">
+    <h2>Créer un compte local</h2>
+    <p>Les nouveaux comptes n'ont pas d'inscription publique. Choisis un rôle et transmets
+      les identifiants au titulaire par un moyen approprié.</p>
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      <label for="new-username">Identifiant *</label>
+      <input id="new-username" formControlName="username" autocomplete="off" maxlength="40"
+        placeholder="ex. dev_reader" />
+      <small>3 à 40 lettres ASCII, chiffres, points, tirets ou underscores.</small>
+
+      <label for="new-role">Rôle attribué *</label>
+      <select id="new-role" formControlName="role">
+        @for (role of roles; track role.code) {
+          <option [value]="role.code">{{ role.label }}</option>
+        }
+      </select>
+
+      <label for="new-password">Mot de passe *</label>
+      <input id="new-password" type="password" formControlName="password"
+        autocomplete="new-password" maxlength="256" />
+      <small>12 caractères minimum ; évite la réutilisation d'un mot de passe existant.</small>
+
+      <label for="confirm-password">Confirmer le mot de passe *</label>
+      <input id="confirm-password" type="password" formControlName="confirmation"
+        autocomplete="new-password" maxlength="256" />
+
+      @if (error()) { <p role="alert" class="admin-error">{{ error() }}</p> }
+      @if (notice()) { <p role="status" class="admin-notice">{{ notice() }}</p> }
+      <button type="submit" class="admin-submit" [disabled]="saving()">
+        {{ saving() ? 'Création…' : 'Créer le compte' }}
+      </button>
+    </form>
+    <p class="admin-note">Cette version permet de consulter et de créer des comptes. La révocation
+      des comptes, la rotation des mots de passe et la gestion détaillée des rôles restent à développer.</p>
+  </section>
+
+  <section class="admin-panel" aria-label="Comptes existants">
+    <div class="users-heading">
+      <div><h2>Comptes locaux</h2><p>100 premiers comptes, triés par identifiant.</p></div>
+      <button class="admin-refresh" type="button" (click)="refresh()" [disabled]="loading()">Actualiser</button>
+    </div>
+    @if (loading()) { <p role="status">Chargement des comptes…</p> }
+    @else if (!users().length) { <p>Aucun compte trouvé.</p> }
+    @else {
+      <div class="users-list">
+        @for (user of users(); track user.user_id) {
+          <div class="user-row">
+            <div><strong>{{ user.username }}</strong>
+              <small>{{ user.account_status }}</small></div>
+            <span class="user-roles">{{ user.roles.join(', ') || 'Aucun rôle' }}</span>
+          </div>
+        }
+      </div>
+    }
+  </section>
+</div>

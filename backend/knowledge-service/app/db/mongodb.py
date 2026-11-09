@@ -12,6 +12,7 @@ from pymongo import AsyncMongoClient
 from pymongo.errors import PyMongoError
 
 from app.repositories.knowledge_repository import MongoKnowledgeRepository
+from app.auth.local import initialize_identity
 
 
 logger = logging.getLogger(__name__)
@@ -44,6 +45,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             try:
                 await client.admin.command("ping")
                 await MongoKnowledgeRepository(app.state.mongodb_database).ensure_indexes()
+                await initialize_identity(app.state.mongodb_database)
                 logger.info("MongoDB connection and indexes ready")
                 break
             except PyMongoError as exc:

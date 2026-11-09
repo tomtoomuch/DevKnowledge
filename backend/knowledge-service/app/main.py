@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 from pymongo.errors import PyMongoError
 
 from app.api.routes.knowledges import router
+from app.api.routes.auth import router as identity_router
 from app.db.mongodb import lifespan
 from app.services.knowledge_service import KnowledgeNotFound, KnowledgeConflict
 
@@ -17,6 +18,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.include_router(router)
+app.include_router(identity_router)
 
 
 @app.exception_handler(KnowledgeConflict)
