@@ -6,6 +6,19 @@ en exploitation, et les permissions sont appliquées côté KMS.
 
 ## Docker Compose (recommandé)
 
+Les chemins sont relatifs au fichier Compose, pas au dossier d'où est invoquée
+la commande. Tous les contextes et Dockerfiles sont déclarés explicitement
+dans `compose.yaml`. Pour vérifier les chemins sans démarrer de conteneur,
+utiliser depuis la racine :
+
+    python scripts/check_dockerfiles.py --compose compose.yaml --env-file .env
+
+Si un Dockerfile est annoncé absent, vérifier la branche active avec
+`git branch --show-current`, puis `git fetch origin` et
+`git ls-files frontend/Dockerfile backend/api-gateway/Dockerfile backend/knowledge-service/Dockerfile`.
+Depuis un sous-dossier, revenir à la racine avant de lancer Compose ;
+ne pas utiliser une configuration `COMPOSE_FILE` pointant vers un autre dépôt.
+
 Avec la configuration .env locale existante, depuis la racine :
 
     docker compose config --quiet

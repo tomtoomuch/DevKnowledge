@@ -18,6 +18,7 @@ services:
     image: devknowledge-kms-crud-test:local
     build:
       context: ..
+      dockerfile: Dockerfile
     environment:
       MONGODB_HOST: mongodb-test
       MONGODB_PORT: 27017
@@ -39,6 +40,7 @@ services:
     image: devknowledge-kms-tests:local
     build:
       context: ..
+      dockerfile: Dockerfile
       target: test
     environment:
       AUTH_MODE: disabled

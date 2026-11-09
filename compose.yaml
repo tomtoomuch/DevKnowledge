@@ -5,6 +5,7 @@ services:
     image: devknowledge-frontend:latest
     build:
       context: ./frontend
+      dockerfile: Dockerfile
     ports:
       - "127.0.0.1:${FRONTEND_PORT:-4200}:80"
     depends_on:
@@ -16,6 +17,7 @@ services:
     image: api-gateway:latest
     build:
       context: ./backend/api-gateway
+      dockerfile: Dockerfile
     environment:
       GATEWAY_HOST: "0.0.0.0"
       GATEWAY_PORT: ${GATEWAY_PORT:-3000}
@@ -45,6 +47,7 @@ services:
     image: api-kms:latest
     build:
       context: ./backend/knowledge-service
+      dockerfile: Dockerfile
     environment:
       MONGODB_HOST: mongodb
       MONGODB_PORT: ${MONGODB_PORT:-27017}
