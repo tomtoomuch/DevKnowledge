@@ -32,4 +32,4 @@
 
 - [[iterations/iteration-5-identite-locale]] — Comptes locaux, sessions et RBAC.
 
-- [[iterations/iteration-5-identite-locale]] — Authentification locale, administration des comptes et RBAC (prototype).
+- [[iterations/iteration-6-specializations]] — Huit spécialisations métier et catalogue des types (itération 6, PR #8).

@@ -80,10 +80,19 @@ est logique et n'est pas une purge physique.
 
 ## Périmètre et limites
 
-Les huit types sont sélectionnables ; seules leurs propriétés génériques
-(type, titre, contenu, description, langue, difficulté, statut, favori)
-sont persistées. Les modèles spécialisés, tags, pièces jointes, historique,
-preuves RNCP et assistant RAG ne sont pas encore exposés en CRUD.
+Les huit types proposent désormais des champs spécialisés facultatifs, validés par le
+KMS et persistés dans le sous-document `knowledge_items.details`. Il reste possible
+de conserver des fiches génériques sans détails (compatibilité historique).
+Un éditeur dynamique permet d'activer, modifier ou retirer ces détails. Les champs
+obligatoires de certains types sont vérifiés lors de l'activation des détails ;
+la modification du type réinitialise les détails incompatibles.
+
+Le catalogue `knowledge_types` est initialisé séparément et accessible en lecture
+via la Gateway sur `GET /api/v1/knowledge-types`. Il ne s'agit pas de huit
+collections métier distinctes : le modèle logique 3NF est projeté dans un
+sous-document MongoDB atomique. Les entités liées (étapes, modules de cours,
+dépendances, tags, technologies, sources), pièces jointes, historique, preuves RNCP
+et assistant RAG restent à développer.
 
 La recherche texte (titre, description, contenu) et les filtres favoris,
 type et statut opèrent **sur l'ensemble des connaissances non supprimées**,
@@ -100,6 +109,23 @@ EDITOR lit, crée et modifie, mais ne supprime pas ; READER lit seulement.
 Les contrôles serveur restent obligatoires ; les boutons masqués dans Angular
 ne sont qu'un confort d'interface. Ne jamais publier les ports en dehors de
 127.0.0.1 ; une exposition distante exige HTTPS et une revue de sécurité.
+
+## Recette des spécialités (itération 6)
+
+1. Créer une fiche de type extrait de code ; activer les détails spécialisés,
+   saisir `code` et `programming_language`, enregistrer, relire et modifier.
+2. Répéter pour une commande terminal (`command`, `shell`), une norme
+   (`reference_code`), et les cinq autres modèles (champs facultatifs).
+3. Vérifier que les valeurs `false` des options de sécurité et les entiers sont
+   conservés, sans devenir des chaînes de caractères.
+4. Vérifier la réponse 422 en cas de détails manquants ou incohérents, et 412
+   si deux sessions modifient simultanément la même connaissance.
+5. Changer de type : les détails de l'ancien modèle sont retirés à
+   l'enregistrement, sans modification des champs génériques historiques.
+6. Désactiver les détails dans l'éditeur : ils sont supprimés du document
+   lors de l'enregistrement, avec incrément de révision.
+7. Ouvrir une ancienne connaissance générique : sa lecture et sa modification
+   doivent fonctionner même si le sous-document `details` est absent.
 
 ## Recette manuelle
 

@@ -4,7 +4,7 @@ Assistant personnel de gestion des connaissances, conçu pour fonctionner locale
 
 ## État du projet (9 novembre 2026)
 
-Le KMS propose le CRUD générique `/api/v1/knowledges` (validation, pagination, filtres, suppression logique). **Bootstrap MongoDB, Gateway, readiness et exécution hors ligne après préparation sont vérifiés en CI.** Le frontend Angular inclut la bibliothèque et, dans l'itération 5 proposée, une authentification locale/RBAC avec une administration de comptes limitée à la consultation et la création. Les spécialisations persistées et le RAG restent à développer.
+Le KMS propose le CRUD générique `/api/v1/knowledges` (validation, pagination, filtres, suppression logique). **Bootstrap MongoDB, Gateway, readiness et exécution hors ligne après préparation sont vérifiés en CI.** Le frontend Angular inclut la bibliothèque et, dans l'itération 5 proposée, une authentification locale/RBAC avec une administration de comptes limitée à la consultation et la création. Le premier lot de spécialisations métier (huit modèles avec `details` embarqués) est en cours de validation dans la PR #8 ; les relations métiers, les sources et le RAG restent à développer.
 
 **PATCH et DELETE exigent désormais `If-Match` avec la révision lue** (428 sans précondition, 412 si elle est dépassée). Les GET individuels renvoient l’ETag correspondant.
 
@@ -51,6 +51,14 @@ et plus seulement sur les éléments visibles. La recherche actuelle
 utilise un parcours regex, pas encore un index plein texte.
 
 Voir [la spécification de l'itération 4](docs/iterations/iteration-4-search.md).
+
+## Itération 6 — champs spécialisés des huit types
+
+Le modèle Pydantic propose désormais un sous-document facultatif `details` adapté à chaque type (`CODE_SNIPPET`, `TERMINAL_COMMAND`, `TECHNICAL_PROCEDURE`, `COURSE_NOTE`, `BUG_FIX`, `DOCUMENTATION_RESOURCE`, `BEST_PRACTICE`, `COMPLIANCE_STANDARD`). Le frontend utilise un formulaire correspondant à la catégorie ; les détails s'enregistrent via les routes CRUD existantes et respectent les droits et la révision `If-Match`.
+
+La collection `knowledge_types` est initialisée au démarrage avec les métadonnées des huit catégories ; la Gateway relaie `GET /api/v1/knowledge-types` aux comptes autorisés. Les détails physiques sont embarqués dans `knowledge_items` afin d'éviter des écritures multi-collections non atomiques ; cela **ne matérialise pas** les huit tables spécialisées relationnelles du MLD. Les anciens enregistrements sans `details` continuent à fonctionner.
+
+Voir [itération 6 — implémentation et limites](docs/iterations/iteration-6-specializations.md).
 
 ## Lancement local
 
