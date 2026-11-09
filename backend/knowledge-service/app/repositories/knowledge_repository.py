@@ -9,6 +9,7 @@ from pymongo import ASCENDING, DESCENDING, ReturnDocument
 from pymongo.asynchronous.database import AsyncDatabase
 
 from app.repositories.tag_repository import MongoTagRepository
+from app.repositories.technology_repository import MongoTechnologyRepository
 
 
 class MongoKnowledgeRepository:
@@ -17,6 +18,7 @@ class MongoKnowledgeRepository:
     def __init__(self, database: AsyncDatabase) -> None:
         self.collection = database["knowledge_items"]
         self.tags = MongoTagRepository(database)
+        self.technologies = MongoTechnologyRepository(database)
 
     async def ensure_indexes(self) -> None:
         await self.collection.create_index(
@@ -30,8 +32,9 @@ class MongoKnowledgeRepository:
         document["_id"] = str(document.pop("knowledge_id"))
         if document.get("created_by_user_id") is not None:
             document["created_by_user_id"] = str(document["created_by_user_id"])
-        if "tag_ids" in document:
-            document["tag_ids"] = [str(item) for item in document["tag_ids"]]
+        for field in ("tag_ids", "technology_ids", "technology_version_ids"):
+            if field in document:
+                document[field] = [str(item) for item in document[field]]
         return document
 
     @staticmethod
@@ -40,8 +43,9 @@ class MongoKnowledgeRepository:
         item["knowledge_id"] = UUID(item.pop("_id"))
         if item.get("created_by_user_id") is not None:
             item["created_by_user_id"] = UUID(item["created_by_user_id"])
-        if "tag_ids" in item:
-            item["tag_ids"] = [UUID(str(tag_id)) for tag_id in item["tag_ids"]]
+        for field in ("tag_ids", "technology_ids", "technology_version_ids"):
+            if field in item:
+                item[field] = [UUID(str(identifier)) for identifier in item[field]]
         # BSON dates are UTC with millisecond precision. The configured client
         # uses tz_aware=True; normalize to UTC also for a supplied test adapter.
         for field in ("created_at", "updated_at", "validated_at", "deleted_at"):
@@ -68,6 +72,9 @@ class MongoKnowledgeRepository:
 
     async def create(self, item: dict[str, Any]) -> dict[str, Any]:
         await self.tags.ensure_exist(item.get("tag_ids", []))
+        await self.technologies.ensure_links(
+            item.get("technology_ids", []), item.get("technology_version_ids", []),
+        )
         document = self._encode(item)
         await self.collection.insert_one(document)
         return self._decode(document)
@@ -86,6 +93,8 @@ class MongoKnowledgeRepository:
         q: str | None = None,
         is_favorite: bool | None = None,
         tag_id: UUID | None = None,
+        technology_id: UUID | None = None,
+        technology_version_id: UUID | None = None,
     ) -> tuple[list[dict[str, Any]], int]:
         query: dict[str, Any] = {"deleted_at": None}
         if knowledge_type is not None:
@@ -96,6 +105,10 @@ class MongoKnowledgeRepository:
             query["is_favorite"] = is_favorite
         if tag_id is not None:
             query["tag_ids"] = str(tag_id)
+        if technology_id is not None:
+            query["technology_ids"] = str(technology_id)
+        if technology_version_id is not None:
+            query["technology_version_ids"] = str(technology_version_id)
         if q is not None:
             # Literal matching only: user input never becomes a regex expression.
             # This intentionally scans candidate documents; see docs for scale limits.
@@ -120,6 +133,27 @@ class MongoKnowledgeRepository:
         if "tag_ids" in changes:
             await self.tags.ensure_exist(changes["tag_ids"])
             changes = {**changes, "tag_ids": [str(item) for item in changes["tag_ids"]]}
+        link_fields = ("technology_ids", "technology_version_ids")
+        if any(field in changes for field in link_fields):
+            # The other list may already be stored: validate the *resulting*
+            # union, never only the submitted PATCH fragment.
+            current = await self.collection.find_one(
+                self._active_filter(knowledge_id),
+                projection={**{field: 1 for field in link_fields}},
+            )
+            if current is None:
+                return None
+            ids = {
+                field: changes.get(field, [UUID(str(v)) for v in current.get(field, [])])
+                for field in link_fields
+            }
+            await self.technologies.ensure_links(
+                ids["technology_ids"], ids["technology_version_ids"],
+            )
+            changes = {**changes, **{
+                field: [str(identifier) for identifier in changes[field]]
+                for field in link_fields if field in changes
+            }}
         document = await self.collection.find_one_and_update(
             self._revision_filter(knowledge_id, expected_revision),
             {"$set": changes, "$inc": {"revision": 1}},
