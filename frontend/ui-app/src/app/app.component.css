@@ -17,3 +17,17 @@
 .detail-entry{min-width:0;border:1px solid #2b3a55;border-radius:9px;padding:12px;background:#0b1427}
 .detail-entry dt{font-size:11px;color:#a7b8d4;font-weight:700;margin:0 0 7px}
 .detail-entry dd{font-size:13px;color:#e7efff;margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+
+/* Iteration 7: shared tag catalog and revision-safe knowledge associations. */
+.tag-editor,.tag-view{border:1px solid #344561;border-radius:12px;padding:18px;background:#101b30;margin-top:15px}
+.tag-editor h3,.tag-view h3{font-size:14px;margin:0 0 10px;color:#b4caff}
+.tag-filter{margin-top:12px}
+.tag-filter label,.tag-create label{color:#b2c1d8;font-size:12px;font-weight:650;display:block}
+.tag-filter select,.tag-create input{margin-top:8px;width:100%;border:1px solid #344562;background:#0c1629;border-radius:9px;color:#eaf1ff;padding:10px;font-size:13px}
+.tag-chips,.tag-choices{display:flex;flex-wrap:wrap;gap:8px}
+.tag-chip,.tag-choice{border:1px solid #4b6192;border-radius:18px;background:#1d3053;color:#d5e3ff;padding:7px 12px;font-size:12px}
+.tag-choice{display:inline-flex;align-items:center;gap:7px;cursor:pointer}
+.tag-choice input{accent-color:#8aacff}
+.tag-create{margin-top:16px;display:flex;align-items:flex-end;flex-wrap:wrap;gap:12px}
+.tag-create label{flex-basis:100%}
+.tag-create input{flex:1;min-width:160px;margin-top:0}

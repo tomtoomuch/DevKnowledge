@@ -16,6 +16,7 @@ export class KnowledgeApiService {
     if (query.status) params = params.set('status', query.status);
     if (query.q) params = params.set('q', query.q);
     if (query.is_favorite !== undefined) params = params.set('is_favorite', query.is_favorite);
+    if (query.tag_id) params = params.set('tag_id', query.tag_id);
     return this.http.get<KnowledgePage>(this.base, { params });
   }
 

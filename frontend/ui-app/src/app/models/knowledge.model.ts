@@ -23,6 +23,8 @@ export interface KnowledgeWrite {
   difficulty_level: string | null;
   status: string;
   is_favorite: boolean;
+  /** IDs of reusable catalog tags (empty on legacy knowledge). */
+  tag_ids?: string[];
   /** Optional for historical generic knowledge; filled for specialized records. */
   details?: KnowledgeDetails | null;
 }
@@ -51,6 +53,7 @@ export interface KnowledgeQuery {
   status?: string;
   q?: string;
   is_favorite?: boolean;
+  tag_id?: string;
 }
 
 export function knowledgeTypeLabel(code: string): string {
