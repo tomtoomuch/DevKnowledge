@@ -107,3 +107,23 @@ Après cette préparation, `python scripts/check_stabilization.py --offline`
 rejoue les contrôles sans build ni téléchargement, vérifie l'isolation réseau
 et produit `test-results/stabilization-offline.json`. Cela qualifie l'exécution
 du socle préparé ; un build complet hors ligne reste à qualifier.
+
+
+## Itération 5 — identité locale et autorisations RBAC
+
+Après démarrage avec Docker Compose, créer le premier administrateur dans
+le conteneur KMS (une seule fois, sans mot de passe dans les arguments) :
+
+```bash
+docker compose exec api-kms python -m app.auth.bootstrap_admin --username admin
+```
+
+L'interface Angular présente ensuite un écran de connexion locale. Le KMS
+vérifie les permissions à chaque requête ; les rôles intégrés sont ADMIN,
+EDITOR et READER. Les mots de passe ne sont pas enregistrés en clair ; les
+sessions sont révocables et leur jeton opaque n'est pas stocké en clair.
+Voir [la documentation de l'identité](docs/iterations/iteration-5-identite-locale.md).
+
+**Attention :** cette authentification n'autorise pas l'exposition publique
+du projet ; les ports restent liés à 127.0.0.1 et la revue de sécurité est
+à mener avant une éventuelle publication distante.

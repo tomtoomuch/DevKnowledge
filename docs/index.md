@@ -29,3 +29,5 @@
 - [[decisions/ADR-003-identite-securite|ADR 003 : identité et sécurité — à valider]]
 
 - [[iterations/iteration-4-search]] — Recherche globale et favoris via Gateway et KMS.
+
+- [[iterations/iteration-5-identite-locale]] — Comptes locaux, sessions et RBAC.

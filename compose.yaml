@@ -51,6 +51,8 @@ services:
       MONGODB_USERNAME: ${MONGODB_APP_USERNAME:?MONGODB_APP_USERNAME_required}
       MONGODB_PASSWORD: ${MONGODB_APP_PASSWORD:?MONGODB_APP_PASSWORD_required}
       MONGODB_AUTH_SOURCE: ${MONGODB_AUTH_SOURCE:?MONGODB_AUTH_SOURCE_required}
+      AUTH_MODE: required
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-false}
     depends_on:
       mongodb:
         condition: service_healthy
