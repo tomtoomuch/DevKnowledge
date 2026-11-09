@@ -26,6 +26,10 @@ def setup_connection(monkeypatch):
     indexes = AsyncMock()
     repository = Mock(return_value=SimpleNamespace(ensure_indexes=indexes))
     monkeypatch.setattr(mongodb, "MongoKnowledgeRepository", repository)
+    monkeypatch.setattr(
+        mongodb, "MongoKnowledgeTypeRepository",
+        Mock(return_value=SimpleNamespace(ensure_catalog=AsyncMock())),
+    )
     # The identity subsystem shares this database but is initialized separately.
     monkeypatch.setattr(mongodb, "initialize_identity", AsyncMock())
     delay = AsyncMock()

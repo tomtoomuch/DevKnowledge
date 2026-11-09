@@ -6,8 +6,11 @@ from pymongo.errors import PyMongoError
 
 from app.api.routes.knowledges import router
 from app.api.routes.auth import router as identity_router
+from app.api.routes.knowledge_types import router as knowledge_types_router
 from app.db.mongodb import lifespan
-from app.services.knowledge_service import KnowledgeNotFound, KnowledgeConflict
+from app.services.knowledge_service import (
+    KnowledgeNotFound, KnowledgeConflict, KnowledgeDetailsValidationError,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -19,11 +22,17 @@ app = FastAPI(
 )
 app.include_router(router)
 app.include_router(identity_router)
+app.include_router(knowledge_types_router)
 
 
 @app.exception_handler(KnowledgeConflict)
 async def knowledge_conflict(request: Request, exc: KnowledgeConflict) -> JSONResponse:
     return JSONResponse(status_code=412, content={"detail": "Knowledge revision changed; reload before retrying"})
+
+
+@app.exception_handler(KnowledgeDetailsValidationError)
+async def invalid_knowledge_details(request: Request, exc: KnowledgeDetailsValidationError) -> JSONResponse:
+    return JSONResponse(status_code=422, content={"detail": "Invalid specialization for knowledge type"})
 
 
 @app.exception_handler(KnowledgeNotFound)

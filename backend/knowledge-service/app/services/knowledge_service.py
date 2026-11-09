@@ -5,7 +5,10 @@ from datetime import UTC, datetime
 from typing import Protocol
 from uuid import UUID, uuid4
 
+from pydantic import ValidationError
+
 from app.schemas.knowledge import KnowledgeCreate, KnowledgePage, KnowledgeRead, KnowledgeUpdate
+from app.schemas.specializations import normalize_details
 
 
 @dataclass(frozen=True)
@@ -31,6 +34,10 @@ class KnowledgeNotFound(Exception):
 
 class KnowledgeConflict(Exception):
     pass
+
+
+class KnowledgeDetailsValidationError(Exception):
+    """Submitted specialization does not conform to its knowledge type."""
 
 
 def utc_now() -> datetime:
@@ -72,6 +79,21 @@ class KnowledgeService:
         changes = payload.model_dump(exclude_unset=True)
         if payload.knowledge_type is not None:
             changes["knowledge_type"] = payload.knowledge_type.value
+        if "details" in changes or "knowledge_type" in changes:
+            # Read only when metadata that depends on the type is modified.
+            # If-Match still enforces atomicity at the MongoDB write boundary.
+            current = await self.repository.get(knowledge_id)
+            if current is None:
+                raise KnowledgeNotFound
+            target_type = changes.get("knowledge_type", current["knowledge_type"])
+            if "details" in changes and changes["details"] is not None:
+                try:
+                    changes["details"] = normalize_details(target_type, changes["details"])
+                except (ValidationError, ValueError, KeyError, TypeError):
+                    raise KnowledgeDetailsValidationError from None
+            elif "details" not in changes and target_type != current["knowledge_type"]:
+                # A specialization from one type must never leak into another.
+                changes["details"] = None
         changes["updated_at"] = utc_now()
         item = await self.repository.update(knowledge_id, changes, expected_revision)
         if item is None:
