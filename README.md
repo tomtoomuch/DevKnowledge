@@ -4,7 +4,7 @@ Assistant personnel de gestion des connaissances, conçu pour fonctionner locale
 
 ## État du projet (9 novembre 2026)
 
-Le KMS propose le CRUD générique `/api/v1/knowledges` (validation, pagination, filtres, suppression logique). **Bootstrap MongoDB, Gateway, readiness et exécution hors ligne après préparation sont vérifiés en CI.** Le frontend Angular inclut la bibliothèque et, dans l'itération 5 proposée, une authentification locale/RBAC avec une administration de comptes limitée à la consultation et la création. Le premier lot de spécialisations métier (huit modèles avec `details` embarqués) est en cours de validation dans la PR #8 ; les relations métiers, les sources et le RAG restent à développer.
+Le KMS propose le CRUD générique `/api/v1/knowledges` (validation, pagination, filtres, suppression logique). **Bootstrap MongoDB, Gateway, readiness et exécution hors ligne après préparation sont vérifiés en CI.** Le frontend Angular inclut la bibliothèque et, dans l'itération 5 proposée, une authentification locale/RBAC avec une administration de comptes limitée à la consultation et la création. Les huit spécialisations métier (sous-documents `details`) sont fusionnées dans `chat` via la PR #8. Le premier lot de classification par **tags** est proposé dans la PR #9 ; les technologies, les sources, les liens entre connaissances et le RAG restent à développer.
 
 **PATCH et DELETE exigent désormais `If-Match` avec la révision lue** (428 sans précondition, 412 si elle est dépassée). Les GET individuels renvoient l’ETag correspondant.
 
@@ -35,8 +35,7 @@ les requêtes /api/ exclusivement à la Gateway Express sur le réseau Docker.
 La liste, la recherche textuelle et les filtres type/statut/favoris
 s'exécutent côté serveur, avant pagination. La
 consultation, la création, la modification conditionnelle avec ETag/If-Match
-et la suppression logique sont prises en charge. L'interface ne persiste que
-les champs génériques, pas les spécialisations prévues au MLD.
+et la suppression logique sont prises en charge. L'interface persiste les champs génériques et les détails spécialisés des huit types. La PR #9 ajoute la création, le rattachement et le filtrage des tags.
 
 Lire le [guide frontend](frontend/ui-app/README.md) avant la première utilisation.
 
@@ -59,6 +58,18 @@ Le modèle Pydantic propose désormais un sous-document facultatif `details` ada
 La collection `knowledge_types` est initialisée au démarrage avec les métadonnées des huit catégories ; la Gateway relaie `GET /api/v1/knowledge-types` aux comptes autorisés. Les détails physiques sont embarqués dans `knowledge_items` afin d'éviter des écritures multi-collections non atomiques ; cela **ne matérialise pas** les huit tables spécialisées relationnelles du MLD. Les anciens enregistrements sans `details` continuent à fonctionner.
 
 Voir [itération 6 — implémentation et limites](docs/iterations/iteration-6-specializations.md).
+
+## Itération 7 — classification par tags (PR #9, en cours)
+
+- `POST /api/v1/tags` : créer un tag réutilisable (libellé unique après normalisation Unicode et comparaison insensible à la casse).
+- `GET /api/v1/tags` : consulter les tags avec pagination ; `GET /api/v1/tags/{uuid}` : consulter un tag.
+- `tag_ids` sur `POST /api/v1/knowledges` et `PATCH /api/v1/knowledges/{uuid}` : rattacher jusqu'à 30 tags existants, avec validation des UUID et de leur existence. La modification reste soumise à `If-Match`.
+- `GET /api/v1/knowledges?tag_id={uuid}` : filtrer avant pagination, combinable aux autres filtres.
+- Le frontend sous `frontend/ui-app/` permet la création d'un tag, sa sélection dans la fiche, la consultation des tags liés et le filtrage.
+
+La collection physique `tags` est distincte ; la relation logique `knowledge_tags` est stockée comme tableau `tag_ids` dans chaque document `knowledge_items` pour garantir des écritures conditionnelles atomiques sur MongoDB autonome. Le catalogue des tags est volontairement **immuable** dans cette première version : pas de renommage ni de suppression, afin d'éviter toute référence orpheline. L'interface charge jusqu'à 100 tags ; une interface de recherche/pagination avancée est à prévoir.
+
+Voir [itération 7 — tags et limites](docs/iterations/iteration-7-tags.md).
 
 ## Lancement local
 

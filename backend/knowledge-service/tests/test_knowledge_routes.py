@@ -443,3 +443,22 @@ def test_specialization_is_validated_and_persisted_through_the_existing_http_con
     assert client.patch(f"{BASE}/{ident}", headers={"If-Match": '"1"'},
                         json={"details": {"root_cause": "stale"}}).status_code == 412
     assert client.get(f"{BASE}/{ident}").json()["details"] is None
+
+
+def test_tag_ids_are_validated_and_legacy_records_stay_compatible(api):
+    client, repository = api
+    from uuid import uuid4
+    tag = uuid4()
+    created = create(client)
+    assert created["tag_ids"] == []
+    path = f"{BASE}/{created['knowledge_id']}"
+    assert patch(client, path, json={"tag_ids": None}).status_code == 422
+    assert patch(client, path, json={"tag_ids": [str(tag), str(tag)]}).status_code == 422
+    assert patch(client, path, json={"tag_ids": ["not-a-uuid"]}).status_code == 422
+    # The in-memory unit fake does not check catalog membership; database
+    # integration tests exercise real referential validation.
+    updated = patch(client, path, json={"tag_ids": [str(tag)]})
+    assert updated.status_code == 200
+    assert updated.json()["tag_ids"] == [str(tag)]
+    assert patch(client, path, json={"tag_ids": []}).status_code == 200
+    assert patch(client, path, json={"tag_ids": []}).json()["tag_ids"] == []

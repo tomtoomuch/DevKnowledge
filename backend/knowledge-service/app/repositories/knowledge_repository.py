@@ -8,12 +8,15 @@ from uuid import UUID
 from pymongo import ASCENDING, DESCENDING, ReturnDocument
 from pymongo.asynchronous.database import AsyncDatabase
 
+from app.repositories.tag_repository import MongoTagRepository
+
 
 class MongoKnowledgeRepository:
     """Reuse the application's database; never create a client per request."""
 
     def __init__(self, database: AsyncDatabase) -> None:
         self.collection = database["knowledge_items"]
+        self.tags = MongoTagRepository(database)
 
     async def ensure_indexes(self) -> None:
         await self.collection.create_index(
@@ -27,6 +30,8 @@ class MongoKnowledgeRepository:
         document["_id"] = str(document.pop("knowledge_id"))
         if document.get("created_by_user_id") is not None:
             document["created_by_user_id"] = str(document["created_by_user_id"])
+        if "tag_ids" in document:
+            document["tag_ids"] = [str(item) for item in document["tag_ids"]]
         return document
 
     @staticmethod
@@ -35,6 +40,8 @@ class MongoKnowledgeRepository:
         item["knowledge_id"] = UUID(item.pop("_id"))
         if item.get("created_by_user_id") is not None:
             item["created_by_user_id"] = UUID(item["created_by_user_id"])
+        if "tag_ids" in item:
+            item["tag_ids"] = [UUID(str(tag_id)) for tag_id in item["tag_ids"]]
         # BSON dates are UTC with millisecond precision. The configured client
         # uses tz_aware=True; normalize to UTC also for a supplied test adapter.
         for field in ("created_at", "updated_at", "validated_at", "deleted_at"):
@@ -60,6 +67,7 @@ class MongoKnowledgeRepository:
         return query
 
     async def create(self, item: dict[str, Any]) -> dict[str, Any]:
+        await self.tags.ensure_exist(item.get("tag_ids", []))
         document = self._encode(item)
         await self.collection.insert_one(document)
         return self._decode(document)
@@ -77,6 +85,7 @@ class MongoKnowledgeRepository:
         status: str | None = None,
         q: str | None = None,
         is_favorite: bool | None = None,
+        tag_id: UUID | None = None,
     ) -> tuple[list[dict[str, Any]], int]:
         query: dict[str, Any] = {"deleted_at": None}
         if knowledge_type is not None:
@@ -85,6 +94,8 @@ class MongoKnowledgeRepository:
             query["status"] = status
         if is_favorite is not None:
             query["is_favorite"] = is_favorite
+        if tag_id is not None:
+            query["tag_ids"] = str(tag_id)
         if q is not None:
             # Literal matching only: user input never becomes a regex expression.
             # This intentionally scans candidate documents; see docs for scale limits.
@@ -106,6 +117,9 @@ class MongoKnowledgeRepository:
     async def update(
         self, knowledge_id: UUID, changes: dict[str, Any], expected_revision: int = 0
     ) -> dict[str, Any] | None:
+        if "tag_ids" in changes:
+            await self.tags.ensure_exist(changes["tag_ids"])
+            changes = {**changes, "tag_ids": [str(item) for item in changes["tag_ids"]]}
         document = await self.collection.find_one_and_update(
             self._revision_filter(knowledge_id, expected_revision),
             {"$set": changes, "$inc": {"revision": 1}},

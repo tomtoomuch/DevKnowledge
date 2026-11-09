@@ -13,6 +13,7 @@ from pymongo.errors import PyMongoError
 
 from app.repositories.knowledge_repository import MongoKnowledgeRepository
 from app.repositories.knowledge_type_repository import MongoKnowledgeTypeRepository
+from app.repositories.tag_repository import MongoTagRepository
 from app.auth.local import initialize_identity
 
 
@@ -47,6 +48,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 await client.admin.command("ping")
                 await MongoKnowledgeRepository(app.state.mongodb_database).ensure_indexes()
                 await MongoKnowledgeTypeRepository(app.state.mongodb_database).ensure_catalog()
+                await MongoTagRepository(app.state.mongodb_database).ensure_indexes()
                 await initialize_identity(app.state.mongodb_database)
                 logger.info("MongoDB connection and indexes ready")
                 break

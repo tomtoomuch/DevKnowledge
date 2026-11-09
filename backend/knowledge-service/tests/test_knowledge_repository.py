@@ -194,3 +194,35 @@ def test_mongodb_errors_propagate_for_sanitized_http_handling(repository, collec
     }
     with pytest.raises(ConnectionFailure):
         run(calls[operation]())
+
+
+def test_tag_assignment_checks_catalog_and_stores_uuid_strings(repository, collection, item):
+    from unittest.mock import AsyncMock
+    tag_id = uuid4()
+    repository.tags.ensure_exist = AsyncMock()
+    item["tag_ids"] = [tag_id]
+    assert run(repository.create(item))["tag_ids"] == [tag_id]
+    repository.tags.ensure_exist.assert_awaited_once_with([tag_id])
+    assert collection.insert_one.await_args.args[0]["tag_ids"] == [str(tag_id)]
+    collection.find_one_and_update.return_value = repository._encode({
+        **item, "revision": 2,
+    })
+    result = run(repository.update(item["knowledge_id"], {"tag_ids": [tag_id]}, 1))
+    assert result["tag_ids"] == [tag_id]
+    assert collection.find_one_and_update.await_args.args[1]["$set"]["tag_ids"] == [str(tag_id)]
+    repository.tags.ensure_exist.assert_awaited_with([tag_id])
+
+
+def test_tag_filter_is_applied_before_pagination(repository, collection, item):
+    tag_id = uuid4()
+    cursor = MagicMock()
+    collection.find.return_value = cursor
+    cursor.sort.return_value = cursor
+    cursor.skip.return_value = cursor
+    cursor.limit.return_value = cursor
+    cursor.to_list = AsyncMock(return_value=[repository._encode(item)])
+    collection.count_documents.return_value = 1
+    results, total = run(repository.list(skip=0, limit=20, tag_id=tag_id))
+    assert total == 1 and len(results) == 1
+    assert collection.find.call_args.args[0]["tag_ids"] == str(tag_id)
+    assert collection.count_documents.await_args.args[0]["tag_ids"] == str(tag_id)

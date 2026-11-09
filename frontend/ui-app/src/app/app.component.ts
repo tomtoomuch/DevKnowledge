@@ -12,6 +12,8 @@ import {
   detailToFormValue, displayDetailValue, toSpecialization,
 } from './models/specialization-fields';
 import { KnowledgeApiService } from './services/knowledge-api.service';
+import { TagApiService } from './services/tag-api.service';
+import { TagRecord } from './models/tag.model';
 import { AuthService, LocalIdentity } from './services/auth.service';
 import { UserAdminComponent } from './components/user-admin.component';
 import { MonitoringComponent } from './components/monitoring.component';
@@ -29,6 +31,7 @@ const PAGE_SIZE = 20;
 })
 export class AppComponent implements OnInit {
   private readonly api = inject(KnowledgeApiService);
+  private readonly tagApi = inject(TagApiService);
   private readonly auth = inject(AuthService);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -63,6 +66,14 @@ export class AppComponent implements OnInit {
   readonly confirmingDelete = signal(false);
   readonly searchTerm = signal('');
   readonly favoritesOnly = signal(false);
+  readonly tags = signal<TagRecord[]>([]);
+  readonly tagError = signal('');
+  readonly savingTag = signal(false);
+  readonly tagSelection = signal<string[]>([]);
+  readonly tagSelectionDirty = signal(false);
+  readonly tagName = new FormControl('', {
+    nonNullable: true, validators: [Validators.required, Validators.maxLength(100)],
+  });
 
   // The KMS now performs all list filters before pagination.
   readonly visibleItems = computed(() => this.items());
@@ -75,6 +86,7 @@ export class AppComponent implements OnInit {
   readonly typeFilter = new FormControl<KnowledgeType | ''>('', { nonNullable: true });
   readonly statusFilter = new FormControl('', { nonNullable: true });
   readonly favoritesFilter = new FormControl(false, { nonNullable: true });
+  readonly tagFilter = new FormControl('', { nonNullable: true });
 
   readonly editor = new FormGroup({
     knowledge_type: new FormControl<KnowledgeType>('CODE_SNIPPET', {
@@ -112,6 +124,7 @@ export class AppComponent implements OnInit {
     });
     this.typeFilter.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.resetPage());
     this.statusFilter.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.resetPage());
+    this.tagFilter.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.resetPage());
     this.favoritesFilter.valueChanges.pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((value) => {
         this.favoritesOnly.set(value);
@@ -180,6 +193,7 @@ export class AppComponent implements OnInit {
     this.principal.set(principal);
     this.authMode.set('active');
     this.loginError.set('');
+    this.loadTags();
     this.loadPage();
   }
 
@@ -203,10 +217,17 @@ export class AppComponent implements OnInit {
     this.formError.set('');
     this.searchTerm.set('');
     this.favoritesOnly.set(false);
+    this.tags.set([]);
+    this.tagError.set('');
+    this.savingTag.set(false);
+    this.tagSelection.set([]);
+    this.tagSelectionDirty.set(false);
+    this.tagName.reset('', { emitEvent: false });
     this.search.setValue('', { emitEvent: false });
     this.typeFilter.setValue('', { emitEvent: false });
     this.statusFilter.setValue('', { emitEvent: false });
     this.favoritesFilter.setValue(false, { emitEvent: false });
+    this.tagFilter.setValue('', { emitEvent: false });
     this.editor.reset({
       knowledge_type: 'CODE_SNIPPET', title: '', content: '', description: '',
       language_code: '', difficulty_level: '', status: 'DRAFT', is_favorite: false,
@@ -221,6 +242,65 @@ export class AppComponent implements OnInit {
     return knowledgeTypeLabel(code);
   }
 
+  tagLabel(tagId: string): string {
+    return this.tags().find(tag => tag.tag_id === tagId)?.name ?? tagId;
+  }
+
+  isTagSelected(tagId: string): boolean {
+    return this.tagSelection().includes(tagId);
+  }
+
+  toggleTag(tagId: string, selected: boolean): void {
+    this.tagSelection.update(ids => selected
+      ? (ids.includes(tagId) ? ids : [...ids, tagId])
+      : ids.filter(id => id !== tagId));
+    this.tagSelectionDirty.set(true);
+  }
+
+  private loadTags(): void {
+    const generation = this.authGeneration;
+    this.tagError.set('');
+    this.tagApi.list().subscribe({
+      next: page => {
+        if (generation !== this.authGeneration) return;
+        this.tags.set(page.items);
+        if (page.total > page.items.length) {
+          this.tagError.set('Seuls les 100 premiers tags sont proposés. La pagination avancée reste à développer.');
+        }
+      },
+      error: (error: unknown) => {
+        if (generation === this.authGeneration) this.tagError.set(this.errorMessage(error));
+      },
+    });
+  }
+
+  createTag(): void {
+    if (!this.can('knowledge.create') || this.tagName.invalid || this.savingTag()) return;
+    const name = this.tagName.value.trim();
+    if (!name) return;
+    const generation = this.authGeneration;
+    this.tagError.set('');
+    this.savingTag.set(true);
+    this.tagApi.create(name).pipe(
+      finalize(() => this.savingTag.set(false)),
+    ).subscribe({
+      next: tag => {
+        if (generation !== this.authGeneration) return;
+        this.tags.update(items => [...items, tag]
+          .sort((a, b) => a.name.localeCompare(b.name, 'fr')));
+        this.toggleTag(tag.tag_id, true);
+        this.tagName.setValue('');
+        this.notice.set('Tag créé. Enregistre la connaissance pour lui associer ce tag.');
+      },
+      error: (error: unknown) => {
+        if (generation !== this.authGeneration) return;
+        this.tagError.set(error instanceof HttpErrorResponse && error.status === 409
+          ? 'Ce tag existe déjà.'
+          : this.errorMessage(error));
+      },
+    });
+  }
+
   dateLabel(value: string): string {
     return new Date(value).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
   }
@@ -230,6 +310,7 @@ export class AppComponent implements OnInit {
     this.favoritesFilter.setValue(false);
     this.typeFilter.setValue('');
     this.statusFilter.setValue('');
+    this.tagFilter.setValue('');
   }
 
   reload(): void {
@@ -257,6 +338,9 @@ export class AppComponent implements OnInit {
     this.selected.set(null);
     this.etag.set(null);
     this.confirmingDelete.set(false);
+    this.tagSelection.set([]);
+    this.tagSelectionDirty.set(false);
+    this.tagName.setValue('');
     this.editor.reset({
       knowledge_type: 'CODE_SNIPPET',
       title: '', content: '', description: '',
@@ -298,6 +382,7 @@ export class AppComponent implements OnInit {
     this.editor.markAsPristine();
     this.detailsForm.markAsPristine();
     this.detailsEnabled.markAsPristine();
+    this.tagSelectionDirty.set(false);
   }
 
   saveKnowledge(): void {
@@ -320,6 +405,7 @@ export class AppComponent implements OnInit {
       difficulty_level: value.difficulty_level.trim() || null,
       status: value.status.trim(),
       is_favorite: value.is_favorite,
+      tag_ids: this.tagSelection(),
     };
     if (!payload.title || !payload.content.trim()) {
       this.formError.set('Le titre et le contenu ne peuvent pas être vides.');
@@ -357,6 +443,7 @@ export class AppComponent implements OnInit {
         this.editor.markAsPristine();
         this.detailsForm.markAsPristine();
         this.detailsEnabled.markAsPristine();
+        this.tagSelectionDirty.set(false);
         this.loadPage();
       },
       error: (error: unknown) => {
@@ -422,6 +509,7 @@ export class AppComponent implements OnInit {
       ...(status ? { status } : {}),
       ...(q ? { q } : {}),
       ...(this.favoritesOnly() ? { is_favorite: true } : {}),
+      ...(this.tagFilter.value ? { tag_id: this.tagFilter.value } : {}),
     }).pipe(finalize(() => {
       if (sequence === this.listSequence && generation === this.authGeneration) this.busy.set(false);
     })).subscribe({
@@ -489,6 +577,8 @@ export class AppComponent implements OnInit {
     this.configureDetails(item.knowledge_type, item.details);
     this.detailsEnabled.setValue(item.details != null, { emitEvent: false });
     this.detailsEnabled.markAsPristine();
+    this.tagSelection.set(item.tag_ids ?? []);
+    this.tagSelectionDirty.set(false);
     this.editor.markAsPristine();
   }
 
@@ -526,7 +616,8 @@ export class AppComponent implements OnInit {
 
   private mayLeaveEditor(): boolean {
     return this.mode() === 'view' ||
-      (!this.editor.dirty && !this.detailsForm.dirty && !this.detailsEnabled.dirty) ||
+      (!this.editor.dirty && !this.detailsForm.dirty &&
+        !this.detailsEnabled.dirty && !this.tagSelectionDirty()) ||
       window.confirm('Abandonner les modifications non enregistrées ?');
   }
 

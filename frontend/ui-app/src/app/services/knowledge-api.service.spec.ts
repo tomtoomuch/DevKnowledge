@@ -63,6 +63,14 @@ describe('KnowledgeApiService', () => {
     req.flush({ items: [], total: 0, skip: 20, limit: 20 });
   });
 
+  it('sends tag filter before pagination', () => {
+    const tagId = 'e627de24-880c-4a22-b18e-7884ee0396a3';
+    api.list({ skip: 0, limit: 20, tag_id: tagId }).subscribe();
+    const req = mock.expectOne((request) => request.url === '/api/v1/knowledges');
+    expect(req.request.params.get('tag_id')).toBe(tagId);
+    req.flush({ items: [], total: 0, skip: 0, limit: 20 });
+  });
+
   it('does not set optional filters for unfiltered requests', () => {
     api.list({ skip: 0, limit: 20 }).subscribe();
     const req = mock.expectOne('/api/v1/knowledges?skip=0&limit=20');

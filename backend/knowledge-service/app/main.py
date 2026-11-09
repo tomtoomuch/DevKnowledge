@@ -7,8 +7,10 @@ from pymongo.errors import PyMongoError
 from app.api.routes.knowledges import router
 from app.api.routes.auth import router as identity_router
 from app.api.routes.knowledge_types import router as knowledge_types_router
+from app.api.routes.tags import router as tags_router
 from app.api.routes.monitoring import router as monitoring_router
 from app.db.mongodb import lifespan
+from app.repositories.tag_repository import UnknownTagError
 from app.services.knowledge_service import (
     KnowledgeNotFound, KnowledgeConflict, KnowledgeDetailsValidationError,
 )
@@ -24,7 +26,13 @@ app = FastAPI(
 app.include_router(router)
 app.include_router(identity_router)
 app.include_router(knowledge_types_router)
+app.include_router(tags_router)
 app.include_router(monitoring_router)
+
+
+@app.exception_handler(UnknownTagError)
+async def unknown_tag(request: Request, exc: UnknownTagError) -> JSONResponse:
+    return JSONResponse(status_code=422, content={"detail": "Some tag identifiers do not exist"})
 
 
 @app.exception_handler(KnowledgeConflict)

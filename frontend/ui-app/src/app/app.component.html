@@ -35,6 +35,7 @@
         <button type="button" class="nav-link" [class.active]="section() === 'users'"
           (click)="showSection('users')"><span aria-hidden="true">♙</span> Utilisateurs</button>
       }
+      <div class="nav-link upcoming"><span aria-hidden="true">⌗</span> Technologies <small>À venir</small></div>
       <button type="button" class="nav-link" [class.active]="section() === 'monitoring'"
         (click)="showSection('monitoring')"><span aria-hidden="true">◉</span> Monitoring</button>
       <div class="nav-link upcoming"><span aria-hidden="true">⌗</span> Classification <small>À venir</small></div>
@@ -104,11 +105,21 @@
             </select>
           </label>
         </div>
+        <div class="tag-filter">
+          <label for="tag-filter">Tag
+            <select id="tag-filter" [formControl]="tagFilter" aria-label="Filtrer les connaissances par tag">
+              <option value="">Tous les tags</option>
+              @for (tag of tags(); track tag.tag_id) {
+                <option [value]="tag.tag_id">{{ tag.name }}</option>
+              }
+            </select>
+          </label>
+        </div>
         <div class="filter-bottom">
           <label class="check-line"><input type="checkbox" [formControl]="favoritesFilter" /> Favoris uniquement</label>
           <button class="quiet" type="button" (click)="resetFilters()">Effacer les filtres</button>
         </div>
-        <div class="list-meta">Recherche globale dans titres, descriptions et contenus · filtres cumulables</div>
+        <div class="list-meta">Recherche dans les contenus · filtres type, statut, favoris et tags cumulables</div>
 
         @if (busy()) { <p class="empty" role="status">Chargement des connaissances…</p> }
         @else if (visibleItems().length === 0) {
@@ -165,6 +176,16 @@
             @if (item.language_code) { <span>Langue <b>{{ item.language_code }}</b></span> }
             @if (item.difficulty_level) { <span>Niveau <b>{{ item.difficulty_level }}</b></span> }
           </div>
+          @if (item.tag_ids?.length) {
+            <section class="tag-view" aria-label="Tags de la connaissance">
+              <h3>Tags</h3>
+              <div class="tag-chips">
+                @for (tagId of item.tag_ids ?? []; track tagId) {
+                  <span class="tag-chip">{{ tagLabel(tagId) }}</span>
+                }
+              </div>
+            </section>
+          }
           <div class="content-card"><h3>Contenu</h3><pre class="content-text">{{ item.content }}</pre></div>
           @if (detailsToShow(item).length > 0) {
             <section class="specialization-view" aria-label="Détails spécialisés">
@@ -198,6 +219,33 @@
               <div class="field"><label for="status">Statut *</label><select id="status" formControlName="status"><option value="DRAFT">Brouillon</option><option value="VALIDATED">Validé</option><option value="ARCHIVED">Archivé</option></select></div>
               <label class="editor-favorite"><input type="checkbox" formControlName="is_favorite" /> ★ Ajouter aux favoris</label>
             </div>
+            <section class="tag-editor" aria-label="Tags de la connaissance">
+              <h3>Classification par tags</h3>
+              <p class="specialization-hint">Sélectionne les tags associés à cette fiche (30 maximum). Le lien est enregistré avec la révision de la connaissance.</p>
+              @if (tags().length > 0) {
+                <div class="tag-choices">
+                  @for (tag of tags(); track tag.tag_id) {
+                    <label class="tag-choice">
+                      <input type="checkbox" [checked]="isTagSelected(tag.tag_id)"
+                        [disabled]="!isTagSelected(tag.tag_id) && tagSelection().length >= 30"
+                        (change)="toggleTag(tag.tag_id, $any($event.target).checked)" />
+                      {{ tag.name }}
+                    </label>
+                  }
+                </div>
+              } @else { <p class="specialization-hint">Aucun tag disponible pour le moment.</p> }
+              @if (can('knowledge.create')) {
+                <div class="tag-create">
+                  <label for="new-tag">Créer un tag</label>
+                  <input id="new-tag" [formControl]="tagName" maxlength="100" placeholder="Ex. Docker" />
+                  <button type="button" class="outline" (click)="createTag()"
+                    [disabled]="savingTag() || tagName.invalid || tagSelection().length >= 30">
+                    {{ savingTag() ? 'Création…' : 'Ajouter le tag' }}
+                  </button>
+                </div>
+              }
+              @if (tagError()) { <p class="field-error" role="alert">{{ tagError() }}</p> }
+            </section>
             <section class="specialization-editor" aria-label="Champs spécialisés">
               <label class="editor-favorite">
                 <input type="checkbox" [formControl]="detailsEnabled" />
