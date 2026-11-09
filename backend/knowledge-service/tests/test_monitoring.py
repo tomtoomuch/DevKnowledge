@@ -20,7 +20,7 @@ def client(monkeypatch):
     app.dependency_overrides[requester_identity] = lambda: RequesterIdentity(
         permissions=frozenset({"knowledge.read"}),
     )
-    monkeypatch.setattr(app.state, "mongodb_client", None, raising=False)
+    monkeypatch.setitem(app.state._state, "mongodb_client", None)
     test_client = TestClient(app)
     try:
         yield test_client
@@ -41,9 +41,9 @@ def test_missing_mongodb_client_is_unknown_and_kms_degraded(client):
 
 def test_healthy_mongodb_ping(client, monkeypatch):
     command = AsyncMock()
-    monkeypatch.setattr(app.state, "mongodb_client", SimpleNamespace(
+    monkeypatch.setitem(app.state._state, "mongodb_client", SimpleNamespace(
         admin=SimpleNamespace(command=command),
-    ), raising=False)
+    ))
     response = client.get(ENDPOINT)
     assert response.status_code == 200
     statuses = {entry["id"]: entry["status"] for entry in response.json()["services"]}
@@ -53,9 +53,9 @@ def test_healthy_mongodb_ping(client, monkeypatch):
 
 def test_failed_ping_is_sanitized_and_does_not_cascade_to_gateway(client, monkeypatch):
     command = AsyncMock(side_effect=ConnectionFailure("mongodb://secret:password@internal.invalid"))
-    monkeypatch.setattr(app.state, "mongodb_client", SimpleNamespace(
+    monkeypatch.setitem(app.state._state, "mongodb_client", SimpleNamespace(
         admin=SimpleNamespace(command=command),
-    ), raising=False)
+    ))
     response = client.get(ENDPOINT)
     assert response.status_code == 200
     assert "password" not in response.text

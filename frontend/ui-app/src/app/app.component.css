@@ -17,3 +17,10 @@
 .detail-entry{min-width:0;border:1px solid #2b3a55;border-radius:9px;padding:12px;background:#0b1427}
 .detail-entry dt{font-size:11px;color:#a7b8d4;font-weight:700;margin:0 0 7px}
 .detail-entry dd{font-size:13px;color:#e7efff;margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+
+/* Keep working navigation accessible on narrow screens, including Monitoring. */
+@media(max-width:900px){
+  .sidebar nav{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+  .sidebar nav button.nav-link{width:auto;padding:10px 12px}
+  .sidebar nav .upcoming{display:none}
+}

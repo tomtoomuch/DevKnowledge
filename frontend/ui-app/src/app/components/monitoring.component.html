@@ -20,7 +20,7 @@
       <strong>{{ summary() }}</strong>
       <small>
         @if (checkedAt()) {
-          Dernier contrôle : {{ checkedAt() | date:'dd/MM/yyyy à HH:mm:ss':'':'fr' }}
+          Dernier contrôle : {{ checkedAt() | date:'dd/MM/yyyy HH:mm:ss' }}
         } @else {
           Aucun contrôle disponible
         }
