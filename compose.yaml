@@ -6,11 +6,13 @@ services:
     environment:
       GATEWAY_HOST: "0.0.0.0"
       GATEWAY_PORT: ${GATEWAY_PORT:-3000}
+      KMS_BASE_URL: http://api-kms:8000
+      KMS_TIMEOUT_MS: ${KMS_TIMEOUT_MS:-10000}
       NODE_ENV: production
     ports:
       - "127.0.0.1:${GATEWAY_PORT:-3000}:${GATEWAY_PORT:-3000}"
     depends_on:
-      mongodb:
+      api-kms:
         condition: service_healthy
 
     healthcheck:
@@ -18,7 +20,7 @@ services:
         - CMD
         - node
         - -e
-        - "fetch('http://127.0.0.1:' + process.env.GATEWAY_PORT + '/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+        - "fetch('http://127.0.0.1:' + process.env.GATEWAY_PORT + '/health/ready', {signal: AbortSignal.timeout(4000)}).then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
       interval: 15s
       timeout: 5s
       retries: 3
@@ -36,8 +38,6 @@ services:
       MONGODB_USERNAME: ${MONGODB_APP_USERNAME:?MONGODB_APP_USERNAME_required}
       MONGODB_PASSWORD: ${MONGODB_APP_PASSWORD:?MONGODB_APP_PASSWORD_required}
       MONGODB_AUTH_SOURCE: ${MONGODB_AUTH_SOURCE:?MONGODB_AUTH_SOURCE_required}
-    ports:
-      - "127.0.0.1:8000:8000"
     depends_on:
       mongodb:
         condition: service_healthy

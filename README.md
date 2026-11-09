@@ -6,10 +6,11 @@ Assistant personnel de gestion des connaissances, conçu pour fonctionner locale
 
 Le KMS propose le CRUD générique `/api/v1/knowledges`, avec validation, pagination, filtres et suppression logique. **Bootstrap MongoDB, configuration Gateway et readiness sont validés localement ; la CI est définie et les dépendances Python sont verrouillées.** Le frontend Angular, l'authentification/RBAC, les huit spécialisations et le RAG sont des étapes ultérieures.
 
-La Gateway ne relaie **pas encore** les routes CRUD : le KMS reste accessible directement sur `127.0.0.1:8000` en développement. Aucune protection d'accès applicative n'est encore en place ; ne pas exposer l'API sur une interface publique.
+La Gateway relaie les routes CRUD sur `127.0.0.1:3000/api/v1/knowledges`. Le KMS est interne au réseau Compose par défaut ; son port de diagnostic est optionnel. Aucune protection d'accès applicative n'est encore en place ; ne pas exposer l'API sur une interface publique.
 
 - [Validation du 9 novembre 2026 et limites restantes](docs/iterations/validation-stabilisation-2026-11-09.md)
 - [CI GitHub Actions](https://github.com/tomtoomuch/DevKnowledge/actions/workflows/ci.yml)
+- [Relais Gateway → KMS : contrat, limites et diagnostic](docs/architecture/gateway-kms.md)
 - [Point d'avancement historique au 4 novembre 2026](docs/iterations/point-avancement-2026-11-04.md)
 - [Plan de stabilisation — itération 2](docs/iterations/iteration-2-stabilisation.md)
 - [Feuille de route](docs/roadmap.md)
@@ -29,13 +30,13 @@ docker compose up -d --build
 docker compose ps
 ```
 
-La Gateway écoute par défaut sur `127.0.0.1:3000`, le KMS sur `127.0.0.1:8000` ; MongoDB n'est pas publié sur l'hôte. OpenAPI : [Swagger UI du KMS](http://127.0.0.1:8000/docs).
+La Gateway écoute par défaut sur `127.0.0.1:3000` ; le KMS et MongoDB ne sont pas publiés sur l'hôte. Pour Swagger ou le diagnostic direct, utiliser `docker compose -f compose.yaml -f compose.debug.yaml up -d --build`, puis [Swagger UI du KMS](http://127.0.0.1:8000/docs).
 
 **Installation neuve :** `.env.example` et `compose.yaml` sont alignés ; le compte MongoDB applicatif limité est initialisé sur un volume vierge. **Le démarrage réel et le redémarrage ont été validés sur un projet isolé.** Ne pas écraser un `.env` existant : le bootstrap ne se rejoue pas sur un volume déjà initialisé. Voir le [guide de provisionnement et test isolé](docs/operations/mongodb-bootstrap.md). Ne jamais supprimer les volumes de développement par inadvertance.
 
 ## Tests
 
-Campagne locale du 9 novembre : 2 tests Gateway, 113 tests unitaires KMS Windows et 117 tests KMS Docker réussis. La CI exécute aussi les scénarios de bootstrap et de panne/reprise. Depuis un environnement Python virtuel pour les commandes KMS :
+Le relais Gateway possède une suite dédiée ; la CI exécute aussi les 113 tests unitaires KMS, les 117 tests KMS avec MongoDB et les scénarios de bootstrap, CRUD via Gateway et panne/reprise. Depuis un environnement Python virtuel pour les commandes KMS :
 
 ```bash
 # Gateway

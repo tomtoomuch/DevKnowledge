@@ -2,6 +2,7 @@
 
 ## État actuel et prochaines étapes
 
+- [[iterations/validation-gateway-2026-11-09|Validation STAB-06 — Gateway vers KMS]]
 - [[iterations/point-avancement-2026-11-04|Point d'avancement — 4 novembre 2026]]
 - [[iterations/iteration-2-stabilisation|Itération 2 — Plan de stabilisation à réaliser ensemble]]
 - [[roadmap|Feuille de route actualisée]]
@@ -9,6 +10,7 @@
 
 ## Implémentation et référentiel
 
+- [[architecture/gateway-kms|Gateway → KMS : contrat du relais et diagnostic]]
 - [[architecture/kms-knowledge-crud|KMS : architecture, contrat CRUD et vérification manuelle]]
 - [[iterations/iteration-1-kms-crud|Itération 1 : livraison et résultats historiques des tests]]
 - [[DevKnowledge_MLD_3NF_v0.2|Modèle logique candidat 3NF — 56 tables, non intégralement implémentées]]

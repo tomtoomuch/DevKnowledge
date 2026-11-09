@@ -23,7 +23,7 @@ tags: [devknowledge, roadmap, stabilisation]
 | Modélisation | Modèle logique v0.2 à relire | 56 tables, huit spécialisations, utilisateurs/RBAC, RNCP et RAG ; aucune garantie d'implémentation physique globale |
 | Socle Docker / Express / FastAPI / MongoDB | Bootstrap, configuration et readiness validés localement | Trois services Compose, contrôles de santé, stockage local |
 | Itération 1 — CRUD générique KMS | Livrée, tests historiques positifs | `knowledge_items` ; routes, schémas, services, repository et tests |
-| **Itération 2 — Stabilisation** | **STAB-01 à 05 et 07 implémentés, validations locales réussies** | Config/env, compte MongoDB, readiness, tests, CI, reproductibilité, accès Gateway |
+| **Itération 2 — Stabilisation** | **STAB-01 à 07 implémentés ; STAB-08 reste ouvert** | Config/env, compte MongoDB, readiness, tests, CI, reproductibilité, accès Gateway |
 | Identité, rôles et droits | Non commencée | `users`, `roles`, `permissions`, `user_roles`, `role_permissions` ; arbitrage local/OIDC |
 | Classification, spécialisations et historique | Non commencée | Référentiel `knowledge_types` ; huit spécialisations ; tags, technologies, sources, versions |
 | Certification RNCP et preuves | Non commencée | Versions du RNCP 37827, compétences, critères, correspondances, preuves |
@@ -39,7 +39,9 @@ Voir [[iterations/iteration-2-stabilisation]].
 
 **Automatisation :** suites rejouées, workflow GitHub Actions versionné, dépendances Python verrouillées et séparées. Résultats distants consultables dans Actions.
 
-**Reste à arbitrer et livrer :** relais Gateway → KMS (STAB-06), sauvegarde/restauration et modifications concurrentes (STAB-08), puis revue de sortie. Les images système restent référencées par tags et le build hors ligne reste à qualifier.
+**STAB-06 :** relais Gateway → KMS implémenté et testé ; KMS interne par défaut, diagnostic explicite via `compose.debug.yaml`. Voir [[architecture/gateway-kms]].
+
+**Reste à livrer :** sauvegarde/restauration et modifications concurrentes (STAB-08), puis revue de sortie. Les images système restent référencées par tags et le build hors ligne reste à qualifier.
 
 Critères de sortie : installation propre reproductible, tests unitaires et intégration **réexécutés** (avec preuves et dates), CI opérationnelle, aucun secret versionné, documentation à jour, aucune donnée de développement supprimée.
 

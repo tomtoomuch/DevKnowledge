@@ -22,7 +22,7 @@ SETTINGS = dict(
 )
 # Explicitly suppress inherited configuration and never load the user's .env.
 ENV = {key: value for key, value in os.environ.items()
-       if not key.startswith(("COMPOSE_", "MONGODB_", "MONGO_INITDB_", "GATEWAY_"))}
+       if not key.startswith(("COMPOSE_", "MONGODB_", "MONGO_INITDB_", "GATEWAY_", "KMS_"))}
 ENV.update(SETTINGS)
 COMPOSE = ["docker", "compose", "--env-file", str(ROOT / "tests/stabilization.env"),
            "-p", PROJECT, "-f", str(ROOT / "compose.yaml"),
@@ -66,6 +66,11 @@ def http_status(path, service="api-kms", port=8000):
 def health(service):
     container = compose("ps", "-q", service).stdout.strip()
     return run(["docker", "inspect", "--format", "{{.State.Health.Status}}", container]).stdout.strip()
+
+
+def gateway_status(path):
+    code = f"fetch('http://127.0.0.1:3107{path}', {{signal: AbortSignal.timeout(15000)}}).then(r => console.log(r.status))"
+    return int(compose("exec", "-T", "api-gateway", "node", "-e", code).stdout.strip())
 
 
 def eventually(predicate, label, timeout=90):
@@ -117,6 +122,12 @@ def main():
         print("PASS: " + label, flush=True)
 
     config = json.loads(compose("config", "--format", "json").stdout)
+    base_config = json.loads(run(COMPOSE[:-2] + ["config", "--format", "json"]).stdout)
+    require(not base_config["services"]["api-kms"].get("ports"), "KMS must remain internal by default")
+    require(not base_config["services"]["mongodb"].get("ports"), "MongoDB must remain internal")
+    require(all(port.get("host_ip") == "127.0.0.1"
+                for port in base_config["services"]["api-gateway"]["ports"]),
+            "Gateway must only bind to localhost")
     require(all(not service.get("ports") for service in config["services"].values()),
             "Test ports must not be published")
     require(all(not volume.get("external") and volume["name"].startswith(PROJECT + "_")
@@ -131,6 +142,8 @@ def main():
         require(http_status("/health", "api-gateway", 3107) == 200, "Custom Gateway port failed")
         database_check(insert=True)
         passed("fresh bootstrap, least privileges, indexes, custom Gateway port 3107")
+        print(kms_python((ROOT / "tests/gateway_contract.py").read_text(encoding="utf-8")), flush=True)
+        passed("Gateway end-to-end CRUD and validation errors")
 
         compose("stop")
         compose("up", "-d", "--wait", "--wait-timeout", "120", timeout=180)
@@ -141,15 +154,29 @@ def main():
         require(http_status("/health") == 200, "Liveness must remain available")
         require(http_status("/health/ready") == 503, "Readiness must report MongoDB outage")
         require(http_status("/api/v1/knowledges") == 503, "CRUD must report MongoDB outage")
+        require(gateway_status("/health") == 200, "Gateway liveness must remain available")
+        require(gateway_status("/health/ready") == 503, "Gateway readiness must report MongoDB outage")
+        require(gateway_status("/api/v1/knowledges") == 503, "Gateway must preserve KMS 503")
         eventually(lambda: health("api-kms") == "unhealthy", "Docker detects unavailable KMS")
+        eventually(lambda: health("api-gateway") == "unhealthy", "Docker detects unavailable Gateway dependency")
         passed("MongoDB outage: liveness 200, readiness/CRUD 503, Docker unhealthy")
 
         compose("start", "mongodb")
         eventually(lambda: health("mongodb") == "healthy", "MongoDB recovers")
         eventually(lambda: http_status("/health/ready") == 200, "KMS recovers")
         eventually(lambda: health("api-kms") == "healthy", "Docker sees KMS recovery")
+        eventually(lambda: health("api-gateway") == "healthy", "Docker sees Gateway recovery")
         database_check()
         passed("MongoDB recovery without KMS restart or data loss")
+
+        compose("stop", "api-kms")
+        require(gateway_status("/health") == 200, "Gateway liveness must survive KMS outage")
+        require(gateway_status("/health/ready") == 502, "Gateway readiness must detect KMS outage")
+        require(gateway_status("/api/v1/knowledges") == 502, "Gateway must report unreachable KMS")
+        compose("start", "api-kms")
+        eventually(lambda: gateway_status("/health/ready") == 200, "Gateway recovers after KMS restart")
+        eventually(lambda: health("api-gateway") == "healthy", "Gateway healthy after KMS restart")
+        passed("KMS outage: Gateway liveness 200, readiness/CRUD 502, automatic recovery")
 
         bad = compose("run", "--rm", "--no-deps", "-e",
                       "MONGODB_PASSWORD=deliberately_wrong_test_password", "api-kms",
