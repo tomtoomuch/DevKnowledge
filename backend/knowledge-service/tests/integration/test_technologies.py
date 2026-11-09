@@ -36,8 +36,8 @@ def test_catalog_and_knowledge_links_real_mongodb(isolated_database):
             app.include_router(knowledge_router)
             app.include_router(tech_router)
             app.add_exception_handler(UnknownTechnologyError, invalid_technology_association)
-            app.add_exception_handler(UnknownTechnologyVersionError, duplicate_technology_association)
-            app.add_exception_handler(DuplicateTechnologyAssociationError, duplicate_technology_association)
+            app.add_exception_handler(UnknownTechnologyVersionError, invalid_technology_association)
+            app.add_exception_handler(DuplicateTechnologyAssociationError, invalid_technology_association)
             app.add_exception_handler(KnowledgeConflict, knowledge_conflict)
             app.add_exception_handler(KnowledgeNotFound, knowledge_not_found)
             app.dependency_overrides[requester_identity] = lambda: RequesterIdentity(

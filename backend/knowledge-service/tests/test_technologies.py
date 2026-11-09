@@ -24,7 +24,7 @@ class MemoryCatalog:
 
     async def create_technology(self, payload):
         if payload.name.casefold() in (t.name.casefold() for t in self.technologies.values()):
-            raise DuplicateKeyError
+            raise DuplicateKeyError('duplicate')
         record = TechnologyRead(technology_id=uuid4(), **payload.model_dump())
         self.technologies[record.technology_id] = record
         return record
@@ -41,7 +41,7 @@ class MemoryCatalog:
             raise UnknownTechnologyError
         if any(v.technology_id == payload.technology_id and
                v.version.casefold() == payload.version.casefold() for v in self.versions.values()):
-            raise DuplicateKeyError
+            raise DuplicateKeyError('duplicate')
         record = TechnologyVersionRead(technology_version_id=uuid4(), **payload.model_dump())
         self.versions[record.technology_version_id] = record
         return record

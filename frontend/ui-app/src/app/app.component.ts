@@ -462,8 +462,8 @@ export class AppComponent implements OnInit {
       next: record => {
         if (generation !== this.authGeneration) return;
         this.technologyVersions.update(items => [...items, record].sort((a, b) =>
-          this.versionLabel(a.technology_version_id).localeCompare(
-            this.versionLabel(b.technology_version_id), 'fr')));
+          (this.technologyLabel(a.technology_id) + a.version).localeCompare(
+            this.technologyLabel(b.technology_id) + b.version, 'fr')));
         this.toggleVersion(record.technology_version_id, true);
         this.newVersionName.setValue('');
         this.newVersionDate.setValue('');
