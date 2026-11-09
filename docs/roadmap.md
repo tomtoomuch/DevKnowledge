@@ -27,7 +27,7 @@ tags: [devknowledge, roadmap, stabilisation]
 | Identité, rôles et droits | Non commencée | `users`, `roles`, `permissions`, `user_roles`, `role_permissions` ; arbitrage local/OIDC |
 | Classification, spécialisations et historique | Non commencée | Référentiel `knowledge_types` ; huit spécialisations ; tags, technologies, sources, versions |
 | Certification RNCP et preuves | Non commencée | Versions du RNCP 37827, compétences, critères, correspondances, preuves |
-| Recherche et assistant RAG local | Non commencée | ChromaDB, chunking, embeddings, Ollama, citations, réponse « informations insuffisantes » |
+| Recherche et assistant RAG local | Recherche textuelle générique implémentée dans l'itération 4 ; index sémantique/RAG non commencés | ChromaDB, chunking, embeddings, Ollama, citations, réponse « informations insuffisantes » |
 | MCP, évaluation IA et MLOps | Non commencée | Outils contrôlés, tests d'autorisation, suivi MLflow |
 | Sécurité, supervision et exploitation | Partiellement définies, exécution à planifier | Logs, métriques, sauvegardes/restauration, stratégies de mise à jour et déploiement |
 
@@ -48,6 +48,19 @@ Voir [[iterations/iteration-2-stabilisation]].
 **Reste à conduire :** revue commune de sortie, préparée dans [[iterations/revue-sortie-stabilisation-2026-11-09]], puis arbitrage de l'identité locale (ADR-003).
 
 Critères de sortie : installation propre reproductible, tests unitaires et intégration **réexécutés** (avec preuves et dates), CI opérationnelle, aucun secret versionné, documentation à jour, aucune donnée de développement supprimée.
+
+## Itération 4 — Recherche globale de la bibliothèque
+
+L'interface interroge désormais le KMS pour les recherches sur titre,
+description et contenu, combinables aux filtres type/statut/favoris.
+La pagination et les totaux sont calculés après filtrage et les
+connaissances supprimées logiquement sont exclues. Cette solution est
+fonctionnelle pour une bibliothèque personnelle de taille modérée,
+mais repose sur une recherche regex non indexée : l'optimisation
+des corpus volumineux reste à planifier. Voir
+[[iterations/iteration-4-search]].
+
+L'ADR-003 demeure à valider avant l'authentification/RBAC.
 
 ## Ordre recommandé après stabilisation
 

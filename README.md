@@ -32,13 +32,25 @@ Le frontend Angular est disponible par défaut sur http://127.0.0.1:4200 après 
 lancement Compose, configurable avec FRONTEND_PORT. Son serveur Nginx relaie
 les requêtes /api/ exclusivement à la Gateway Express sur le réseau Docker.
 
-La liste est paginée et filtrée par type/statut côté serveur ; la recherche
-textuelle et les favoris filtrent uniquement **la page affichée**. La
+La liste, la recherche textuelle et les filtres type/statut/favoris
+s'exécutent côté serveur, avant pagination. La
 consultation, la création, la modification conditionnelle avec ETag/If-Match
 et la suppression logique sont prises en charge. L'interface ne persiste que
 les champs génériques, pas les spécialisations prévues au MLD.
 
 Lire le [guide frontend](frontend/README.md) avant la première utilisation.
+
+## Itération 4 — recherche globale et favoris
+
+L'API accepte désormais `q` (recherche textuelle littérale, sans tenir compte
+de la casse, dans le titre, la description et le contenu) et
+`is_favorite` (booléen). Ces filtres se combinent avec les filtres
+de type/statut et s'appliquent avant la pagination. Dans Angular, la
+recherche et le filtre favoris portent donc sur toute la bibliothèque,
+et plus seulement sur les éléments visibles. La recherche actuelle
+utilise un parcours regex, pas encore un index plein texte.
+
+Voir [la spécification de l'itération 4](docs/iterations/iteration-4-search.md).
 
 ## Lancement local
 

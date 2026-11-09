@@ -39,7 +39,8 @@ registres d'images et de paquets, avant qualification hors ligne.
 
 ## Contrat disponible
 
-- GET /api/v1/knowledges : pagination, filtres type/statut.
+- GET /api/v1/knowledges : pagination, filtres combinables type/statut,
+  texte libre q (1–100 caractères après nettoyage), is_favorite (booléen).
 - GET /api/v1/knowledges/{uuid} : ETag en réponse.
 - POST /api/v1/knowledges : création.
 - PATCH /api/v1/knowledges/{uuid} : If-Match obligatoire.
@@ -59,10 +60,13 @@ Les huit types sont sélectionnables ; seules leurs propriétés génériques
 sont persistées. Les modèles spécialisés, tags, pièces jointes, historique,
 preuves RNCP et assistant RAG ne sont pas encore exposés en CRUD.
 
-La recherche textuelle et le filtre Favoris opèrent **sur la page affichée
-uniquement**. Les filtres type/statut et la pagination opèrent côté KMS.
-Il faut une extension de l'API avec index appropriés pour une recherche
-globale. Les statuts DRAFT / VALIDATED / ARCHIVED sont des conventions UI
+La recherche texte (titre, description, contenu) et les filtres favoris,
+type et statut opèrent **sur l'ensemble des connaissances non supprimées**,
+avant pagination. La recherche est insensible à la casse, littérale (pas
+de syntaxe regex) et peut être combinée aux autres filtres. L'API limite
+les recherches à 100 caractères. Son implémentation actuelle utilise un
+balayage regex de la collection et **n'est pas indexée** : une recherche
+textuelle spécialisée devra remplacer ce mécanisme pour les gros corpus. Les statuts DRAFT / VALIDATED / ARCHIVED sont des conventions UI
 temporaires, pas une certification de leur valeur métier.
 
 Il n'y a pas encore d'authentification ni de rôles actifs : ne jamais publier
@@ -76,6 +80,8 @@ l'interface sur 0.0.0.0 ou via un reverse proxy accessible publiquement.
 4. Modifier simultanément depuis une seconde session : l'ancienne session
    doit recevoir un conflit 412, sans écrasement silencieux.
 5. Recharger volontairement la fiche pour comparer la nouvelle version.
-6. Confirmer la suppression logique, puis constater la disparition.
-7. Couper la Gateway : un message d'erreur doit apparaître sans fausse
+6. Vérifier une recherche depuis la deuxième page, les filtres favoris,
+   type et statut combinés, puis la disparition des éléments supprimés.
+7. Confirmer la suppression logique, puis constater la disparition.
+8. Couper la Gateway : un message d'erreur doit apparaître sans fausse
    confirmation d'enregistrement.
