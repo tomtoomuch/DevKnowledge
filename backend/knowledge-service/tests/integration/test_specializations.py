@@ -96,3 +96,64 @@ def test_embedded_specialization_is_atomic_and_legacy_safe(isolated_database):
             assert filled.revision == 1 and filled.details["programming_language"] == "Python"
             assert (await svc.list(knowledge_type="CODE_SNIPPET")).total == 1
     asyncio.run(scenario())
+
+
+def test_full_http_crud_cycle_for_all_eight_types_on_disposable_mongodb(isolated_database):
+    """POST, GET, PATCH, stale If-Match, DELETE and tombstone for every specialization."""
+    from app.api.routes.knowledges import router as knowledge_router
+    from app.main import knowledge_not_found, knowledge_conflict
+    from app.services.knowledge_service import KnowledgeNotFound, KnowledgeConflict
+
+    details_by_type = {
+        "CODE_SNIPPET": {"code": "print(42)", "programming_language": "Python"},
+        "TERMINAL_COMMAND": {"command": "git status", "shell": "bash", "is_destructive": False},
+        "TECHNICAL_PROCEDURE": {"objective": "Déployer la Gateway", "estimated_duration_minutes": 10},
+        "COURSE_NOTE": {"concept": "Troisième forme normale", "mastery_level": 3},
+        "BUG_FIX": {"error_title": "Missing index", "root_cause": "Index non initialisé"},
+        "DOCUMENTATION_RESOURCE": {"url": "https://example.org/docs", "is_official": False},
+        "BEST_PRACTICE": {"principle": "Moindre privilège"},
+        "COMPLIANCE_STANDARD": {"reference_code": "ISO/IEC 27001"},
+    }
+
+    async def scenario():
+        async with isolated_database() as db:
+            await MongoKnowledgeRepository(db).ensure_indexes()
+            app = FastAPI()
+            app.state.mongodb_database = db
+            app.include_router(knowledge_router)
+            app.add_exception_handler(KnowledgeNotFound, knowledge_not_found)
+            app.add_exception_handler(KnowledgeConflict, knowledge_conflict)
+            app.dependency_overrides[requester_identity] = lambda: RequesterIdentity(
+                permissions=frozenset({
+                    "knowledge.read", "knowledge.create", "knowledge.update", "knowledge.delete",
+                })
+            )
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+                for knowledge_type, details in details_by_type.items():
+                    created = await client.post("/api/v1/knowledges", json={
+                        "knowledge_type": knowledge_type, "title": knowledge_type,
+                        "content": "Contenu générique", "details": details,
+                    })
+                    assert created.status_code == 201, (knowledge_type, created.text)
+                    resource = f"/api/v1/knowledges/{created.json()['knowledge_id']}"
+                    assert created.json()["details"] == details
+                    assert created.headers["etag"] == '"1"'
+                    read = await client.get(resource)
+                    assert read.status_code == 200 and read.json()["details"] == details
+                    assert read.headers["etag"] == '"1"'
+                    changed = await client.patch(resource, json={
+                        "details": details, "is_favorite": True,
+                    }, headers={"If-Match": '"1"'})
+                    assert changed.status_code == 200, (knowledge_type, changed.text)
+                    assert changed.json()["revision"] == 2
+                    assert changed.json()["details"] == details
+                    assert changed.json()["is_favorite"] is True
+                    stale = await client.patch(resource, json={"title": "Perdu"},
+                                               headers={"If-Match": '"1"'})
+                    assert stale.status_code == 412
+                    removed = await client.delete(resource, headers={"If-Match": '"2"'})
+                    assert removed.status_code == 204
+                    assert (await client.get(resource)).status_code == 404
+            assert await db.knowledge_items.count_documents({}) == 8
+            assert await db.knowledge_items.count_documents({"deleted_at": None}) == 0
+    asyncio.run(scenario())
