@@ -73,16 +73,20 @@ async def list_knowledges(
     status: Annotated[Status | None, Query()] = None,
     q: Annotated[str | None, Query(min_length=1, max_length=100)] = None,
     is_favorite: Annotated[bool | None, Query()] = None,
+    tag_id: UUID | None = None,
 ) -> KnowledgePage:
     require(requester, "knowledge.read")
     if q is not None:
         q = q.strip()
         if not q:
             raise HTTPException(422, "q must contain non-whitespace characters")
-    return await service.list(
+    filters = dict(
         skip=skip, limit=limit, knowledge_type=knowledge_type, status=status,
         q=q, is_favorite=is_favorite,
     )
+    if tag_id is not None:
+        filters["tag_id"] = tag_id
+    return await service.list(**filters)
 
 
 @router.get("/{knowledge_id}", response_model=KnowledgeRead,

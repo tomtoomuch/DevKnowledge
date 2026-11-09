@@ -31,6 +31,7 @@ class KnowledgeCreate(BaseModel):
     difficulty_level: Difficulty | None = None
     status: Status = "DRAFT"
     is_favorite: StrictBool = False
+    tag_ids: list[UUID] = Field(default_factory=list, max_length=30)
     # No details is valid for pre-existing generic knowledge documents.
     details: dict[str, Any] | None = None
 
@@ -39,6 +40,13 @@ class KnowledgeCreate(BaseModel):
         if self.details is not None:
             self.details = normalize_details(self.knowledge_type, self.details)
         return self
+
+    @field_validator("tag_ids")
+    @classmethod
+    def unique_tags(cls, value: list[UUID]) -> list[UUID]:
+        if len(value) != len(set(value)):
+            raise ValueError("tag_ids must be unique")
+        return value
 
     @field_validator("content")
     @classmethod
@@ -61,6 +69,7 @@ class KnowledgeUpdate(BaseModel):
     difficulty_level: Difficulty | None = None
     status: Status | SkipJsonSchema[None] = None
     is_favorite: StrictBool | SkipJsonSchema[None] = None
+    tag_ids: list[UUID] | SkipJsonSchema[None] = Field(default=None, max_length=30)
     # PATCH replaces the complete specialization. A null clears it.
     details: dict[str, Any] | None = None
 
@@ -68,10 +77,12 @@ class KnowledgeUpdate(BaseModel):
     def validate_patch(self) -> "KnowledgeUpdate":
         if not self.model_fields_set:
             raise ValueError("At least one field is required")
-        non_nullable = {"knowledge_type", "title", "content", "status", "is_favorite"}
+        non_nullable = {"knowledge_type", "title", "content", "status", "is_favorite", "tag_ids"}
         for name in self.model_fields_set & non_nullable:
             if getattr(self, name) is None:
                 raise ValueError(f"{name} must not be null")
+        if self.tag_ids is not None and len(self.tag_ids) != len(set(self.tag_ids)):
+            raise ValueError("tag_ids must be unique")
         if self.content is not None and not self.content.strip():
             raise ValueError("Content must not be blank")
         return self

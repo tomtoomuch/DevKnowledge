@@ -23,7 +23,8 @@ class KnowledgeRepository(Protocol):
     async def create(self, item: dict) -> dict: ...
     async def get(self, knowledge_id: UUID) -> dict | None: ...
     async def list(self, *, skip: int, limit: int, knowledge_type: str | None,
-                   status: str | None, q: str | None, is_favorite: bool | None) -> tuple[list[dict], int]: ...
+                   status: str | None, q: str | None, is_favorite: bool | None,
+                   tag_id: UUID | None = None) -> tuple[list[dict], int]: ...
     async def update(self, knowledge_id: UUID, changes: dict, expected_revision: int) -> dict | None: ...
     async def soft_delete(self, knowledge_id: UUID, deleted_at: datetime, expected_revision: int) -> bool: ...
 
@@ -68,11 +69,15 @@ class KnowledgeService:
 
     async def list(self, *, skip: int = 0, limit: int = 20,
                    knowledge_type: str | None = None, status: str | None = None,
-                   q: str | None = None, is_favorite: bool | None = None) -> KnowledgePage:
-        items, total = await self.repository.list(
+                   q: str | None = None, is_favorite: bool | None = None,
+                   tag_id: UUID | None = None) -> KnowledgePage:
+        filters = dict(
             skip=skip, limit=limit, knowledge_type=knowledge_type, status=status,
             q=q, is_favorite=is_favorite,
         )
+        if tag_id is not None:
+            filters["tag_id"] = tag_id
+        items, total = await self.repository.list(**filters)
         return KnowledgePage(items=items, total=total, skip=skip, limit=limit)
 
     async def update(self, knowledge_id: UUID, payload: KnowledgeUpdate, expected_revision: int = 0) -> KnowledgeRead:
