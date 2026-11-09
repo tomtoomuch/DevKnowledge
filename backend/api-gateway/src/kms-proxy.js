@@ -27,6 +27,13 @@ function createKmsProxy(baseUrl, timeoutMs) {
         for (const name of REQUEST_HEADERS) {
             if (req.headers[name] !== undefined && !connectionHeaders.has(name)) headers[name] = req.headers[name];
         }
+        // Forward only the opaque session cookie; never forward other browser cookies.
+        const cookieParts = (req.headers.cookie || "").split(";").map(s => s.trim())
+            .filter(part => part.startsWith("dk_session="));
+        if (cookieParts.length === 1 && /^dk_session=[0-9a-f]{64}$/.test(cookieParts[0]) &&
+            !connectionHeaders.has("cookie")) {
+            headers.cookie = cookieParts[0];
+        }
         const body = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
         headers["content-length"] = body.length;
         const separator = req.originalUrl.indexOf("?");
@@ -64,6 +71,13 @@ function createKmsProxy(baseUrl, timeoutMs) {
             const responseConnectionHeaders = new Set((response.headers.connection || "").toLowerCase().split(",").map(s => s.trim()));
             for (const name of RESPONSE_HEADERS) {
                 if (response.headers[name] !== undefined && !responseConnectionHeaders.has(name)) res.setHeader(name, response.headers[name]);
+            }
+            // Only authentication endpoints may set the tightly scoped session cookie.
+            if (/^\/api\/v1\/auth\/(?:login|logout)\/?$/.test(path) &&
+                !responseConnectionHeaders.has("set-cookie")) {
+                const cookies = response.headers["set-cookie"] || [];
+                const sessionCookie = cookies.find(value => value.startsWith("dk_session="));
+                if (sessionCookie) res.setHeader("Set-Cookie", sessionCookie);
             }
             response.on("error", () => fail(502, "KMS unavailable"));
             response.on("end", () => clearTimeout(timer));

@@ -187,3 +187,52 @@ test.each(["not-a-url", "ftp://localhost", "http://user:password@localhost", "ht
 test.each([0, -1, NaN, 1.5, 60001])("rejects invalid timeout %s", timeout => {
     expect(() => createApp({ kmsTimeoutMs: timeout })).toThrow(/KMS_TIMEOUT_MS/);
 });
+
+test("forwards only the valid dk_session token and not unrelated cookies", async () => {
+    const token = "a".repeat(64);
+    await request(app).get("/api/v1/knowledges")
+        .set("Cookie", "tracking=123; dk_session=" + token + "; another=irrelevant").expect(200);
+    expect(received[0].headers.cookie).toBe("dk_session=" + token);
+    await request(app).get("/api/v1/knowledges")
+        .set("Cookie", "dk_session=" + token + "; dk_session=" + token).expect(200);
+    expect(received[1].headers.cookie).toBeUndefined();
+});
+
+test("relays auth routes and scoped session Set-Cookie only there", async () => {
+    respond = (req, res) => res.writeHead(200, {
+        "Content-Type": "application/json",
+        "Set-Cookie": "dk_session=" + "b".repeat(64) +
+            "; Path=/api/v1; HttpOnly; SameSite=Strict",
+    }).end('{"username":"admin"}');
+    const login = await request(app).post("/api/v1/auth/login")
+        .send({ username: "admin", password: "test" }).expect(200);
+    expect(received[0].url).toBe("/api/v1/auth/login");
+    expect(login.headers["set-cookie"][0]).toContain("HttpOnly");
+    const me = await request(app).get("/api/v1/auth/me").expect(200);
+    expect(me.headers["set-cookie"]).toBeUndefined();
+    const knowledge = await request(app).get("/api/v1/knowledges").expect(200);
+    expect(knowledge.headers["set-cookie"]).toBeUndefined();
+});
+
+test("blocks cross-origin writes and allows same-origin writes", async () => {
+    await request(app).post("/api/v1/auth/login")
+        .set("Origin", "https://evil.example")
+        .send({ username: "admin" }).expect(403);
+    await request(app).patch("/api/v1/knowledges/abc")
+        .set("Sec-Fetch-Site", "cross-site").send({ title: "bad" }).expect(403);
+    expect(received).toHaveLength(0);
+    await request(app).post("/api/v1/auth/login")
+        .set("Origin", "http://example.local")
+        .set("Host", "example.local").send({ username: "admin" }).expect(200);
+    expect(received).toHaveLength(1);
+});
+
+test("throttles repeated login attempts", async () => {
+    for (let n = 0; n < 10; n++) {
+        await request(app).post("/api/v1/auth/login").send({ username: "x" }).expect(200);
+    }
+    const result = await request(app).post("/api/v1/auth/login")
+        .send({ username: "x" }).expect(429);
+    expect(result.headers["retry-after"]).toBe("60");
+    expect(received).toHaveLength(10);
+});
