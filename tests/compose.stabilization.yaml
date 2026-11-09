@@ -1,6 +1,13 @@
 # Merge with the real root compose.yaml, under a unique disposable project.
 # Keep its bootstrap, environment, build and healthcheck commands unchanged.
 services:
+  frontend:
+    image: devknowledge-stabilization-frontend:local
+    ports: !reset []
+    restart: "no"
+    healthcheck:
+      interval: 2s
+      start_period: 2s
   api-gateway:
     image: devknowledge-stabilization-gateway:local
     ports: !reset []
