@@ -13,7 +13,7 @@ Avec la configuration .env locale existante, depuis la racine :
 
 Ouvrir http://127.0.0.1:4200 (paramètre FRONTEND_PORT pour le port hôte).
 Le conteneur Nginx sert les fichiers Angular et relaie /api/ vers
-api-gateway:3000 au sein du réseau Compose. Les conteneurs KMS et MongoDB
+api-gateway sur le port GATEWAY_PORT au sein du réseau Compose. Les conteneurs KMS et MongoDB
 ne sont pas exposés à Internet. Ne jamais utiliser down --volumes pour
 arrêter le projet contenant tes données de développement.
 

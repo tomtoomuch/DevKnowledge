@@ -8,7 +8,7 @@ COPY src/ ./src/
 RUN npm run build
 
 FROM nginx:stable-alpine
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/templates/default.conf.template
 COPY --from=build /app/dist/devknowledge-frontend/browser/ /usr/share/nginx/html/
 EXPOSE 80
 HEALTHCHECK --interval=15s --timeout=3s --retries=3 CMD wget -q -O /dev/null http://127.0.0.1/ || exit 1
