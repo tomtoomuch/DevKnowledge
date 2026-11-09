@@ -1,13 +1,13 @@
 ---
 title: "DevKnowledge — Itération 2 : stabilisation du socle"
 date: "2026-11-04"
-status: "STAB-01 à 05 et 07 implémentées ; validations locales du 9 novembre réussies"
+status: "STAB-01 à 07 implémentées ; STAB-08 et revue de sortie ouverts"
 tags: [devknowledge, stabilisation, qualite, tests, docker, ci]
 ---
 
 # Itération 2 — Stabilisation du socle
 
-> **Mise à jour du 9 novembre :** bootstrap, configuration Gateway, readiness et panne/reprise validés localement. CI versionnée, dépendances Python verrouillées et séparées. Voir [[validation-stabilisation-2026-11-09]]. STAB-06/08 et la revue commune de sortie restent ouverts. Les sections datées du 4 novembre ci-dessous décrivent le point de départ.
+> **Mise à jour du 9 novembre :** bootstrap, configuration Gateway, readiness et panne/reprise validés localement. CI versionnée, dépendances Python verrouillées et séparées. Voir [[validation-stabilisation-2026-11-09]]. STAB-06 est maintenant implémenté et testé : [[../architecture/gateway-kms]]. STAB-08 et la revue commune de sortie restent ouverts. Les sections datées du 4 novembre ci-dessous décrivent le point de départ.
 
 ## Objectif
 
@@ -17,7 +17,7 @@ Disposer d'un socle **reproductible, testable et documenté** (Gateway Express, 
 
 **Inclus :** configuration, démarrage neuf contrôlé, provisionnement MongoDB, readiness, vérifications d'accès locaux, automatisation des tests, CI, reproductibilité, documentation d'exploitation et tests de non-régression.
 
-**À arbitrer :** intégrer dès ce cycle le relais minimal Gateway → KMS ou le garder pour un incrément immédiatement suivant. Ne pas annoncer de point d'entrée unique tant que le relais n'existe pas.
+**STAB-06 retenu :** relais minimal Gateway → KMS livré après fusion de la stabilisation dans `dev` (PR #2). La Gateway est le seul port publié par défaut ; les accès KMS directs sont réservés au mode de diagnostic explicite.
 
 **Exclus :** Angular, utilisateurs et RBAC, huit spécialisations, RNCP, RAG, embeddings, MCP, MLOps, refonte du MLD et migration de données existantes.
 
@@ -58,7 +58,7 @@ Guide : [[../operations/mongodb-bootstrap]].
 - [x] Adapter le healthcheck Compose du KMS à `/health/ready`.
 - [x] Vérifier les états lors du démarrage, d'une coupure de base, puis d'un rétablissement.
 - [x] Vérifier les codes d'erreur HTTP (422, 404, 503) et l'absence de secrets dans les journaux.
-- [ ] Documenter le rôle exact de `depends_on` et la différence entre santé de conteneur et disponibilité métier.
+- [x] Documenter le rôle exact de `depends_on` et la différence entre santé de conteneur et disponibilité métier.
 
 **Acceptation :** la santé Docker n'indique pas à tort un KMS prêt pendant une indisponibilité MongoDB, et la récupération est observable.
 
@@ -68,16 +68,16 @@ Guide : [[../operations/mongodb-bootstrap]].
 - [x] Rejouer `python -m pytest -m "not integration"` dans `backend/knowledge-service`.
 - [x] Rejouer le Compose d'intégration jetable avec `--exit-code-from kms-tests` ; enregistrer succès, échecs, versions et couverture.
 - [x] Ajouter un workflow GitHub Actions avec jobs Gateway et KMS, et un job d'intégration MongoDB si supporté par le runner.
-- [ ] Ajouter des tests de configuration et de démarrage neuf ; envisager lint et contrôle de dépendances.
+- [x] Ajouter des tests de configuration et de démarrage neuf ; envisager lint et contrôle de dépendances.
 - [x] Définir un verrouillage reproductible des dépendances et distinguer runtime/test sans rompre les contraintes d'exécution locale.
 
 **Acceptation :** jobs reproductibles, statut visible sur GitHub, aucun test historique présenté comme une mesure actuelle ; les causes des éventuels échecs sont conservées.
 
 ### Lot D — Frontière API et exploitation (STAB-06, STAB-08)
 
-- [ ] Arbitrer et documenter la stratégie de proxy Gateway → KMS, sa gestion des erreurs, timeouts et en-têtes, et ses futurs contrôles d'identité.
-- [ ] Si implémenté pendant cette itération, tester les cinq opérations via la Gateway et vérifier les statuts/erreurs sans modifier les contrats KMS.
-- [ ] Documenter les limites actuelles : KMS publié en local, absence d'authentification et de RBAC.
+- [x] Arbitrer et documenter la stratégie de proxy Gateway → KMS, sa gestion des erreurs, timeouts et en-têtes, et ses futurs contrôles d'identité.
+- [x] Si implémenté pendant cette itération, tester les cinq opérations via la Gateway et vérifier les statuts/erreurs sans modifier les contrats KMS.
+- [x] Documenter les limites actuelles : KMS interne par défaut, diagnostic local optionnel, absence d'authentification et de RBAC.
 - [ ] Définir les exigences minimales de sauvegarde, restauration et gestion des mises à jour concurrentes.
 - [ ] Vérifier la préparation à l'usage hors ligne **après** construction/téléchargement des dépendances ; ne pas revendiquer un build hors ligne sans test.
 

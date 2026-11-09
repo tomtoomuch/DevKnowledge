@@ -6,6 +6,10 @@ tags: [devknowledge, kms, api, mongodb, tests]
 
 # KMS — CRUD générique des connaissances
 
+> Mise à jour STAB-06 : le CRUD est maintenant accessible via la Gateway sur
+> `127.0.0.1:3000`. Les exemples historiques ci-dessous utilisant le port 8000
+> nécessitent `compose.debug.yaml`. Voir [[gateway-kms]] pour l'accès actuel.
+
 Cette première itération implémente la collection `knowledge_items` du [[DevKnowledge_MLD_3NF_v0.2|MLD v0.2]]. Elle couvre les connaissances génériques, sans leurs spécialisations, sans authentification, sans historique et sans RAG.
 
 ## Audit du socle
