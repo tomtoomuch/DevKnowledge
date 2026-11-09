@@ -44,7 +44,7 @@ class MemoryRepository:
             return None
         return deepcopy(item)
 
-    async def list(self, *, skip, limit, knowledge_type=None, status=None):
+    async def list(self, *, skip, limit, knowledge_type=None, status=None, q=None, is_favorite=None):
         self.check_available()
         items = [
             deepcopy(item)
@@ -52,6 +52,10 @@ class MemoryRepository:
             if item["deleted_at"] is None
             and (knowledge_type is None or item["knowledge_type"] == knowledge_type)
             and (status is None or item["status"] == status)
+            and (is_favorite is None or item["is_favorite"] is is_favorite)
+            and (q is None or q.casefold() in (
+                item["title"] + " " + (item["description"] or "") + " " + item["content"]
+            ).casefold())
         ]
         items.sort(key=lambda item: (-item["created_at"].timestamp(), str(item["knowledge_id"])))
         return items[skip : skip + limit], len(items)
@@ -216,11 +220,32 @@ def test_list_pagination_and_filters(api):
     [
         {"skip": -1}, {"skip": "invalid"}, {"limit": 0}, {"limit": 101},
         {"knowledge_type": "UNKNOWN"}, {"status": " "}, {"status": "x" * 31},
+        {"q": " "}, {"q": ""}, {"q": "x" * 101}, {"is_favorite": "invalid"},
     ],
 )
 def test_invalid_list_parameters(api, params):
     client, _ = api
     assert client.get(BASE, params=params).status_code == 422
+
+
+def test_global_search_favorites_pagination_and_deleted_items(api):
+    client, _ = api
+    create(client, title="Alpha MongoDB", content="Indexes", is_favorite=True)
+    create(client, title="Autre", description="alpha sauvegarde", is_favorite=False)
+    other = create(client, title="Sans rapport", content="ALPHA dans le contenu", is_favorite=True)
+    hidden = create(client, title="Alpha secret", is_favorite=True)
+    assert delete(client, f"{BASE}/{hidden['knowledge_id']}").status_code == 204
+    first = client.get(BASE, params={"q": " aLpHa ", "is_favorite": True, "limit": 1})
+    assert first.status_code == 200
+    assert first.json()["total"] == 2
+    assert len(first.json()["items"]) == 1
+    second = client.get(BASE, params={"q": "alpha", "is_favorite": True, "skip": 1, "limit": 1})
+    assert second.json()["total"] == 2
+    ids = {first.json()["items"][0]["knowledge_id"], second.json()["items"][0]["knowledge_id"]}
+    assert other["knowledge_id"] in ids
+    assert hidden["knowledge_id"] not in ids
+    assert client.get(BASE, params={"q": "alpha", "is_favorite": False}).json()["total"] == 1
+    assert client.get(BASE, params={"q": "no match"}).json()["total"] == 0
 
 
 def test_patch_only_supplied_fields_and_optional_null(api):

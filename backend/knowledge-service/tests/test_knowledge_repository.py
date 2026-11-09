@@ -117,6 +117,30 @@ def test_list_filters_paginates_and_sorts_deterministically(repository, collecti
     assert result == ([item], 7)
 
 
+def test_global_search_matches_literals_only_and_can_combine_favorite_filter(repository, collection, item):
+    cursor = MagicMock()
+    collection.find.return_value = cursor
+    cursor.sort.return_value = cursor
+    cursor.skip.return_value = cursor
+    cursor.limit.return_value = cursor
+    cursor.to_list = AsyncMock(return_value=[repository._encode(item)])
+    collection.count_documents.return_value = 1
+    page, total = run(repository.list(
+        skip=0, limit=20, knowledge_type="CODE_SNIPPET", q="a.*(b)",
+        is_favorite=False,
+    ))
+    query = collection.find.call_args.args[0]
+    assert query["deleted_at"] is None
+    assert query["is_favorite"] is False
+    assert query["knowledge_type"] == "CODE_SNIPPET"
+    assert [next(iter(part)) for part in query["$or"]] == ["title", "description", "content"]
+    for part in query["$or"]:
+        expression = next(iter(part.values()))
+        assert expression == {"$regex": r"a\.\*\(b\)", "$options": "i"}
+    collection.count_documents.assert_awaited_once_with(query)
+    assert total == 1 and page[0]["knowledge_id"] == item["knowledge_id"]
+
+
 def test_update_is_atomic_and_only_targets_active_documents(repository, collection, item):
     changes = {"title": "Updated", "updated_at": item["updated_at"]}
     collection.find_one_and_update.return_value = repository._encode({**item, **changes})

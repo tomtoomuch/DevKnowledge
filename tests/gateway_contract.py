@@ -40,6 +40,11 @@ try:
     status, updated = call("PATCH", item_path, {"title": "Titre modifié", "is_favorite": True})
     assert status == 200 and updated["is_favorite"] and updated["title"] == "Titre modifié"
     assert updated["revision"] == item["revision"] + 1
+    status, matches = call("GET", path + "?q=titre&is_favorite=true&knowledge_type=COURSE_NOTE")
+    assert status == 200 and matches["total"] == 1
+    assert matches["items"][0]["knowledge_id"] == identifier
+    assert call("GET", path + "?q=missing&is_favorite=true")[1]["total"] == 0
+    assert call("GET", path + "?q=%20%20")[0] == 422
     assert call("PATCH", item_path, {"title": "stale"}, extra_headers={"If-Match": f'"{item["revision"]}"'})[0] == 412
     assert call("DELETE", item_path, extra_headers={"If-Match": f'"{item["revision"]}"'})[0] == 412
     assert call("PATCH", item_path, {"title": None})[0] == 422

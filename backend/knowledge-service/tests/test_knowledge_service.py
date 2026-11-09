@@ -83,7 +83,18 @@ def test_list_passes_filters_and_total_independently_of_page_size():
     assert result["skip"] == 2
     assert result["limit"] == 1
     assert len(result["items"]) == 1
-    repo.list.assert_awaited_once_with(skip=2, limit=1, knowledge_type="CODE_SNIPPET", status="DRAFT")
+    repo.list.assert_awaited_once_with(skip=2, limit=1, knowledge_type="CODE_SNIPPET", status="DRAFT", q=None, is_favorite=None)
+
+
+def test_search_and_favorites_filters_are_forwarded_to_repository():
+    repo = repository()
+    repo.list.return_value = ([], 0)
+    result = run(KnowledgeService(repo).list(q="literal.*", is_favorite=True))
+    assert result.total == 0
+    repo.list.assert_awaited_once_with(
+        skip=0, limit=20, knowledge_type=None, status=None,
+        q="literal.*", is_favorite=True,
+    )
 
 
 def test_patch_sends_only_explicit_fields_and_server_timestamp():
