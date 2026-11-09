@@ -65,7 +65,8 @@ registres d'images et de paquets, avant qualification hors ligne.
 ## Contrat disponible
 
 - GET /api/v1/knowledges : pagination, filtres combinables type/statut,
-  texte libre q (1–100 caractères après nettoyage), is_favorite (booléen).
+  texte libre q (1–100 caractères après nettoyage), is_favorite (booléen) et
+  tag_id (UUID).
 - GET /api/v1/knowledges/{uuid} : ETag en réponse.
 - POST /api/v1/knowledges : création.
 - PATCH /api/v1/knowledges/{uuid} : If-Match obligatoire.
@@ -91,8 +92,17 @@ Le catalogue `knowledge_types` est initialisé séparément et accessible en lec
 via la Gateway sur `GET /api/v1/knowledge-types`. Il ne s'agit pas de huit
 collections métier distinctes : le modèle logique 3NF est projeté dans un
 sous-document MongoDB atomique. Les entités liées (étapes, modules de cours,
-dépendances, tags, technologies, sources), pièces jointes, historique, preuves RNCP
+dépendances, technologies, sources), pièces jointes, historique, preuves RNCP
 et assistant RAG restent à développer.
+
+Le lot tags (itération 7, PR #9) ajoute le catalogue `tags` et son association
+à `knowledge_items.tag_ids`. Les identifiants sont conservés lors des changements
+de type ; la sélection ne remplace pas les détails spécialisés. Les tags
+peuvent être créés depuis l'éditeur par ADMIN/EDITOR, puis associés à une
+connaissance lors de son enregistrement. Le filtre par tag s'applique à
+l'ensemble des connaissances non supprimées, avant pagination. Le catalogue
+est volontairement immuable à ce stade et l'interface propose les 100 premiers
+tags : au-delà, il faudra ajouter recherche et pagination du catalogue.
 
 La recherche texte (titre, description, contenu) et les filtres favoris,
 type et statut opèrent **sur l'ensemble des connaissances non supprimées**,
@@ -126,6 +136,22 @@ ne sont qu'un confort d'interface. Ne jamais publier les ports en dehors de
    lors de l'enregistrement, avec incrément de révision.
 7. Ouvrir une ancienne connaissance générique : sa lecture et sa modification
    doivent fonctionner même si le sous-document `details` est absent.
+
+## Recette des tags (itération 7)
+
+1. ADMIN/EDITOR : ouvrir une fiche en création et saisir un tag `Python`.
+   Cliquer sur « Ajouter le tag », cocher le tag et enregistrer la fiche.
+2. Vérifier le nom du tag sur la fiche, filtrer la bibliothèque par ce tag
+   et confirmer que la pagination/les totaux correspondent aux résultats.
+3. Réutiliser le même tag sur une autre connaissance (sans recréer le tag).
+4. Retirer le tag et enregistrer ; sa définition de catalogue doit rester
+   disponible, mais la connaissance ne doit plus apparaître dans le filtre.
+5. Confirmer la réponse 409 pour `python` lorsque `Python` existe,
+   422 pour un UUID inconnu ou un doublon dans `tag_ids`, et 412
+   pour deux modifications concurrentes avec une ancienne révision.
+6. Vérifier que READER ne peut pas créer de tag, ni modifier les tags
+   d'une fiche ; vérifier que les connaissances historiques sans `tag_ids`
+   restent consultables.
 
 ## Recette manuelle
 

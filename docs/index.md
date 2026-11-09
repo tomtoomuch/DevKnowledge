@@ -33,3 +33,5 @@
 - [[iterations/iteration-5-identite-locale]] — Comptes locaux, sessions et RBAC.
 
 - [[iterations/iteration-6-specializations]] — Huit spécialisations métier et catalogue des types (itération 6, PR #8).
+
+- [[iterations/iteration-7-tags]] — Catalogue, affectation et filtrage des tags (PR #9 en validation).
