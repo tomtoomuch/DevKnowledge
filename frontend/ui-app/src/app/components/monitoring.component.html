@@ -1,0 +1,65 @@
+<section class="monitoring" aria-label="Monitoring des services">
+  <header class="monitoring-header">
+    <div>
+      <span class="eyebrow">SUPERVISION LOCALE</span>
+      <h1>Monitoring</h1>
+      <p>État de santé applicatif des services DevKnowledge, interrogés exclusivement via l’API Gateway.</p>
+    </div>
+    <button type="button" class="refresh" (click)="refresh()" [disabled]="loading()">
+      {{ loading() ? 'Vérification…' : '↻ Actualiser' }}
+    </button>
+  </header>
+
+  @if (error()) {
+    <p class="monitor-error" role="alert">{{ error() }}</p>
+  }
+
+  <div class="monitor-summary" role="status" aria-live="polite">
+    <div>
+      <span class="eyebrow">ÉTAT GLOBAL</span>
+      <strong>{{ summary() }}</strong>
+      <small>
+        @if (checkedAt()) {
+          Dernier contrôle : {{ checkedAt() | date:'dd/MM/yyyy à HH:mm:ss':'':'fr' }}
+        } @else {
+          Aucun contrôle disponible
+        }
+      </small>
+    </div>
+    <div class="monitor-counts" aria-label="Répartition des états">
+      <span><b>{{ healthyCount() }}</b> opérationnel(s)</span>
+      <span><b>{{ degradedCount() }}</b> dégradé(s)</span>
+      <span><b>{{ unavailableCount() }}</b> indisponible(s)</span>
+      <span><b>{{ unknownCount() }}</b> inconnu(s)</span>
+    </div>
+  </div>
+
+  <div class="service-grid">
+    @for (service of services(); track service.id) {
+      <article class="service-card">
+        <div class="service-head">
+          <div>
+            <h2>{{ service.name }}</h2>
+            <p>{{ service.description }}</p>
+          </div>
+          <span class="service-badge" [class.healthy]="service.status === 'healthy'"
+                [class.degraded]="service.status === 'degraded'"
+                [class.unavailable]="service.status === 'unavailable'">
+            <span class="service-dot" aria-hidden="true"></span>
+            {{ statusLabel(service.status) }}
+          </span>
+        </div>
+        <p class="service-detail">{{ service.detail }}</p>
+        <div class="service-meta">
+          <span>Identifiant : {{ service.id }}</span>
+          <span>Mesure : disponibilité applicative</span>
+        </div>
+      </article>
+    }
+  </div>
+
+  <p class="monitor-hint">
+    Actualisation automatique toutes les 30 secondes tant que cet onglet est ouvert.
+    Les états sont issus du KMS et de son contrôle MongoDB, sans accès direct du navigateur aux services internes.
+  </p>
+</section>

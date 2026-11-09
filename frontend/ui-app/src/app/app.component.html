@@ -35,6 +35,8 @@
         <button type="button" class="nav-link" [class.active]="section() === 'users'"
           (click)="showSection('users')"><span aria-hidden="true">♙</span> Utilisateurs</button>
       }
+      <button type="button" class="nav-link" [class.active]="section() === 'monitoring'"
+        (click)="showSection('monitoring')"><span aria-hidden="true">◉</span> Monitoring</button>
       <div class="nav-link upcoming"><span aria-hidden="true">⌗</span> Classification <small>À venir</small></div>
       <div class="nav-link upcoming"><span aria-hidden="true">▧</span> Projets <small>À venir</small></div>
       <div class="nav-link upcoming"><span aria-hidden="true">♢</span> Compétences RNCP <small>À venir</small></div>
@@ -56,6 +58,8 @@
         <button type="button" class="outline" (click)="showSection('knowledge')">← Connaissances</button>
       </header>
       <app-user-admin />
+    } @else if (section() === 'monitoring') {
+      <app-monitoring />
     } @else {
     <header class="topbar">
       <div><span class="eyebrow">MON ESPACE</span><h1>Connaissances</h1><p>Organise, consulte et enrichis ton savoir technique.</p></div>
