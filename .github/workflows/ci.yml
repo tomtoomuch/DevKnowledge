@@ -1,0 +1,105 @@
+name: Validation du socle
+
+on:
+  push:
+    branches: [chat, dev, main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validation-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gateway:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend/api-gateway
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '26'
+          cache: npm
+          cache-dependency-path: backend/api-gateway/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: gateway-coverage
+          path: backend/api-gateway/coverage
+          retention-days: 14
+
+  kms-unit:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend/knowledge-service
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.14'
+          cache: pip
+          cache-dependency-path: backend/knowledge-service/requirements-test.txt
+      - run: python -m pip install --require-hashes -r requirements-test.txt
+      - run: python -m pip check
+      - run: python -m pytest -m "not integration" -o "addopts=" --cov=app --cov-report=term-missing --cov-report=xml:../../test-results/coverage.xml --junitxml=../../test-results/kms-unit.xml
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: kms-unit-${{ matrix.os }}
+          path: test-results
+          retention-days: 14
+
+  docker:
+    # MongoDB 8.0 refuses the 7.0 Azure kernel on 24.04/26.04 runners.
+    # 22.04 currently uses 6.8; revisit before its April 2027 retirement.
+    # See SERVER-136848; unit tests still exercise ubuntu-latest.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.14'
+      - name: Validate Compose configuration without local secrets
+        run: |
+          mkdir -p test-results
+          uname -r | tee test-results/kernel.txt
+          docker compose --env-file tests/stabilization.env config --quiet
+          docker compose -p devknowledge-bootstrap-test -f backend/mongodb/tests/compose.bootstrap.yaml config --quiet
+          docker compose -p devknowledge-kms-crud-test -f backend/knowledge-service/tests/compose.integration.yaml config --quiet
+      - name: Fresh MongoDB bootstrap
+        run: docker compose -p devknowledge-bootstrap-test -f backend/mongodb/tests/compose.bootstrap.yaml up --build --abort-on-container-exit --exit-code-from bootstrap-check bootstrap-check 2>&1 | tee test-results/bootstrap.log
+      - name: Full KMS suite with disposable MongoDB
+        run: docker compose -p devknowledge-kms-crud-test -f backend/knowledge-service/tests/compose.integration.yaml up --build --abort-on-container-exit --exit-code-from kms-tests kms-tests 2>&1 | tee test-results/kms-integration.log
+      - name: Real Compose restart, outage and recovery
+        run: python scripts/check_stabilization.py 2>&1 | tee test-results/stabilization.log
+      - name: Collect diagnostics and clean up disposable projects
+        if: always()
+        run: |
+          docker compose -p devknowledge-bootstrap-test -f backend/mongodb/tests/compose.bootstrap.yaml logs --no-color > test-results/bootstrap-services.log
+          docker compose -p devknowledge-kms-crud-test -f backend/knowledge-service/tests/compose.integration.yaml logs --no-color > test-results/kms-services.log
+          docker compose -p devknowledge-bootstrap-test -f backend/mongodb/tests/compose.bootstrap.yaml down --volumes
+          docker compose -p devknowledge-kms-crud-test -f backend/knowledge-service/tests/compose.integration.yaml down --volumes
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: docker-validation
+          path: test-results
+          retention-days: 14

@@ -1,0 +1,78 @@
+# STAB-01 / STAB-02 : vérifie le bootstrap MongoDB sur un environnement jetable.
+# Projet Compose distinct ; aucun port publié ; aucun volume de développement monté.
+# Identifiants fictifs réservés exclusivement à ce test.
+services:
+  mongodb-bootstrap:
+    image: mongo:8.0
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: bootstrap_root_test
+      MONGO_INITDB_ROOT_PASSWORD: bootstrap_root_password_test
+      MONGO_INITDB_DATABASE: devknowledge_bootstrap_test
+      MONGODB_DATABASE: devknowledge_bootstrap_test
+      MONGODB_APP_USERNAME: bootstrap_app_test
+      MONGODB_APP_PASSWORD: bootstrap_app_password_test
+    volumes:
+      - ../init/01-create-app-user.js:/docker-entrypoint-initdb.d/01-create-app-user.js:ro
+    tmpfs:
+      - /data/db
+      - /data/configdb
+    healthcheck:
+      test: [CMD, mongosh, --quiet, --eval, "db.adminCommand('ping').ok"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  api-kms-bootstrap:
+    build:
+      context: ../../knowledge-service
+    environment:
+      MONGODB_HOST: mongodb-bootstrap
+      MONGODB_PORT: 27017
+      MONGODB_DATABASE: devknowledge_bootstrap_test
+      MONGODB_USERNAME: bootstrap_app_test
+      MONGODB_PASSWORD: bootstrap_app_password_test
+      MONGODB_AUTH_SOURCE: devknowledge_bootstrap_test
+    depends_on:
+      mongodb-bootstrap:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  bootstrap-check:
+    image: mongo:8.0
+    entrypoint: ["/bin/sh", "-ec"]
+    environment:
+      MONGODB_APP_USERNAME: bootstrap_app_test
+      MONGODB_APP_PASSWORD: bootstrap_app_password_test
+    command:
+      - |
+        mongosh --quiet --host mongodb-bootstrap \
+          --authenticationDatabase devknowledge_bootstrap_test \
+          --username "$$MONGODB_APP_USERNAME" --password "$$MONGODB_APP_PASSWORD" \
+          devknowledge_bootstrap_test --eval '
+          const r = db.runCommand({ connectionStatus: 1 });
+          const roles = r.authInfo.authenticatedUserRoles;
+          if (roles.length !== 1 ||
+              roles[0].role !== "readWrite" ||
+              roles[0].db !== "devknowledge_bootstrap_test") {
+            throw new Error("Compte applicatif : droits inattendus");
+          }
+          const coll = db.getCollection("bootstrap_permissions_smoke");
+          coll.insertOne({ _id: "smoke", test: true });
+          const doc = coll.findOne({ _id: "smoke" });
+          if (!doc || doc.test !== true) {
+            throw new Error("Compte applicatif : lecture ou écriture impossible");
+          }
+          coll.deleteOne({ _id: "smoke" });
+          print("STAB-01 / STAB-02 : utilisateur limité, lecture/écriture et readiness KMS OK");
+          '
+    depends_on:
+      api-kms-bootstrap:
+        condition: service_healthy
+
+networks:
+  default:
+    internal: true

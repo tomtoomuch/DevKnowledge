@@ -1,0 +1,65 @@
+---
+title: "DevKnowledge — Feuille de route"
+updated: "2026-11-09"
+status: "Planification évolutive"
+tags: [devknowledge, roadmap, stabilisation]
+---
+
+# Feuille de route DevKnowledge
+
+## Principes constants
+
+- **Local-first et hors ligne en fonctionnement courant**, après préparation des images, dépendances et modèles.
+- **Express comme point d'entrée applicatif unique cible**, FastAPI par service métier, MongoDB comme source de vérité.
+- Données d'origine sous le contrôle de l'utilisateur ; sauvegarde distante facultative.
+- Architecture incrémentale ; ne pas confondre fonctionnalités **documentées**, **implémentées** et **vérifiées en exécution**.
+- Traçabilité Git et documentation Obsidian ; avancement et arbitrages revus ensemble.
+
+## Situation au 9 novembre 2026
+
+| Étape | État | Livrables / dépendances |
+| --- | --- | --- |
+| Cadrage et architecture | Réalisé pour le socle, arbitrages ouverts | Architecture globale ; ADR 001–003 ; blueprint BrainBlox |
+| Modélisation | Modèle logique v0.2 à relire | 56 tables, huit spécialisations, utilisateurs/RBAC, RNCP et RAG ; aucune garantie d'implémentation physique globale |
+| Socle Docker / Express / FastAPI / MongoDB | Bootstrap, configuration et readiness validés localement | Trois services Compose, contrôles de santé, stockage local |
+| Itération 1 — CRUD générique KMS | Livrée, tests historiques positifs | `knowledge_items` ; routes, schémas, services, repository et tests |
+| **Itération 2 — Stabilisation** | **STAB-01 à 05 et 07 implémentés, validations locales réussies** | Config/env, compte MongoDB, readiness, tests, CI, reproductibilité, accès Gateway |
+| Identité, rôles et droits | Non commencée | `users`, `roles`, `permissions`, `user_roles`, `role_permissions` ; arbitrage local/OIDC |
+| Classification, spécialisations et historique | Non commencée | Référentiel `knowledge_types` ; huit spécialisations ; tags, technologies, sources, versions |
+| Certification RNCP et preuves | Non commencée | Versions du RNCP 37827, compétences, critères, correspondances, preuves |
+| Recherche et assistant RAG local | Non commencée | ChromaDB, chunking, embeddings, Ollama, citations, réponse « informations insuffisantes » |
+| MCP, évaluation IA et MLOps | Non commencée | Outils contrôlés, tests d'autorisation, suivi MLflow |
+| Sécurité, supervision et exploitation | Partiellement définies, exécution à planifier | Logs, métriques, sauvegardes/restauration, stratégies de mise à jour et déploiement |
+
+### Jalon actif : stabilisation
+
+Voir [[iterations/iteration-2-stabilisation]].
+
+**Réalisé le 9 novembre :** bootstrap, compte limité, configuration Gateway, readiness, redémarrage et panne/reprise validés. Voir [[iterations/validation-stabilisation-2026-11-09]].
+
+**Automatisation :** suites rejouées, workflow GitHub Actions versionné, dépendances Python verrouillées et séparées. Résultats distants consultables dans Actions.
+
+**Reste à arbitrer et livrer :** relais Gateway → KMS (STAB-06), sauvegarde/restauration et modifications concurrentes (STAB-08), puis revue de sortie. Les images système restent référencées par tags et le build hors ligne reste à qualifier.
+
+Critères de sortie : installation propre reproductible, tests unitaires et intégration **réexécutés** (avec preuves et dates), CI opérationnelle, aucun secret versionné, documentation à jour, aucune donnée de développement supprimée.
+
+## Ordre recommandé après stabilisation
+
+1. Consolider la frontière Gateway → KMS et préparer le modèle d'identité locale/RBAC ; valider l'ADR-003 avant de promouvoir les interfaces.
+2. Introduire `knowledge_types`, les spécialisations et leurs contraintes ; enrichir la classification, la traçabilité et l'historique.
+3. Mettre en place les référentiels de certification versionnés, commencer par RNCP 37827, puis les preuves et leur rattachement aux compétences.
+4. Construire la recherche locale et le RAG : index reconstructible, filtrage des accès, citations et refus explicite en cas de corpus insuffisant.
+5. Ajouter MCP et les fonctionnalités MLOps/supervision avec autorisations et tests d'évaluation.
+
+Cette séquence est indicative : les arbitrages métiers et le résultat des tests peuvent la modifier.
+
+## Gouvernance et références
+
+- [[iterations/point-avancement-2026-11-04]] : photographie du dépôt et risques datés.
+- [[iterations/iteration-1-kms-crud]] : résultats historiques et périmètre réellement livré.
+- [[architecture/kms-knowledge-crud]] : contrat du KMS et commandes de vérification.
+- [[DevKnowledge_MLD_3NF_v0.2]] : source métier, **candidat** 3NF.
+- [[architecture/architecture-globale]] : cible de communication et modules à venir.
+- [[decisions/ADR-001-architecture]] / [[decisions/ADR-002-stockage]] / [[decisions/ADR-003-identite-securite]] : décisions confirmées ou encore à valider.
+
+Les tâches de stabilisation doivent être traitées sur `chat`, avec revue commune ; aucune fusion automatique vers `dev` ou `main` n'est prévue.
