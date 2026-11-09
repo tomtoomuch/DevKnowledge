@@ -10,7 +10,7 @@ import check_dockerfiles as checker
 class DockerfilePathsTest(unittest.TestCase):
     def test_finds_explicit_context_dockerfile(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
+            root = Path(tmp).resolve()
             service = root / "frontend"
             service.mkdir()
             (service / "Dockerfile").write_text("FROM scratch\n")
@@ -24,7 +24,7 @@ class DockerfilePathsTest(unittest.TestCase):
 
     def test_missing_dockerfile_fails_before_build(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
+            root = Path(tmp).resolve()
             (root / "frontend").mkdir()
             with patch.object(checker, "ROOT", root):
                 with self.assertRaisesRegex(ValueError, "Dockerfile missing"):
@@ -35,7 +35,7 @@ class DockerfilePathsTest(unittest.TestCase):
 
     def test_wrong_context_fails_before_build(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
+            root = Path(tmp).resolve()
             with patch.object(checker, "ROOT", root):
                 with self.assertRaisesRegex(ValueError, "context directory missing"):
                     checker.verify_builds({"services": {
@@ -44,7 +44,7 @@ class DockerfilePathsTest(unittest.TestCase):
 
     def test_out_of_repo_dockerfile_fails(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
+            root = Path(tmp).resolve()
             inside = root / "repo"
             inside.mkdir()
             (root / "Dockerfile").write_text("FROM scratch")
