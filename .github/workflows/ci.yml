@@ -14,6 +14,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  gpu-monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: backend/gpu-monitor
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '26'
+      - run: npm test
+
   frontend:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -100,6 +113,7 @@ jobs:
           mkdir -p test-results
           uname -r | tee test-results/kernel.txt
           docker compose --env-file tests/stabilization.env config --quiet
+          docker compose --env-file tests/stabilization.env -f compose.yaml -f compose.gpu.yaml --profile gpu config --quiet
           docker compose -p devknowledge-bootstrap-test -f backend/mongodb/tests/compose.bootstrap.yaml config --quiet
           docker compose -p devknowledge-kms-crud-test -f backend/knowledge-service/tests/compose.integration.yaml config --quiet
       - name: Verify Dockerfile paths for all Compose stacks

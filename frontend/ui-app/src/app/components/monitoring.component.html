@@ -105,8 +105,8 @@
                   <strong>Non disponible</strong>
                 }
               </div>
-              @if (gpuMemoryRatio(device); as ratio) {
-                <progress [value]="ratio" max="100"
+              @if (gpuMemoryRatio(device) !== null) {
+                <progress [value]="gpuMemoryRatio(device) ?? 0" max="100"
                           [attr.aria-label]="'Occupation VRAM du GPU ' + device.index"></progress>
               }
             </div>
