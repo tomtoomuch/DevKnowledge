@@ -28,7 +28,7 @@ describe('specialization metadata and serialization', () => {
     const verified = toSpecialization(SPECIALIZATION_FIELDS.BUG_FIX, {
       verified_at: '2026-11-09T14:30',
     });
-    expect(verified.verified_at).toBe(new Date('2026-11-09T14:30').toISOString());
+    expect(verified['verified_at']).toBe(new Date('2026-11-09T14:30').toISOString());
   });
 
   it('omits optional blank fields without misinterpreting boolean false', () => {
@@ -51,6 +51,6 @@ describe('specialization metadata and serialization', () => {
     const dateField = SPECIALIZATION_FIELDS.BUG_FIX.find(f => f.key === 'verified_at')!;
     const original = '2026-11-09T14:30:00.000Z';
     const input = detailToFormValue(dateField, { verified_at: original });
-    expect(toSpecialization([dateField], { verified_at: input }).verified_at).toBe(original);
+    expect(toSpecialization([dateField], { verified_at: input })['verified_at']).toBe(original);
   });
 });
