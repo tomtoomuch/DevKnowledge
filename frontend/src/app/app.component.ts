@@ -8,6 +8,7 @@ import {
   Knowledge, KnowledgeType, KnowledgeWrite, KNOWLEDGE_TYPES, knowledgeTypeLabel,
 } from './models/knowledge.model';
 import { KnowledgeApiService } from './services/knowledge-api.service';
+import { AuthService, LocalIdentity } from './services/auth.service';
 
 type EditorMode = 'view' | 'create' | 'edit';
 const PAGE_SIZE = 20;
@@ -22,7 +23,17 @@ const PAGE_SIZE = 20;
 })
 export class AppComponent implements OnInit {
   private readonly api = inject(KnowledgeApiService);
+  private readonly auth = inject(AuthService);
   private readonly destroyRef = inject(DestroyRef);
+
+  readonly authMode = signal<'checking' | 'login' | 'active'>('checking');
+  readonly principal = signal<LocalIdentity | null>(null);
+  readonly loginError = signal('');
+  readonly loggingIn = signal(false);
+  readonly loginForm = new FormGroup({
+    username: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+    password: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+  });
 
   readonly types = KNOWLEDGE_TYPES;
   readonly pageSize = PAGE_SIZE;
@@ -86,6 +97,64 @@ export class AppComponent implements OnInit {
         this.favoritesOnly.set(value);
         this.resetPage();
       });
+    this.checkAuth();
+  }
+
+  can(permission: string): boolean {
+    return this.principal()?.permissions.includes(permission) ?? false;
+  }
+
+  checkAuth(): void {
+    this.authMode.set('checking');
+    this.auth.me().subscribe({
+      next: principal => this.signedIn(principal),
+      error: (error: unknown) => {
+        this.authMode.set('login');
+        this.principal.set(null);
+        if (error instanceof HttpErrorResponse && error.status !== 401) {
+          this.loginError.set('Vérification de session impossible. Vérifie les conteneurs.');
+        }
+      },
+    });
+  }
+
+  submitLogin(): void {
+    if (this.loginForm.invalid || this.loggingIn()) return;
+    this.loginError.set('');
+    this.loggingIn.set(true);
+    const credentials = this.loginForm.getRawValue();
+    this.auth.login(credentials.username, credentials.password).pipe(
+      finalize(() => this.loggingIn.set(false)),
+    ).subscribe({
+      next: principal => {
+        this.loginForm.controls.password.reset();
+        this.signedIn(principal);
+      },
+      error: (error: unknown) => {
+        this.loginError.set(error instanceof HttpErrorResponse && error.status === 429
+          ? 'Trop de tentatives. Réessaie après une minute.'
+          : 'Connexion refusée. Vérifie les identifiants et le compte administrateur initial.');
+      },
+    });
+  }
+
+  logout(): void {
+    this.auth.logout().subscribe({
+      next: () => {
+        this.principal.set(null);
+        this.items.set([]);
+        this.selected.set(null);
+        this.authMode.set('login');
+        this.loginForm.reset({ username: '', password: '' });
+      },
+      error: () => this.error.set('Déconnexion impossible. Réessaie.'),
+    });
+  }
+
+  private signedIn(principal: LocalIdentity): void {
+    this.principal.set(principal);
+    this.authMode.set('active');
+    this.loginError.set('');
     this.loadPage();
   }
 
@@ -122,7 +191,7 @@ export class AppComponent implements OnInit {
   }
 
   createKnowledge(): void {
-    if (!this.mayLeaveEditor()) return;
+    if (!this.can('knowledge.create') || !this.mayLeaveEditor()) return;
     this.notice.set('');
     this.formError.set('');
     this.error.set('');
@@ -151,6 +220,7 @@ export class AppComponent implements OnInit {
   }
 
   beginEdit(): void {
+    if (!this.can('knowledge.update')) return;
     const item = this.selected();
     if (!item) return;
     this.fillEditor(item);
@@ -167,6 +237,8 @@ export class AppComponent implements OnInit {
   }
 
   saveKnowledge(): void {
+    if ((this.mode() === 'create' && !this.can('knowledge.create')) ||
+        (this.mode() === 'edit' && !this.can('knowledge.update'))) return;
     if (this.saving()) return;
     if (this.editor.invalid) {
       this.editor.markAllAsTouched();
@@ -213,6 +285,7 @@ export class AppComponent implements OnInit {
   }
 
   askDelete(): void {
+    if (!this.can('knowledge.delete')) return;
     this.confirmingDelete.set(true);
     this.formError.set('');
   }

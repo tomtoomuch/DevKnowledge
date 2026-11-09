@@ -1,3 +1,29 @@
+@if (authMode() === 'checking') {
+  <div class="login-screen"><section class="login-card" role="status">
+    <h1>DevKnowledge</h1><p>Vérification de la session locale…</p>
+  </section></div>
+} @else if (authMode() === 'login') {
+  <div class="login-screen">
+    <section class="login-card" aria-label="Connexion locale">
+      <div class="login-logo">◈</div>
+      <span class="eyebrow">ESPACE PERSONNEL · HORS LIGNE</span>
+      <h1>Bienvenue sur DevKnowledge</h1>
+      <p>Connecte-toi avec ton compte local pour accéder à tes connaissances.</p>
+      <form [formGroup]="loginForm" (ngSubmit)="submitLogin()">
+        <label for="login-username">Identifiant</label>
+        <input id="login-username" type="text" autocomplete="username" formControlName="username" required />
+        <label for="login-password">Mot de passe</label>
+        <input id="login-password" type="password" autocomplete="current-password" formControlName="password" required />
+        @if (loginError()) { <div class="error-banner" role="alert">{{ loginError() }}</div> }
+        <button class="primary login-button" type="submit" [disabled]="loggingIn() || loginForm.invalid">
+          {{ loggingIn() ? 'Connexion…' : 'Se connecter' }}
+        </button>
+      </form>
+      <p class="login-hint">Première utilisation ? Crée le compte administrateur depuis le terminal Docker (voir la documentation de l'identité locale).</p>
+      <button type="button" class="quiet" (click)="checkAuth()">Revérifier la session</button>
+    </section>
+  </div>
+} @else {
 <div class="app-shell">
   <aside class="sidebar">
     <div class="brand"><span class="brand-mark" aria-hidden="true">◈</span><span><strong>DevKnowledge</strong><small>Bibliothèque locale</small></span></div>
@@ -10,6 +36,8 @@
       <div class="nav-link upcoming"><span aria-hidden="true">◉</span> Assistant IA <small>À venir</small></div>
     </nav>
     <div class="sidebar-bottom">
+      <p>Compte : <strong>{{ principal()?.username }}</strong> · {{ principal()?.roles?.join(', ') }}</p>
+      <button type="button" class="quiet" (click)="logout()">Se déconnecter</button>
       <span class="offline-dot" aria-hidden="true"></span> Local · via API Gateway
       <p>Une interface CRUD générique. Les champs spécialisés arriveront après leurs API.</p>
     </div>
@@ -18,7 +46,9 @@
   <main class="workspace">
     <header class="topbar">
       <div><span class="eyebrow">MON ESPACE</span><h1>Connaissances</h1><p>Organise, consulte et enrichis ton savoir technique.</p></div>
-      <button class="primary" type="button" (click)="createKnowledge()">+ Nouvelle connaissance</button>
+      @if (can('knowledge.create')) {
+        <button class="primary" type="button" (click)="createKnowledge()">+ Nouvelle connaissance</button>
+      }
     </header>
 
     @if (notice()) { <div class="notice" role="status">{{ notice() }}</div> }
@@ -84,15 +114,15 @@
         @if (detailLoading()) {
           <div class="welcome">Chargement de la fiche…</div>
         } @else if (mode() === 'view' && !selected()) {
-          <div class="welcome"><span class="welcome-logo" aria-hidden="true">◈</span><h2>Le savoir commence ici.</h2><p>Sélectionne une connaissance pour la consulter ou crée une nouvelle entrée pour enrichir ta bibliothèque.</p><button type="button" class="primary" (click)="createKnowledge()">+ Ajouter une connaissance</button></div>
+          <div class="welcome"><span class="welcome-logo" aria-hidden="true">◈</span><h2>Le savoir commence ici.</h2><p>Sélectionne une connaissance pour la consulter et enrichir ta bibliothèque.</p>@if (can('knowledge.create')) { <button type="button" class="primary" (click)="createKnowledge()">+ Ajouter une connaissance</button> }</div>
         } @else if (mode() === 'view' && selected(); as item) {
           <div class="detail-head">
             <div><span class="eyebrow">{{ typeLabel(item.knowledge_type) }}</span><h2>{{ item.title }}</h2><p>{{ item.description || 'Aucune description.' }}</p></div>
             <span class="status-pill" [class.validated]="item.status === 'VALIDATED'">{{ item.status }}</span>
           </div>
           <div class="detail-actions">
-            <button type="button" class="primary" (click)="beginEdit()">✎ Modifier</button>
-            <button type="button" class="outline danger" (click)="askDelete()">Supprimer</button>
+            @if (can('knowledge.update')) { <button type="button" class="primary" (click)="beginEdit()">✎ Modifier</button> }
+            @if (can('knowledge.delete')) { <button type="button" class="outline danger" (click)="askDelete()">Supprimer</button> }
             <button type="button" class="quiet" (click)="refreshDetail()">↻ Actualiser</button>
           </div>
           @if (formError()) { <div class="error-banner" role="alert">{{ formError() }}</div> }
@@ -142,3 +172,5 @@
     <footer>DevKnowledge · Utilisation locale · Les données restent dans MongoDB</footer>
   </main>
 </div>
+
+}

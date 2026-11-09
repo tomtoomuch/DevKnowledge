@@ -41,6 +41,7 @@ services:
       context: ..
       target: test
     environment:
+      AUTH_MODE: disabled
       KMS_TEST_MONGODB_URI: mongodb://kms_test_only:kms_test_only@mongodb-test:27017/?authSource=admin
       KMS_TEST_HTTP_URL: http://api-kms-test:8000
     volumes:
