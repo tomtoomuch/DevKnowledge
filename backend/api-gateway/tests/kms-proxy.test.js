@@ -239,3 +239,14 @@ test("throttles repeated login attempts", async () => {
     expect(result.headers["retry-after"]).toBe("60");
     expect(received).toHaveLength(10);
 });
+
+
+test("forwards only GET on the knowledge type catalog", async () => {
+    respond = (req, res) => res.writeHead(200, {"content-type": "application/json"})
+        .end('[{"code":"CODE_SNIPPET"}]');
+    const response = await request(app).get("/api/v1/knowledge-types").expect(200);
+    expect(response.body).toEqual([{code: "CODE_SNIPPET"}]);
+    expect(received[0].url).toBe("/api/v1/knowledge-types");
+    await request(app).post("/api/v1/knowledge-types").send({code:"EVIL"}).expect(404);
+    expect(received).toHaveLength(1);
+});
