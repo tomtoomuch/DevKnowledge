@@ -110,6 +110,10 @@ async def create_user(db, username, password, roles):
 
 
 async def bootstrap_admin(db, username, password):
+    # Validate before acquiring the one-time lock to prevent accidental lockout.
+    username_key(username)
+    if not 12 <= len(password) <= 256 or not password.strip():
+        raise ValueError("Password must have 12 to 256 characters")
     # A terminal inside the container is required. Unique marker is fail-closed.
     if await db["users"].count_documents({}) != 0:
         raise RuntimeError("An account already exists: bootstrap forbidden")
