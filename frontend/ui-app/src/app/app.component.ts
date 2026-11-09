@@ -8,7 +8,7 @@ import {
   Knowledge, KnowledgeType, KnowledgeWrite, KNOWLEDGE_TYPES, knowledgeTypeLabel,
 } from './models/knowledge.model';
 import {
-  SPECIALIZATION_FIELDS, DetailField, DetailValue, KnowledgeDetails,
+  SPECIALIZATION_FIELDS, DetailValue, KnowledgeDetails,
   detailToFormValue, displayDetailValue, toSpecialization,
 } from './models/specialization-fields';
 import { KnowledgeApiService } from './services/knowledge-api.service';
@@ -45,7 +45,7 @@ export class AppComponent implements OnInit {
   readonly currentType = signal<KnowledgeType>('CODE_SNIPPET');
   readonly specializationFields = computed(() => SPECIALIZATION_FIELDS[this.currentType()]);
   readonly detailsEnabled = new FormControl(false, { nonNullable: true });
-  readonly detailsForm = new FormGroup<Record<string, FormControl<string>>>({});
+  detailsForm = new FormGroup<Record<string, FormControl<string>>>({});
   readonly pageSize = PAGE_SIZE;
   readonly mode = signal<EditorMode>('view');
   readonly items = signal<Knowledge[]>([]);
@@ -493,13 +493,13 @@ export class AppComponent implements OnInit {
 
   private configureDetails(kind: KnowledgeType, details?: KnowledgeDetails | null): void {
     this.currentType.set(kind);
-    for (const key of Object.keys(this.detailsForm.controls)) this.detailsForm.removeControl(key);
+    this.detailsForm = new FormGroup<Record<string, FormControl<string>>>({});
     for (const field of SPECIALIZATION_FIELDS[kind]) {
       const validators = [];
-      if (field.required) validators.push(Validators.required, Validators.pattern(/[\\s\\S]*\\S[\\s\\S]*/));
+      if (field.required) validators.push(Validators.required, Validators.pattern(/[\s\S]*\S[\s\S]*/));
       if (field.maxLength !== undefined) validators.push(Validators.maxLength(field.maxLength));
       if (field.kind === 'integer') {
-        validators.push(Validators.pattern(/^-?\\d+$/));
+        validators.push(Validators.pattern(/^-?\d+$/));
         if (field.min !== undefined) validators.push(Validators.min(field.min));
         if (field.max !== undefined) validators.push(Validators.max(field.max));
       }
@@ -518,7 +518,7 @@ export class AppComponent implements OnInit {
     return SPECIALIZATION_FIELDS[item.knowledge_type]
       .filter(field => item.details?.[field.key] !== undefined && item.details?.[field.key] !== null)
       .map(field => ({
-        label: field.label.replace(/ \\*$/, ''),
+        label: field.label.replace(/ \*$/, ''),
         value: displayDetailValue(field, item.details![field.key] as DetailValue),
       }));
   }
