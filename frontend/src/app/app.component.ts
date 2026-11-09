@@ -42,15 +42,9 @@ export class AppComponent implements OnInit {
   readonly searchTerm = signal('');
   readonly favoritesOnly = signal(false);
 
-  readonly visibleItems = computed(() => {
-    const term = this.searchTerm();
-    return this.items().filter((item) => {
-      if (this.favoritesOnly() && !item.is_favorite) return false;
-      if (!term) return true;
-      const text = (item.title + ' ' + (item.description ?? '') + ' ' + item.content).toLocaleLowerCase('fr');
-      return text.includes(term);
-    });
-  });
+  // The KMS now performs all list filters before pagination.
+  readonly visibleItems = computed(() => this.items());
+  private listSequence = 0;
   readonly pageCount = computed(() => Math.max(1, Math.ceil(this.total() / PAGE_SIZE)));
   readonly currentPage = computed(() => this.pageIndex() + 1);
 
@@ -80,12 +74,18 @@ export class AppComponent implements OnInit {
 
   ngOnInit(): void {
     this.search.valueChanges.pipe(
-      debounceTime(200), distinctUntilChanged(), takeUntilDestroyed(this.destroyRef),
-    ).subscribe((value) => this.searchTerm.set(value.trim().toLocaleLowerCase('fr')));
+      debounceTime(300), distinctUntilChanged(), takeUntilDestroyed(this.destroyRef),
+    ).subscribe((value) => {
+      this.searchTerm.set(value.trim());
+      this.resetPage();
+    });
     this.typeFilter.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.resetPage());
     this.statusFilter.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.resetPage());
     this.favoritesFilter.valueChanges.pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((value) => this.favoritesOnly.set(value));
+      .subscribe((value) => {
+        this.favoritesOnly.set(value);
+        this.resetPage();
+      });
     this.loadPage();
   }
 
@@ -250,21 +250,34 @@ export class AppComponent implements OnInit {
   }
 
   private loadPage(): void {
+    const sequence = ++this.listSequence;
     this.busy.set(true);
     this.error.set('');
     const type = this.typeFilter.value;
     const status = this.statusFilter.value.trim();
+    const q = this.searchTerm().slice(0, 100);
     this.api.list({
       skip: this.pageIndex() * PAGE_SIZE,
       limit: PAGE_SIZE,
       ...(type ? { knowledge_type: type } : {}),
       ...(status ? { status } : {}),
-    }).pipe(finalize(() => this.busy.set(false))).subscribe({
+      ...(q ? { q } : {}),
+      ...(this.favoritesOnly() ? { is_favorite: true } : {}),
+    }).pipe(finalize(() => {
+      if (sequence === this.listSequence) this.busy.set(false);
+    })).subscribe({
       next: (page) => {
+        // Ignore responses to superseded searches and filter changes.
+        if (sequence !== this.listSequence) return;
         this.items.set(page.items);
         this.total.set(page.total);
       },
-      error: (error: unknown) => this.error.set(this.errorMessage(error)),
+      error: (error: unknown) => {
+        if (sequence !== this.listSequence) return;
+        this.items.set([]);
+        this.total.set(0);
+        this.error.set(this.errorMessage(error));
+      },
     });
   }
 

@@ -14,6 +14,8 @@ export class KnowledgeApiService {
       .set('limit', query.limit);
     if (query.knowledge_type) params = params.set('knowledge_type', query.knowledge_type);
     if (query.status) params = params.set('status', query.status);
+    if (query.q) params = params.set('q', query.q);
+    if (query.is_favorite !== undefined) params = params.set('is_favorite', query.is_favorite);
     return this.http.get<KnowledgePage>(this.base, { params });
   }
 

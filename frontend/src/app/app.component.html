@@ -32,9 +32,9 @@
       <section class="list-panel" aria-label="Liste des connaissances">
         <div class="panel-top"><span>Bibliothèque</span><span class="count">{{ total() }} entrée(s)</span></div>
         <div class="search-wrap">
-          <label for="search-knowledge" class="sr-only">Recherche dans la page affichée</label>
+          <label for="search-knowledge" class="sr-only">Rechercher dans toutes les connaissances</label>
           <span aria-hidden="true">⌕</span>
-          <input id="search-knowledge" type="search" [formControl]="search" placeholder="Chercher dans cette page…" />
+          <input id="search-knowledge" type="search" [formControl]="search" maxlength="100" placeholder="Rechercher dans toute la bibliothèque…" />
         </div>
         <div class="filters">
           <label>Type
@@ -53,10 +53,10 @@
           </label>
         </div>
         <div class="filter-bottom">
-          <label class="check-line"><input type="checkbox" [formControl]="favoritesFilter" /> Favoris de la page</label>
+          <label class="check-line"><input type="checkbox" [formControl]="favoritesFilter" /> Favoris uniquement</label>
           <button class="quiet" type="button" (click)="resetFilters()">Effacer les filtres</button>
         </div>
-        <div class="list-meta">Recherche et favoris : page courante uniquement</div>
+        <div class="list-meta">Recherche globale dans titres, descriptions et contenus · filtres cumulables</div>
 
         @if (busy()) { <p class="empty" role="status">Chargement des connaissances…</p> }
         @else if (visibleItems().length === 0) {

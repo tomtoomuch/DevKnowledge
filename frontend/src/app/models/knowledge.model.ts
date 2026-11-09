@@ -46,6 +46,8 @@ export interface KnowledgeQuery {
   limit: number;
   knowledge_type?: KnowledgeType;
   status?: string;
+  q?: string;
+  is_favorite?: boolean;
 }
 
 export function knowledgeTypeLabel(code: string): string {

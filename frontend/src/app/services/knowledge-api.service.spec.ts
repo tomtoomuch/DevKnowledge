@@ -54,6 +54,23 @@ describe('KnowledgeApiService', () => {
     expect(total).toBe(1);
   });
 
+  it('sends text and favorite filters to KMS before pagination', () => {
+    api.list({ skip: 20, limit: 20, q: 'Docker compose', is_favorite: true }).subscribe();
+    const req = mock.expectOne((request) => request.url === '/api/v1/knowledges');
+    expect(req.request.params.get('q')).toBe('Docker compose');
+    expect(req.request.params.get('is_favorite')).toBe('true');
+    expect(req.request.params.get('skip')).toBe('20');
+    req.flush({ items: [], total: 0, skip: 20, limit: 20 });
+  });
+
+  it('does not set optional filters for unfiltered requests', () => {
+    api.list({ skip: 0, limit: 20 }).subscribe();
+    const req = mock.expectOne('/api/v1/knowledges?skip=0&limit=20');
+    expect(req.request.params.has('q')).toBe(false);
+    expect(req.request.params.has('is_favorite')).toBe(false);
+    req.flush({ items: [], total: 0, skip: 0, limit: 20 });
+  });
+
   it('reads ETag from individual GET response', () => {
     let etag: string | null = null;
     api.get(record.knowledge_id).subscribe((response) => etag = response.headers.get('ETag'));
