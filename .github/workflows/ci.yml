@@ -64,7 +64,9 @@ jobs:
           retention-days: 14
 
   docker:
-    runs-on: ubuntu-latest
+    # MongoDB 8.0 currently refuses the kernel on ubuntu-26.04 runners.
+    # See SERVER-121912; keep unit tests on ubuntu-latest independently.
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     defaults:
       run:
@@ -77,6 +79,7 @@ jobs:
       - name: Validate Compose configuration without local secrets
         run: |
           mkdir -p test-results
+          uname -r | tee test-results/kernel.txt
           docker compose --env-file tests/stabilization.env config --quiet
           docker compose -p devknowledge-bootstrap-test -f backend/mongodb/tests/compose.bootstrap.yaml config --quiet
           docker compose -p devknowledge-kms-crud-test -f backend/knowledge-service/tests/compose.integration.yaml config --quiet

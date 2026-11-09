@@ -40,6 +40,14 @@ Les exécutions distantes sont consultables dans
 [GitHub Actions](https://github.com/tomtoomuch/DevKnowledge/actions/workflows/ci.yml) ;
 le tableau ci-dessus décrit uniquement la campagne locale.
 
+La première exécution distante (`42629736571`) a validé Gateway et les deux
+jobs unitaires KMS, mais MongoDB a refusé de démarrer sur le noyau du runner
+`ubuntu-latest` (Ubuntu 26.04). Son journal renvoie à
+[SERVER-121912](https://jira.mongodb.org/browse/SERVER-121912). Le job Docker
+utilise donc explicitement `ubuntu-24.04` et consigne le noyau dans ses artefacts.
+Les tests unitaires Linux restent sur `ubuntu-latest`. Le workflow a également
+passé la validation statique `actionlint`.
+
 Le script `python scripts/check_stabilization.py` utilise le Compose réel avec
 une surcharge de test, un projet au nom unique, des identifiants fictifs, aucun
 port publié et un volume MongoDB neuf. Il vérifie :
