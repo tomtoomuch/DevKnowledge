@@ -264,6 +264,8 @@ test("relays tag catalog read/create and lookup without exposing unrelated route
     await request(app).put("/api/v1/tags").send({ name: "Non" }).expect(404);
     await request(app).delete("/api/v1/tags/abcd-1234").expect(404);
     expect(received).toHaveLength(3);
+});
+
 test("monitoring is a read-only same-origin Gateway route with scoped authentication", async () => {
     respond = (req, res) => res.writeHead(200, {
         "content-type": "application/json", "cache-control": "no-store",
