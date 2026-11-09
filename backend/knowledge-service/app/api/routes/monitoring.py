@@ -8,6 +8,7 @@ from pymongo.errors import PyMongoError
 
 from app.auth.local import requester_identity, require
 from app.services.knowledge_service import RequesterIdentity
+from app.services.gpu_metrics import read_gpu_metrics
 
 router = APIRouter(prefix="/api/v1", tags=["Monitoring"])
 
@@ -36,6 +37,8 @@ async def list_service_health(
             mongo_status = "healthy"
             mongo_detail = "Le ping MongoDB a réussi."
 
+    gpu = await read_gpu_metrics()
+
     kms_status = "healthy" if mongo_status == "healthy" else "degraded"
     kms_detail = (
         "L'API répond et son stockage est disponible."
@@ -44,6 +47,7 @@ async def list_service_health(
     )
     return {
         "checked_at": checked_at,
+        "gpu": gpu,
         "services": [
             {
                 "id": "api-gateway",

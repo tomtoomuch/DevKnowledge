@@ -10,6 +10,7 @@ from pymongo.errors import ConnectionFailure
 
 from app.auth.local import requester_identity
 from app.main import app
+from app.api.routes import monitoring as monitoring_route
 from app.services.knowledge_service import RequesterIdentity
 
 ENDPOINT = "/api/v1/monitoring/services"
@@ -35,6 +36,8 @@ def test_missing_mongodb_client_is_unknown_and_kms_degraded(client):
     assert response.headers["cache-control"] == "no-store"
     data = response.json()
     assert data["checked_at"].endswith("Z")
+    assert data["gpu"]["status"] == "disabled"
+    assert data["gpu"]["devices"] == []
     statuses = {entry["id"]: entry["status"] for entry in data["services"]}
     assert statuses == {"api-gateway": "healthy", "api-kms": "degraded", "mongodb": "unknown"}
 
@@ -76,3 +79,23 @@ def test_monitoring_requires_session(client):
         raise HTTPException(status_code=401, detail="Authentication required")
     app.dependency_overrides[requester_identity] = unauthenticated
     assert client.get(ENDPOINT).status_code == 401
+
+
+def test_gpu_snapshot_is_included_only_after_authentication(client, monkeypatch):
+    sample = {
+        "status": "healthy", "detail": "Mesures GPU disponibles.",
+        "devices": [{"index": 0, "name": "NVIDIA Demo", "utilization_pct": 40,
+                     "memory_used_mib": 2048, "memory_total_mib": 8192,
+                     "temperature_c": 62}],
+    }
+    probe = AsyncMock(return_value=sample)
+    monkeypatch.setattr(monitoring_route, "read_gpu_metrics", probe)
+    response = client.get(ENDPOINT)
+    assert response.status_code == 200
+    assert response.json()["gpu"] == sample
+    probe.assert_awaited_once()
+    app.dependency_overrides[requester_identity] = lambda: RequesterIdentity(
+        permissions=frozenset(),
+    )
+    assert client.get(ENDPOINT).status_code == 403
+    probe.assert_awaited_once()
