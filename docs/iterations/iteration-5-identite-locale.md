@@ -97,3 +97,7 @@ les sessions, OIDC et MFA.
 - Critères de sortie : CI entièrement réussie, recette manuelle sur
   une copie/sauvegarde des données locales, revue des mécanismes de
   récupération d'accès. Aucune fusion sans validation.
+
+Le paramétrage scrypt initial est N=2^15, r=8, p=3 (32 Mio de mémoire),
+conformément à une des configurations minimales documentées par OWASP ;
+un réétalonnage est nécessaire avant une montée en charge.

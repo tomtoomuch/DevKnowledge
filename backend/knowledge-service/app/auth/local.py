@@ -22,7 +22,7 @@ ROLES = {
     "READER": ("knowledge.read",),
 }
 PERMISSIONS = frozenset(p for values in ROLES.values() for p in values)
-SC_N, SC_R, SC_P = 2**15, 8, 1
+SC_N, SC_R, SC_P = 2**15, 8, 3
 MAXMEM = 64 * 1024 * 1024
 USER_PATTERN = re.compile(r"[a-z0-9_.-]{3,40}")
 

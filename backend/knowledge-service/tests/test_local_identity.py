@@ -18,7 +18,7 @@ def test_scrypt_hash_is_salted_and_never_returns_plaintext():
     second = hash_password(password)
     assert first != second
     assert password not in first
-    assert first.startswith("scrypt$")
+    assert first.startswith("scrypt$32768$8$3$")
     assert verify_password(password, first)
     assert not verify_password("different passphrase", first)
     assert not verify_password(password, "invalid")
