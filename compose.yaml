@@ -21,6 +21,7 @@ services:
       GATEWAY_PORT: ${GATEWAY_PORT:-3000}
       KMS_BASE_URL: http://api-kms:8000
       KMS_TIMEOUT_MS: ${KMS_TIMEOUT_MS:-10000}
+      GATEWAY_PUBLIC_SCHEME: ${GATEWAY_PUBLIC_SCHEME:-http}
       NODE_ENV: production
     ports:
       - "127.0.0.1:${GATEWAY_PORT:-3000}:${GATEWAY_PORT:-3000}"

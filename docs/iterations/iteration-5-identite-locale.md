@@ -10,27 +10,27 @@ actions autorisées.
 
 ## Initialisation sans effacer les connaissances
 
-1. Démarrer normalement avec \`docker compose up -d --build\`.
+1. Démarrer normalement avec `docker compose up -d --build`.
 2. Créer **une fois** l'administrateur sur la base existante :
 
-   \`docker compose exec api-kms python -m app.auth.bootstrap_admin --username admin\`
+   `docker compose exec api-kms python -m app.auth.bootstrap_admin --username admin`
 
    Saisir et confirmer le mot de passe à l'invite (12 à 256 caractères).
-   Ne pas placer le mot de passe dans la commande, le dépôt ou \`.env\`.
+   Ne pas placer le mot de passe dans la commande, le dépôt ou `.env`.
 3. Ouvrir http://127.0.0.1:4200 et se connecter avec ce compte.
-4. Ne jamais exécuter \`docker compose down --volumes\` pour un jeu de
+4. Ne jamais exécuter `docker compose down --volumes` pour un jeu de
    données réel. Le marqueur de bootstrap est conservé même si une erreur
    survient après son acquisition : récupérer manuellement sous contrôle
    de l'administrateur, et ne pas supprimer le marqueur sans audit.
 
 ## Collections MongoDB
 
-- \`users\` : identifiants, scrypt salé, statut et dates d'audit.
-- \`roles\`, \`permissions\` : référentiels locaux initialisés au démarrage.
-- \`user_roles\`, \`role_permissions\` : relations RBAC.
-- \`sessions\` : empreintes SHA-256 des jetons opaques et date d'expiration
+- `users` : identifiants, scrypt salé, statut et dates d'audit.
+- `roles`, `permissions` : référentiels locaux initialisés au démarrage.
+- `user_roles`, `role_permissions` : relations RBAC.
+- `sessions` : empreintes SHA-256 des jetons opaques et date d'expiration
   (TTL MongoDB, plus contrôle serveur systématique).
-- \`auth_bootstrap\` : verrou de première initialisation. Jamais de
+- `auth_bootstrap` : verrou de première initialisation. Jamais de
   mécanisme de réinitialisation HTTP.
 
 ## Matrice de permissions
@@ -48,14 +48,14 @@ concevoir, avant RAG et tout outil MCP.
 
 ## Contrats
 
-- \`POST /api/v1/auth/login\` : \`{"username":"...", "password":"..."}\`,
+- `POST /api/v1/auth/login` : `{"username":"...", "password":"..."}`,
   200 avec profil public + cookie HttpOnly SameSite=Strict, 401 sinon.
-- \`GET /api/v1/auth/me\` : profil courant et permissions, 401 sinon.
-- \`POST /api/v1/auth/logout\` : 204, révocation du jeton et effacement du
+- `GET /api/v1/auth/me` : profil courant et permissions, 401 sinon.
+- `POST /api/v1/auth/logout` : 204, révocation du jeton et effacement du
   cookie navigateur.
-- \`GET /api/v1/users\` : liste d'utilisateurs, ADMIN seulement.
-- \`POST /api/v1/users\` : création d'un compte avec \`username\`,
-  \`password\` et \`roles\` parmi ADMIN/EDITOR/READER ; ADMIN seulement.
+- `GET /api/v1/users` : liste d'utilisateurs, ADMIN seulement.
+- `POST /api/v1/users` : création d'un compte avec `username`,
+  `password` et `roles` parmi ADMIN/EDITOR/READER ; ADMIN seulement.
 - Toutes les routes GET/PATCH/POST/DELETE des connaissances exigent
   une session valide et une permission adaptée.
 
@@ -71,10 +71,10 @@ d'empreintes, et sont révoquées explicitement à la déconnexion. Le KMS
 revérifie le statut du compte et ses permissions à chaque demande.
 
 La Gateway vérifie Origin sur les requêtes qui l'envoient et rejette
-les requêtes signalées \`Sec-Fetch-Site: cross-site\`. Son ralentisseur
+les requêtes signalées `Sec-Fetch-Site: cross-site`. Son ralentisseur
 de connexions est en mémoire et ne convient pas à plusieurs instances.
 Le cookie n'est pas Secure pour le HTTP localhost ; prévoir TLS,
-\`AUTH_COOKIE_SECURE=true\`, une politique CSRF renforcée et une revue
+`AUTH_COOKIE_SECURE=true`, une politique CSRF renforcée et une revue
 sécurité avant toute exposition distante.
 
 Une désactivation explicite de l'authentification (AUTH_MODE=disabled)
@@ -101,3 +101,9 @@ les sessions, OIDC et MFA.
 Le paramétrage scrypt initial est N=2^15, r=8, p=3 (32 Mio de mémoire),
 conformément à une des configurations minimales documentées par OWASP ;
 un réétalonnage est nécessaire avant une montée en charge.
+
+Le proxy Angular de développement conserve le Host original afin que la
+protection Origin de la Gateway soit compatible avec `npm start`.
+Le protocole public est contrôlé par `GATEWAY_PUBLIC_SCHEME=http` en local ;
+si un reverse proxy TLS est introduit, coordonner `https` et
+`AUTH_COOKIE_SECURE=true`.

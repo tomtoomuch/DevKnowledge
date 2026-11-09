@@ -8,6 +8,10 @@ function createApp({
     const app = express();
     app.disable("x-powered-by");
     const relay = createKmsProxy(kmsBaseUrl, kmsTimeoutMs);
+    const publicScheme = process.env.GATEWAY_PUBLIC_SCHEME || "http";
+    if (!["http", "https"].includes(publicScheme)) {
+        throw new Error("GATEWAY_PUBLIC_SCHEME must be http or https");
+    }
 
     app.get("/health", (req, res) => {
         res.status(200).json({ status: "ok", service: "api-gateway" });
@@ -23,7 +27,7 @@ function createApp({
         if (req.headers.origin) {
             try {
                 const actual = new URL(req.headers.origin);
-                if (!["http:", "https:"].includes(actual.protocol) ||
+                if (actual.protocol !== publicScheme + ":" ||
                     actual.host.toLowerCase() !== (req.headers.host || "").toLowerCase()) {
                     return res.status(403).json({ detail: "Cross-origin write rejected" });
                 }

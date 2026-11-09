@@ -220,6 +220,9 @@ test("blocks cross-origin writes and allows same-origin writes", async () => {
         .send({ username: "admin" }).expect(403);
     await request(app).patch("/api/v1/knowledges/abc")
         .set("Sec-Fetch-Site", "cross-site").send({ title: "bad" }).expect(403);
+    await request(app).post("/api/v1/auth/login")
+        .set("Origin", "https://example.local").set("Host", "example.local")
+        .send({ username: "admin" }).expect(403);
     expect(received).toHaveLength(0);
     await request(app).post("/api/v1/auth/login")
         .set("Origin", "http://example.local")
