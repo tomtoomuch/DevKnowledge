@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 15
     defaults:
       run:
-        working-directory: frontend
+        working-directory: frontend/ui-app
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
@@ -102,6 +102,11 @@ jobs:
           docker compose --env-file tests/stabilization.env config --quiet
           docker compose -p devknowledge-bootstrap-test -f backend/mongodb/tests/compose.bootstrap.yaml config --quiet
           docker compose -p devknowledge-kms-crud-test -f backend/knowledge-service/tests/compose.integration.yaml config --quiet
+      - name: Verify Dockerfile paths for all Compose stacks
+        run: |
+          python scripts/check_dockerfiles.py --compose compose.yaml --env-file tests/stabilization.env
+          python scripts/check_dockerfiles.py --compose backend/mongodb/tests/compose.bootstrap.yaml
+          python scripts/check_dockerfiles.py --compose backend/knowledge-service/tests/compose.integration.yaml
       - name: Fresh MongoDB bootstrap
         run: docker compose -p devknowledge-bootstrap-test -f backend/mongodb/tests/compose.bootstrap.yaml up --build --abort-on-container-exit --exit-code-from bootstrap-check bootstrap-check 2>&1 | tee test-results/bootstrap.log
       - name: Full KMS suite with disposable MongoDB

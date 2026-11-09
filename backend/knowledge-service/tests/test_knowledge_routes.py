@@ -8,7 +8,8 @@ import pytest
 from fastapi.testclient import TestClient
 from pymongo.errors import ServerSelectionTimeoutError
 
-from app.api.routes.knowledges import get_knowledge_service
+from app.api.routes.knowledges import get_knowledge_service, get_requester_identity
+from app.services.knowledge_service import RequesterIdentity
 from app.main import app
 from app.services.knowledge_service import KnowledgeService
 
@@ -80,6 +81,9 @@ class MemoryRepository:
 def api():
     repository = MemoryRepository()
     app.dependency_overrides[get_knowledge_service] = lambda: KnowledgeService(repository)
+    app.dependency_overrides[get_requester_identity] = lambda: RequesterIdentity(
+        permissions=frozenset({"knowledge.read", "knowledge.create", "knowledge.update", "knowledge.delete"}),
+    )
     # Deliberately do not enter TestClient: lifespan would need a real database.
     client = TestClient(app)
     try:
@@ -87,6 +91,7 @@ def api():
     finally:
         client.close()
         app.dependency_overrides.pop(get_knowledge_service, None)
+        app.dependency_overrides.pop(get_requester_identity, None)
 
 
 def create(client, **changes):

@@ -1,6 +1,6 @@
 # ADR-003 — Identité, authentification et sécurité
 
-- **Statut :** À valider
+- **Statut :** Acceptée pour le prototype local (itération 5)
     
 - **Date :** 2026-10-28
     
@@ -19,7 +19,12 @@ Elle doit limiter l'accès aux données, protéger les secrets et empêcher que 
     
 - L'authentification ne doit pas dépendre d'une validation distante à chaque démarrage.
     
-- Une authentification locale est envisagée pour le premier prototype.
+- Une authentification locale **est retenue et implémentée** pour le premier prototype.
+- Première identité administrateur créée uniquement par CLI dans le conteneur KMS ; aucun bootstrap HTTP ni inscription publique.
+- Identifiants et rôles conservés en MongoDB ; mots de passe hachés avec scrypt et sel aléatoire.
+- Sessions opaques révocables, empreinte SHA-256 du jeton stockée en base, cookie HttpOnly, SameSite=Strict, durée de 8 heures.
+- Cookies transmis uniquement via la Gateway ; les opérations du navigateur sont protégées par une vérification d'origine et la politique SameSite.
+- Les permissions sont contrôlées par le KMS sur chaque route de connaissance. Aucun en-tête X-User-Id ou Authorization fourni par le navigateur n'est une identité fiable.
     
 - Une intégration OIDC/OAuth 2.0 pourra être étudiée ultérieurement si un besoin de fédération d'identité est confirmé.
     
@@ -56,6 +61,16 @@ Elle doit limiter l'accès aux données, protéger les secrets et empêcher que 
     
 - Les actions ayant des effets de bord doivent faire l'objet de contrôles explicites.
     
+
+## Arbitrages reportés
+
+Les étapes d'implémentation ne constituent pas une homologation de sécurité.
+Le prototype reste lié à 127.0.0.1 ; HTTPS est obligatoire avant toute
+exposition distante, avec AUTH_COOKIE_SECURE=true. La limitation des tentatives
+de connexion est locale à une instance de Gateway, non distribuée. Le
+changement de mot de passe, la révocation globale, la récupération d'accès,
+le chiffrement au repos, l'administration complète des rôles et OIDC sont
+des développements ultérieurs.
 
 ## Points à confirmer
 
