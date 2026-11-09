@@ -14,6 +14,8 @@
 - [[operations/backup-restore|Sauvegarde locale et restauration isolée]]
 - [[architecture/knowledge-concurrency|Révisions et écritures conditionnelles]]
 
+- [[operations/monitoring|Monitoring — santé des services via la Gateway]]
+
 ## Implémentation et référentiel
 
 - [[architecture/gateway-kms|Gateway → KMS : contrat du relais et diagnostic]]
