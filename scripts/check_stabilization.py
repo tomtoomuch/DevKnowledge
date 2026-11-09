@@ -198,6 +198,10 @@ def main():
             report["network"] = verify_offline_network(report["images"])
             passed("runtime network isolated; no external default route; outbound connection refused")
         require(http_status("/health/ready") == 200, "KMS not ready")
+        require(http_status("/", "frontend", 80) == 200, "Angular frontend not served")
+        require(http_status("/api/v1/knowledges", "frontend", 80) == 200,
+                "Frontend proxy must forward CRUD through Gateway")
+        passed("Angular static frontend and internal Gateway proxy")
         require(http_status("/health", "api-gateway", 3107) == 200, "Custom Gateway port failed")
         database_check(insert=True)
         passed("fresh bootstrap, least privileges, indexes, custom Gateway port 3107")

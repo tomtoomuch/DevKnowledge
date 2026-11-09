@@ -1,4 +1,17 @@
 services:
+  frontend:
+    environment:
+      GATEWAY_PORT: ${GATEWAY_PORT:-3000}
+    image: devknowledge-frontend:latest
+    build:
+      context: ./frontend
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-4200}:80"
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    restart: unless-stopped
+
   api-gateway:
     image: api-gateway:latest
     build:

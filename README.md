@@ -4,7 +4,7 @@ Assistant personnel de gestion des connaissances, conçu pour fonctionner locale
 
 ## État du projet (9 novembre 2026)
 
-Le KMS propose le CRUD générique `/api/v1/knowledges`, avec validation, pagination, filtres et suppression logique. **Bootstrap MongoDB, configuration Gateway et readiness sont validés localement ; la CI est définie et les dépendances Python sont verrouillées.** Le frontend Angular, l'authentification/RBAC, les huit spécialisations et le RAG sont des étapes ultérieures.
+Le KMS propose le CRUD générique `/api/v1/knowledges`, avec validation, pagination, filtres et suppression logique. **Bootstrap MongoDB, configuration Gateway et readiness sont validés localement ; la CI est définie et les dépendances Python sont verrouillées.** Le frontend Angular implémente le CRUD générique dans une branche dédiée. L'authentification/RBAC, les huit spécialisations persistées et le RAG restent des étapes ultérieures.
 
 **PATCH et DELETE exigent désormais `If-Match` avec la révision lue** (428 sans précondition, 412 si elle est dépassée). Les GET individuels renvoient l’ETag correspondant.
 
@@ -26,6 +26,20 @@ La Gateway relaie les routes CRUD sur `127.0.0.1:3000/api/v1/knowledges`. Le KMS
 
 Le MLD v0.2 décrit **56 tables logiques candidates**, et non 56 tables/collections déployées. La première implémentation métier persiste les connaissances dans `knowledge_items`.
 
+## Frontend Angular
+
+Le frontend Angular est disponible par défaut sur http://127.0.0.1:4200 après le
+lancement Compose, configurable avec FRONTEND_PORT. Son serveur Nginx relaie
+les requêtes /api/ exclusivement à la Gateway Express sur le réseau Docker.
+
+La liste est paginée et filtrée par type/statut côté serveur ; la recherche
+textuelle et les favoris filtrent uniquement **la page affichée**. La
+consultation, la création, la modification conditionnelle avec ETag/If-Match
+et la suppression logique sont prises en charge. L'interface ne persiste que
+les champs génériques, pas les spécialisations prévues au MLD.
+
+Lire le [guide frontend](frontend/README.md) avant la première utilisation.
+
 ## Lancement local
 
 À la racine, avec une configuration `.env` locale existante et valide :
@@ -36,7 +50,7 @@ docker compose up -d --build
 docker compose ps
 ```
 
-La Gateway écoute par défaut sur `127.0.0.1:3000` ; le KMS et MongoDB ne sont pas publiés sur l'hôte. Pour Swagger ou le diagnostic direct, utiliser `docker compose -f compose.yaml -f compose.debug.yaml up -d --build`, puis [Swagger UI du KMS](http://127.0.0.1:8000/docs).
+Le frontend écoute par défaut sur `127.0.0.1:4200` ; la Gateway sur `127.0.0.1:3000` ; le KMS et MongoDB ne sont pas publiés sur l'hôte. Pour Swagger ou le diagnostic direct, utiliser `docker compose -f compose.yaml -f compose.debug.yaml up -d --build`, puis [Swagger UI du KMS](http://127.0.0.1:8000/docs).
 
 **Installation neuve :** `.env.example` et `compose.yaml` sont alignés ; le compte MongoDB applicatif limité est initialisé sur un volume vierge. **Le démarrage réel et le redémarrage ont été validés sur un projet isolé.** Ne pas écraser un `.env` existant : le bootstrap ne se rejoue pas sur un volume déjà initialisé. Voir le [guide de provisionnement et test isolé](docs/operations/mongodb-bootstrap.md). Ne jamais supprimer les volumes de développement par inadvertance.
 
