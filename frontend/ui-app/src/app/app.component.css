@@ -31,3 +31,9 @@
 .tag-create{margin-top:16px;display:flex;align-items:flex-end;flex-wrap:wrap;gap:12px}
 .tag-create label{flex-basis:100%}
 .tag-create input{flex:1;min-width:160px;margin-top:0}
+/* Keep working navigation accessible on narrow screens, including Monitoring. */
+@media(max-width:900px){
+  .sidebar nav{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+  .sidebar nav button.nav-link{width:auto;padding:10px 12px}
+  .sidebar nav .upcoming{display:none}
+}

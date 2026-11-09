@@ -264,4 +264,17 @@ test("relays tag catalog read/create and lookup without exposing unrelated route
     await request(app).put("/api/v1/tags").send({ name: "Non" }).expect(404);
     await request(app).delete("/api/v1/tags/abcd-1234").expect(404);
     expect(received).toHaveLength(3);
+test("monitoring is a read-only same-origin Gateway route with scoped authentication", async () => {
+    respond = (req, res) => res.writeHead(200, {
+        "content-type": "application/json", "cache-control": "no-store",
+    }).end(JSON.stringify({ checked_at: "2026-11-10T00:00:00Z", services: [] }));
+    const session = "c".repeat(64);
+    const response = await request(app).get("/api/v1/monitoring/services")
+        .set("Cookie", "other=ignored; dk_session=" + session).expect(200);
+    expect(response.body.services).toEqual([]);
+    expect(response.headers["cache-control"]).toBe("no-store");
+    expect(received[0].url).toBe("/api/v1/monitoring/services");
+    expect(received[0].headers.cookie).toBe("dk_session=" + session);
+    await request(app).post("/api/v1/monitoring/services").send({}).expect(404);
+    expect(received).toHaveLength(1);
 });
