@@ -76,8 +76,10 @@ la connaissance est ensuite annulée ; l'interface le précise.
 3. Les filtres `tag_id` fonctionnent sur l'ensemble des connaissances
    actives, mais l'index de requête `knowledge_items.tag_ids` devra être
    envisagé selon la taille du corpus et le profil de requêtes.
-4. Une sauvegarde de `knowledge_items` **seule** serait insuffisante
-   pour restaurer les noms du catalogue `tags` ; vérifier et inclure la
-   collection dans la procédure globale de sauvegarde/restauration.
+4. Le script existant `scripts/mongodb_backup.py` sauvegarde **toutes**
+   les collections de la base (y compris `tags`) et vérifie les index et
+   documents restaurés dans un volume jetable. Ne pas remplacer cette
+   procédure par une exportation limitée à `knowledge_items` : les
+   références de tags perdraient alors leurs libellés.
 5. Une recette manuelle est encore nécessaire après la CI, sur base jetable
    ou sauvegardée ; aucune donnée locale n'a été migrée ni supprimée.

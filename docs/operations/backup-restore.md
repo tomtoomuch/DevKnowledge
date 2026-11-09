@@ -24,6 +24,11 @@ Le dossier contient `database.archive.gz` (BSON compressé, via `mongodump`) et
 `manifest.json` : date UTC, version MongoDB, SHA-256 de l'archive, empreinte et
 nombre de documents par collection, index et options de collection. Les
 documents supprimés logiquement, révisions, UUID et dates BSON sont inclus.
+Les collections ajoutées par les itérations suivantes, notamment le
+catalogue `tags` et ses index, sont incluses automatiquement dans l'archive
+de la base métier. Il faut restaurer conjointement `tags` et
+`knowledge_items` pour préserver la résolution des identifiants `tag_ids`.
+
 Les vues et bases système ne sont pas prises en charge. Les utilisateurs MongoDB
 ne sont pas inclus ; ils sont reprovisionnés depuis la configuration locale lors
 de la restauration.
