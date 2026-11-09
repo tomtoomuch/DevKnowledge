@@ -250,3 +250,18 @@ test("forwards only GET on the knowledge type catalog", async () => {
     await request(app).post("/api/v1/knowledge-types").send({code:"EVIL"}).expect(404);
     expect(received).toHaveLength(1);
 });
+
+
+test("relays tag catalog read/create and lookup without exposing unrelated routes", async () => {
+    await request(app).get("/api/v1/tags?skip=0&limit=50").expect(200);
+    expect(received[0].url).toBe("/api/v1/tags?skip=0&limit=50");
+    await request(app).post("/api/v1/tags")
+        .set("Content-Type", "application/json").send({ name: "MongoDB" }).expect(200);
+    expect(received[1].method).toBe("POST");
+    expect(JSON.parse(received[1].body)).toEqual({ name: "MongoDB" });
+    await request(app).get("/api/v1/tags/abcd-1234").expect(200);
+    expect(received[2].url).toBe("/api/v1/tags/abcd-1234");
+    await request(app).put("/api/v1/tags").send({ name: "Non" }).expect(404);
+    await request(app).delete("/api/v1/tags/abcd-1234").expect(404);
+    expect(received).toHaveLength(3);
+});
