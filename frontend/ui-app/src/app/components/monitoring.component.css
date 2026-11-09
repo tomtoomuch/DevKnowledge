@@ -1,0 +1,31 @@
+:host{display:block;min-width:0}
+.monitoring{max-width:1200px}
+.monitoring-header{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-bottom:27px}
+.eyebrow{font-size:11px;color:#92b4fd;font-weight:750;letter-spacing:1.5px}
+.monitoring-header h1{font-size:30px;margin:7px 0 9px;letter-spacing:-.6px}
+.monitoring-header p{font-size:13px;color:#9daec7;line-height:1.65;max-width:620px;margin:0}
+.refresh{border:1px solid #465674;border-radius:9px;background:#16243c;color:#e0ebff;padding:11px 16px;font-size:13px;font-weight:700;cursor:pointer}
+.refresh:disabled{cursor:wait;opacity:.6}
+.refresh:hover:not(:disabled){border-color:#9bb6f8}
+.monitor-error{border:1px solid #98576c;background:#401f32;color:#ffd6db;border-radius:9px;padding:13px 16px;font-size:13px}
+.monitor-summary{display:flex;align-items:center;justify-content:space-between;gap:24px;background:#142139;border:1px solid #30425e;border-radius:15px;padding:23px;margin-bottom:20px}
+.monitor-summary strong{display:block;margin-top:8px;font-size:20px;line-height:1.4}
+.monitor-summary small{display:block;color:#92a7c6;margin-top:9px;font-size:12px}
+.monitor-counts{display:grid;grid-template-columns:repeat(2,minmax(135px,1fr));gap:8px 16px;font-size:12px;color:#bdcce4}
+.monitor-counts span{white-space:nowrap}
+.monitor-counts b{font-size:17px;color:#f4f7ff;margin-right:5px}
+.service-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:17px}
+.service-card{background:#131f34;border:1px solid #30405d;border-radius:14px;padding:21px;min-width:0}
+.service-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px}
+.service-head h2{font-size:17px;margin:0 0 7px;color:#f1f6ff}
+.service-head p{font-size:12px;color:#97aac9;margin:0;line-height:1.5}
+.service-badge{display:inline-flex;flex-shrink:0;align-items:center;gap:6px;padding:7px 9px;border:1px solid #63708b;background:#2a3448;color:#c8d3e4;border-radius:18px;font-size:11px;font-weight:700}
+.service-badge.healthy{border-color:#367868;background:#183d34;color:#a8ead4}
+.service-badge.degraded{border-color:#906b2e;background:#4d3519;color:#ffe0a1}
+.service-badge.unavailable{border-color:#944f5c;background:#4d2532;color:#ffc4ca}
+.service-dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+.service-detail{font-size:13px;line-height:1.6;color:#d9e4f7;margin:24px 0}
+.service-meta{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;border-top:1px solid #30405d;padding-top:14px;color:#879ab8;font-size:11px}
+.monitor-hint{font-size:12px;line-height:1.7;color:#91a5c5;margin-top:22px}
+@media(max-width:780px){.monitoring-header,.monitor-summary{display:block}.refresh{margin-top:16px}.monitor-counts{margin-top:20px}}
+@media(max-width:480px){.service-head{flex-direction:column}.monitor-counts{grid-template-columns:1fr 1fr}}
