@@ -73,8 +73,17 @@ async def list_knowledges(
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     knowledge_type: KnowledgeType | None = None,
     status: Annotated[Status | None, Query()] = None,
+    q: Annotated[str | None, Query(min_length=1, max_length=100)] = None,
+    is_favorite: Annotated[bool | None, Query()] = None,
 ) -> KnowledgePage:
-    return await service.list(skip=skip, limit=limit, knowledge_type=knowledge_type, status=status)
+    if q is not None:
+        q = q.strip()
+        if not q:
+            raise HTTPException(422, "q must contain non-whitespace characters")
+    return await service.list(
+        skip=skip, limit=limit, knowledge_type=knowledge_type, status=status,
+        q=q, is_favorite=is_favorite,
+    )
 
 
 @router.get("/{knowledge_id}", response_model=KnowledgeRead,

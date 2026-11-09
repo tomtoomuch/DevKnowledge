@@ -27,3 +27,5 @@
 - [[decisions/ADR-001-architecture|ADR 001 : architecture]]
 - [[decisions/ADR-002-stockage|ADR 002 : stockage]]
 - [[decisions/ADR-003-identite-securite|ADR 003 : identité et sécurité — à valider]]
+
+- [[iterations/iteration-4-search]] — Recherche globale et favoris via Gateway et KMS.

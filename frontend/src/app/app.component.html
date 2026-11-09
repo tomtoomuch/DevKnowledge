@@ -1,0 +1,144 @@
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">◈</span><span><strong>DevKnowledge</strong><small>Bibliothèque locale</small></span></div>
+    <div class="nav-heading">ESPACE DE TRAVAIL</div>
+    <nav aria-label="Navigation principale">
+      <div class="nav-link active"><span aria-hidden="true">▦</span> Connaissances</div>
+      <div class="nav-link upcoming"><span aria-hidden="true">⌗</span> Classification <small>À venir</small></div>
+      <div class="nav-link upcoming"><span aria-hidden="true">▧</span> Projets <small>À venir</small></div>
+      <div class="nav-link upcoming"><span aria-hidden="true">♢</span> Compétences RNCP <small>À venir</small></div>
+      <div class="nav-link upcoming"><span aria-hidden="true">◉</span> Assistant IA <small>À venir</small></div>
+    </nav>
+    <div class="sidebar-bottom">
+      <span class="offline-dot" aria-hidden="true"></span> Local · via API Gateway
+      <p>Une interface CRUD générique. Les champs spécialisés arriveront après leurs API.</p>
+    </div>
+  </aside>
+
+  <main class="workspace">
+    <header class="topbar">
+      <div><span class="eyebrow">MON ESPACE</span><h1>Connaissances</h1><p>Organise, consulte et enrichis ton savoir technique.</p></div>
+      <button class="primary" type="button" (click)="createKnowledge()">+ Nouvelle connaissance</button>
+    </header>
+
+    @if (notice()) { <div class="notice" role="status">{{ notice() }}</div> }
+    @if (error()) {
+      <div class="error-banner" role="alert">{{ error() }}
+        <button type="button" class="text-button" (click)="reload()">Réessayer</button>
+      </div>
+    }
+
+    <div class="content-grid">
+      <section class="list-panel" aria-label="Liste des connaissances">
+        <div class="panel-top"><span>Bibliothèque</span><span class="count">{{ total() }} entrée(s)</span></div>
+        <div class="search-wrap">
+          <label for="search-knowledge" class="sr-only">Rechercher dans toutes les connaissances</label>
+          <span aria-hidden="true">⌕</span>
+          <input id="search-knowledge" type="search" [formControl]="search" maxlength="100" placeholder="Rechercher dans toute la bibliothèque…" />
+        </div>
+        <div class="filters">
+          <label>Type
+            <select [formControl]="typeFilter" aria-label="Filtrer par type">
+              <option value="">Tous les types</option>
+              @for (type of types; track type.code) { <option [value]="type.code">{{ type.label }}</option> }
+            </select>
+          </label>
+          <label>Statut
+            <select [formControl]="statusFilter" aria-label="Filtrer par statut">
+              <option value="">Tous les statuts</option>
+              <option value="DRAFT">Brouillon</option>
+              <option value="VALIDATED">Validé</option>
+              <option value="ARCHIVED">Archivé</option>
+            </select>
+          </label>
+        </div>
+        <div class="filter-bottom">
+          <label class="check-line"><input type="checkbox" [formControl]="favoritesFilter" /> Favoris uniquement</label>
+          <button class="quiet" type="button" (click)="resetFilters()">Effacer les filtres</button>
+        </div>
+        <div class="list-meta">Recherche globale dans titres, descriptions et contenus · filtres cumulables</div>
+
+        @if (busy()) { <p class="empty" role="status">Chargement des connaissances…</p> }
+        @else if (visibleItems().length === 0) {
+          <div class="empty"><span class="empty-icon" aria-hidden="true">▤</span><strong>Aucun résultat</strong><p>Modifie les filtres ou crée ta première connaissance.</p></div>
+        } @else {
+          <div class="knowledge-list">
+            @for (item of visibleItems(); track item.knowledge_id) {
+              <button type="button" class="knowledge-row" [class.selected]="selected()?.knowledge_id === item.knowledge_id && mode() !== 'create'" (click)="openKnowledge(item)">
+                <span class="item-icon" aria-hidden="true">{{ typeLabel(item.knowledge_type).charAt(0) }}</span>
+                <span class="item-main"><span class="item-title">{{ item.title }}</span><span class="item-subtitle">{{ typeLabel(item.knowledge_type) }} · {{ dateLabel(item.updated_at) }}</span></span>
+                @if (item.is_favorite) { <span class="favorite" aria-label="Favori">★</span> }
+                <span class="item-arrow" aria-hidden="true">›</span>
+              </button>
+            }
+          </div>
+        }
+        <div class="pagination">
+          <button type="button" class="quiet" (click)="previousPage()" [disabled]="busy() || pageIndex() === 0" aria-label="Page précédente">‹</button>
+          <span>Page {{ currentPage() }} / {{ pageCount() }}</span>
+          <button type="button" class="quiet" (click)="nextPage()" [disabled]="busy() || currentPage() >= pageCount()" aria-label="Page suivante">›</button>
+        </div>
+      </section>
+
+      <section class="detail-panel" aria-label="Fiche de connaissance">
+        @if (detailLoading()) {
+          <div class="welcome">Chargement de la fiche…</div>
+        } @else if (mode() === 'view' && !selected()) {
+          <div class="welcome"><span class="welcome-logo" aria-hidden="true">◈</span><h2>Le savoir commence ici.</h2><p>Sélectionne une connaissance pour la consulter ou crée une nouvelle entrée pour enrichir ta bibliothèque.</p><button type="button" class="primary" (click)="createKnowledge()">+ Ajouter une connaissance</button></div>
+        } @else if (mode() === 'view' && selected(); as item) {
+          <div class="detail-head">
+            <div><span class="eyebrow">{{ typeLabel(item.knowledge_type) }}</span><h2>{{ item.title }}</h2><p>{{ item.description || 'Aucune description.' }}</p></div>
+            <span class="status-pill" [class.validated]="item.status === 'VALIDATED'">{{ item.status }}</span>
+          </div>
+          <div class="detail-actions">
+            <button type="button" class="primary" (click)="beginEdit()">✎ Modifier</button>
+            <button type="button" class="outline danger" (click)="askDelete()">Supprimer</button>
+            <button type="button" class="quiet" (click)="refreshDetail()">↻ Actualiser</button>
+          </div>
+          @if (formError()) { <div class="error-banner" role="alert">{{ formError() }}</div> }
+          @if (confirmingDelete()) {
+            <div class="delete-panel" role="group" aria-label="Confirmer la suppression">
+              <strong>Retirer cette connaissance ?</strong>
+              <p>Elle sera supprimée logiquement : elle disparaîtra des résultats sans être effacée physiquement de MongoDB.</p>
+              <div class="button-line">
+                <button type="button" class="outline" (click)="cancelDelete()" [disabled]="saving()">Annuler</button>
+                <button type="button" class="danger-solid" (click)="deleteKnowledge()" [disabled]="saving()">{{ saving() ? 'Suppression…' : 'Confirmer la suppression' }}</button>
+              </div>
+            </div>
+          }
+          <div class="detail-meta">
+            <span>Révision <b>{{ item.revision }}</b></span>
+            <span>Modifiée le <b>{{ dateLabel(item.updated_at) }}</b></span>
+            @if (item.is_favorite) { <span class="favorite">★ Favori</span> }
+            @if (item.language_code) { <span>Langue <b>{{ item.language_code }}</b></span> }
+            @if (item.difficulty_level) { <span>Niveau <b>{{ item.difficulty_level }}</b></span> }
+          </div>
+          <div class="content-card"><h3>Contenu</h3><pre class="content-text">{{ item.content }}</pre></div>
+          <div class="info-note">Le contenu générique est enregistré. Les tables propres au type {{ typeLabel(item.knowledge_type) }} ne sont pas encore disponibles dans cette API.</div>
+        } @else {
+          <div class="detail-head">
+            <div><span class="eyebrow">{{ mode() === 'create' ? 'NOUVELLE ENTRÉE' : 'MODIFICATION' }}</span><h2>{{ mode() === 'create' ? 'Créer une connaissance' : 'Modifier la connaissance' }}</h2><p>Les informations sont enregistrées dans le KMS via la Gateway.</p></div>
+          </div>
+          <form class="editor" [formGroup]="editor" (ngSubmit)="saveKnowledge()">
+            <div class="field"><label for="knowledge-type">Catégorie *</label><select id="knowledge-type" formControlName="knowledge_type">@for (type of types; track type.code) { <option [value]="type.code">{{ type.label }}</option> }</select></div>
+            <div class="field"><label for="title">Titre *</label><input id="title" formControlName="title" maxlength="150" placeholder="Ex. : Utiliser les index MongoDB" />@if (editor.controls.title.touched && editor.controls.title.invalid) { <small class="field-error">Titre obligatoire (150 caractères maximum).</small> }</div>
+            <div class="field"><label for="description">Description</label><textarea id="description" formControlName="description" rows="2" placeholder="Résumé de la connaissance"></textarea></div>
+            <div class="field"><label for="content">Contenu *</label><textarea id="content" class="code-input" formControlName="content" rows="12" spellcheck="false" placeholder="Notes, code, commande ou procédure..."></textarea>@if (editor.controls.content.touched && editor.controls.content.invalid) { <small class="field-error">Le contenu ne peut pas être vide.</small> }</div>
+            <div class="form-two">
+              <div class="field"><label for="language">Langue (code court)</label><input id="language" formControlName="language_code" maxlength="10" placeholder="fr, en…" /></div>
+              <div class="field"><label for="difficulty">Difficulté</label><input id="difficulty" formControlName="difficulty_level" maxlength="30" placeholder="Débutant, avancé…" /></div>
+            </div>
+            <div class="form-two">
+              <div class="field"><label for="status">Statut *</label><select id="status" formControlName="status"><option value="DRAFT">Brouillon</option><option value="VALIDATED">Validé</option><option value="ARCHIVED">Archivé</option></select></div>
+              <label class="editor-favorite"><input type="checkbox" formControlName="is_favorite" /> ★ Ajouter aux favoris</label>
+            </div>
+            <div class="info-note">Les huit catégories sont disponibles, mais seules les propriétés génériques sont persistées. Les champs spécialisés seront ajoutés lorsque le backend les exposera.</div>
+            @if (formError()) { <div class="error-banner" role="alert">{{ formError() }}</div> }
+            <div class="button-line editor-buttons"><button type="button" class="outline" (click)="cancelEdit()" [disabled]="saving()">Annuler</button><button type="submit" class="primary" [disabled]="saving()">{{ saving() ? 'Enregistrement…' : (mode() === 'create' ? 'Créer la connaissance' : 'Enregistrer les modifications') }}</button></div>
+          </form>
+        }
+      </section>
+    </div>
+    <footer>DevKnowledge · Utilisation locale · Les données restent dans MongoDB</footer>
+  </main>
+</div>

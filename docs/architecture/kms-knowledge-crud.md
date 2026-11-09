@@ -147,6 +147,23 @@ Exemple de réponse, avec dates et UUID illustratifs :
 
 Exemple de PATCH : `{"description": null, "is_favorite": false}`.
 
+### Recherche textuelle globale — itération 4
+
+La recherche générique accepte un paramètre `q` facultatif de 1 à
+100 caractères. Les espaces extérieurs sont ignorés ; une recherche
+composée uniquement d'espaces est refusée (422). La valeur est interprétée
+littéralement (les caractères `.*()` n'agissent pas comme des expressions
+régulières) et recherchée sans tenir compte de la casse dans le titre,
+la description ou le contenu de toutes les connaissances actives.
+Le paramètre `is_favorite` accepte un booléen ; les filtres
+`knowledge_type`, `status`, `q` et `is_favorite` se cumulent avant
+le tri et la pagination. La réponse `total` représente le nombre
+d'éléments correspondant à l'ensemble des critères.
+
+Il s'agit d'une requête regex non indexée, adaptée au prototype local.
+Une montée en charge importante impliquera un index de recherche dédié,
+avec analyse de la pertinence, accents, tokenisation et performances.
+
 ### Liste et filtres
 
 `GET /api/v1/knowledges?skip=0&limit=20&knowledge_type=COURSE_NOTE&status=DRAFT`

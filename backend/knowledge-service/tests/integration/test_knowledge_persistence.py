@@ -119,6 +119,33 @@ def test_filters_and_stable_pagination_on_real_isolated_mongodb(isolated_databas
     asyncio.run(scenario())
 
 
+def test_global_search_and_favorites_with_real_mongodb(isolated_database):
+    async def scenario():
+        async with isolated_database() as database:
+            repo = MongoKnowledgeRepository(database)
+            await repo.ensure_indexes()
+            first = make_item(41)
+            first.update(title="Alpha.* Regex", description="Search in a title", is_favorite=True)
+            second = make_item(42)
+            second.update(title="Other", description="aLpHa.* in description", is_favorite=False)
+            third = make_item(43)
+            third.update(title="Other title", content="ALPHA.* in content", is_favorite=True)
+            deleted = make_item(44)
+            deleted.update(title="Alpha.* deleted", is_favorite=True, deleted_at=first["created_at"])
+            for item in (first, second, third, deleted):
+                await repo.create(item)
+            results, total = await repo.list(skip=0, limit=1, q="alpha.*", is_favorite=True)
+            assert total == 2 and len(results) == 1
+            results2, total2 = await repo.list(skip=1, limit=1, q="alpha.*", is_favorite=True)
+            assert total2 == 2
+            assert {results[0]["knowledge_id"], results2[0]["knowledge_id"]} == {
+                first["knowledge_id"], third["knowledge_id"]
+            }
+            assert (await repo.list(skip=0, limit=10, q="alpha.*", is_favorite=False))[1] == 1
+            assert (await repo.list(skip=0, limit=10, q="not-found")) == ([], 0)
+    asyncio.run(scenario())
+
+
 def test_http_crud_roundtrip_on_real_isolated_mongodb(isolated_database):
     async def scenario():
         async with isolated_database() as database:

@@ -1,6 +1,7 @@
 """MongoDB persistence with explicit UUID and UTC representations."""
 
 from datetime import UTC, datetime
+import re
 from typing import Any
 from uuid import UUID
 
@@ -74,12 +75,24 @@ class MongoKnowledgeRepository:
         limit: int,
         knowledge_type: str | None = None,
         status: str | None = None,
+        q: str | None = None,
+        is_favorite: bool | None = None,
     ) -> tuple[list[dict[str, Any]], int]:
         query: dict[str, Any] = {"deleted_at": None}
         if knowledge_type is not None:
             query["knowledge_type"] = knowledge_type
         if status is not None:
             query["status"] = status
+        if is_favorite is not None:
+            query["is_favorite"] = is_favorite
+        if q is not None:
+            # Literal matching only: user input never becomes a regex expression.
+            # This intentionally scans candidate documents; see docs for scale limits.
+            literal = re.escape(q)
+            query["$or"] = [
+                {field: {"$regex": literal, "$options": "i"}}
+                for field in ("title", "description", "content")
+            ]
         total = await self.collection.count_documents(query)
         cursor = (
             self.collection.find(query)
