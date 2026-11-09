@@ -35,3 +35,5 @@
 - [[iterations/iteration-6-specializations]] — Huit spécialisations métier et catalogue des types (itération 6, PR #8).
 
 - [[iterations/iteration-7-tags]] — Catalogue, affectation et filtrage des tags (PR #9 en validation).
+
+- [[iterations/iteration-7b-technologies]] — Technologies, versions et associations aux connaissances (PR #10, dépendante de #9).

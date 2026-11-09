@@ -25,7 +25,8 @@ Le dossier contient `database.archive.gz` (BSON compressé, via `mongodump`) et
 nombre de documents par collection, index et options de collection. Les
 documents supprimés logiquement, révisions, UUID et dates BSON sont inclus.
 Les collections ajoutées par les itérations suivantes, notamment le
-catalogue `tags` et ses index, sont incluses automatiquement dans l'archive
+catalogue `tags`, `technologies`, `technology_versions` et leurs index,
+sont incluses automatiquement dans l'archive
 de la base métier. Il faut restaurer conjointement `tags` et
 `knowledge_items` pour préserver la résolution des identifiants `tag_ids`.
 
