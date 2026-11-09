@@ -56,6 +56,15 @@ def test_local_identity_rbac_session_revocation_on_real_mongodb(isolated_databas
                     "username": "reader", "password": "strong-reader-password-2026", "roles": ["READER"],
                 })
                 assert created.status_code == 201, created.text
+                assert created.json()["roles"] == ["READER"]
+                listed = await client.get("/api/v1/users")
+                assert listed.status_code == 200
+                assert listed.headers["cache-control"] == "no-store"
+                summary = {entry["username"]: entry for entry in listed.json()}
+                assert set(summary) == {"admin", "reader"}
+                assert summary["admin"]["roles"] == ["ADMIN"]
+                assert summary["reader"]["roles"] == ["READER"]
+                assert "password_hash" not in str(listed.json())
                 duplicate = await client.post("/api/v1/users", json={
                     "username": "READER", "password": "some-strong-password-2026", "roles": ["EDITOR"],
                 })

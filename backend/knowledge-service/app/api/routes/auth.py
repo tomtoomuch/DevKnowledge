@@ -71,12 +71,31 @@ async def logout(request: Request, response: Response):
 
 
 @router.get("/users")
-async def list_users(request: Request, requester: Requester):
+async def list_users(request: Request, response: Response, requester: Requester):
     require(requester, "users.manage")
+    response.headers["Cache-Control"] = "no-store"
     db = db_for(request)
-    users = await db["users"].find({}, {"password_hash": 0}).limit(100).to_list(length=100)
-    return [{"user_id": u["_id"], "username": u["username"], "account_status": u["account_status"]}
-            for u in users]
+    users = await db["users"].find(
+        {}, {"password_hash": 0, "oidc_subject": 0}
+    ).sort("username_key", 1).limit(100).to_list(length=100)
+    assignments = await db["user_roles"].find(
+        {"user_id": {"$in": [user["_id"] for user in users]}}
+    ).to_list(length=300)
+    roles = await db["roles"].find({
+        "_id": {"$in": list({assignment["role_id"] for assignment in assignments})}
+    }).to_list(length=100)
+    role_codes = {role["_id"]: role["code"] for role in roles}
+    assigned = {}
+    for assignment in assignments:
+        code = role_codes.get(assignment["role_id"])
+        if code is not None:
+            assigned.setdefault(assignment["user_id"], []).append(code)
+    return [
+        {"user_id": user["_id"], "username": user["username"],
+         "account_status": user["account_status"],
+         "roles": sorted(assigned.get(user["_id"], []))}
+        for user in users
+    ]
 
 
 @router.post("/users", status_code=status.HTTP_201_CREATED)
@@ -88,4 +107,7 @@ async def add_user(payload: UserInput, request: Request, requester: Requester):
         raise HTTPException(422, str(exc)) from None
     except DuplicateKeyError:
         raise HTTPException(409, "Username already exists") from None
-    return {"user_id": user["_id"], "username": user["username"], "account_status": user["account_status"]}
+    return {
+        "user_id": user["_id"], "username": user["username"],
+        "account_status": user["account_status"], "roles": sorted(set(payload.roles)),
+    }
