@@ -47,27 +47,28 @@ services:
     environment:
       MONGODB_APP_USERNAME: bootstrap_app_test
       MONGODB_APP_PASSWORD: bootstrap_app_password_test
-    command: |
-      mongosh --quiet --host mongodb-bootstrap \
-        --authenticationDatabase devknowledge_bootstrap_test \
-        --username "$$MONGODB_APP_USERNAME" --password "$$MONGODB_APP_PASSWORD" \
-        devknowledge_bootstrap_test --eval '
-        const r = db.runCommand({ connectionStatus: 1 });
-        const roles = r.authInfo.authenticatedUserRoles;
-        if (roles.length !== 1 ||
-            roles[0].role !== "readWrite" ||
-            roles[0].db !== "devknowledge_bootstrap_test") {
-          throw new Error("Compte applicatif : droits inattendus");
-        }
-        const coll = db.getCollection("bootstrap_permissions_smoke");
-        coll.insertOne({ _id: "smoke", test: true });
-        const doc = coll.findOne({ _id: "smoke" });
-        if (!doc || doc.test !== true) {
-          throw new Error("Compte applicatif : lecture ou écriture impossible");
-        }
-        coll.deleteOne({ _id: "smoke" });
-        print("STAB-01 / STAB-02 : utilisateur limité, lecture/écriture et readiness KMS OK");
-        '
+    command:
+      - |
+        mongosh --quiet --host mongodb-bootstrap \
+          --authenticationDatabase devknowledge_bootstrap_test \
+          --username "$$MONGODB_APP_USERNAME" --password "$$MONGODB_APP_PASSWORD" \
+          devknowledge_bootstrap_test --eval '
+          const r = db.runCommand({ connectionStatus: 1 });
+          const roles = r.authInfo.authenticatedUserRoles;
+          if (roles.length !== 1 ||
+              roles[0].role !== "readWrite" ||
+              roles[0].db !== "devknowledge_bootstrap_test") {
+            throw new Error("Compte applicatif : droits inattendus");
+          }
+          const coll = db.getCollection("bootstrap_permissions_smoke");
+          coll.insertOne({ _id: "smoke", test: true });
+          const doc = coll.findOne({ _id: "smoke" });
+          if (!doc || doc.test !== true) {
+            throw new Error("Compte applicatif : lecture ou écriture impossible");
+          }
+          coll.deleteOne({ _id: "smoke" });
+          print("STAB-01 / STAB-02 : utilisateur limité, lecture/écriture et readiness KMS OK");
+          '
     depends_on:
       api-kms-bootstrap:
         condition: service_healthy

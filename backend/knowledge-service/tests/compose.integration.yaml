@@ -35,7 +35,10 @@ services:
       retries: 20
 
   kms-tests:
-    image: devknowledge-kms-crud-test:local
+    image: devknowledge-kms-tests:local
+    build:
+      context: ..
+      target: test
     environment:
       KMS_TEST_MONGODB_URI: mongodb://kms_test_only:kms_test_only@mongodb-test:27017/?authSource=admin
       KMS_TEST_HTTP_URL: http://api-kms-test:8000

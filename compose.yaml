@@ -4,11 +4,11 @@ services:
     build:
       context: ./backend/api-gateway
     environment:
-      HOST: "0.0.0.0"
-      PORT: 3000
+      GATEWAY_HOST: "0.0.0.0"
+      GATEWAY_PORT: ${GATEWAY_PORT:-3000}
       NODE_ENV: production
     ports:
-      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:${GATEWAY_PORT:-3000}:${GATEWAY_PORT:-3000}"
     depends_on:
       mongodb:
         condition: service_healthy
@@ -18,7 +18,7 @@ services:
         - CMD
         - node
         - -e
-        - "fetch('http://127.0.0.1:3000/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+        - "fetch('http://127.0.0.1:' + process.env.GATEWAY_PORT + '/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
       interval: 15s
       timeout: 5s
       retries: 3
@@ -46,7 +46,7 @@ services:
         - CMD
         - python
         - -c
-        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=4)"
       interval: 15s
       timeout: 5s
       retries: 3

@@ -2,13 +2,15 @@
 
 Assistant personnel de gestion des connaissances, conçu pour fonctionner localement : Gateway Express, KMS FastAPI et MongoDB 8, orchestrés avec Docker Compose.
 
-## État du projet (4 novembre 2026)
+## État du projet (9 novembre 2026)
 
-Le KMS propose le CRUD générique `/api/v1/knowledges`, avec validation, pagination, filtres et suppression logique. **Le CRUD générique est livré. La stabilisation est engagée avec STAB-01/02 : correctifs déposés, validations Docker restant à effectuer.** Le frontend Angular, l'authentification/RBAC, les huit spécialisations et le RAG sont des étapes ultérieures.
+Le KMS propose le CRUD générique `/api/v1/knowledges`, avec validation, pagination, filtres et suppression logique. **Bootstrap MongoDB, configuration Gateway et readiness sont validés localement ; la CI est définie et les dépendances Python sont verrouillées.** Le frontend Angular, l'authentification/RBAC, les huit spécialisations et le RAG sont des étapes ultérieures.
 
 La Gateway ne relaie **pas encore** les routes CRUD : le KMS reste accessible directement sur `127.0.0.1:8000` en développement. Aucune protection d'accès applicative n'est encore en place ; ne pas exposer l'API sur une interface publique.
 
-- [Point d'avancement au 4 novembre 2026](docs/iterations/point-avancement-2026-11-04.md)
+- [Validation du 9 novembre 2026 et limites restantes](docs/iterations/validation-stabilisation-2026-11-09.md)
+- [CI GitHub Actions](https://github.com/tomtoomuch/DevKnowledge/actions/workflows/ci.yml)
+- [Point d'avancement historique au 4 novembre 2026](docs/iterations/point-avancement-2026-11-04.md)
 - [Plan de stabilisation — itération 2](docs/iterations/iteration-2-stabilisation.md)
 - [Feuille de route](docs/roadmap.md)
 - [Documentation du CRUD et lancement](docs/architecture/kms-knowledge-crud.md)
@@ -29,11 +31,11 @@ docker compose ps
 
 La Gateway écoute par défaut sur `127.0.0.1:3000`, le KMS sur `127.0.0.1:8000` ; MongoDB n'est pas publié sur l'hôte. OpenAPI : [Swagger UI du KMS](http://127.0.0.1:8000/docs).
 
-**Installation neuve :** `.env.example` et `compose.yaml` sont désormais alignés ; le compte MongoDB applicatif limité est initialisé sur un volume vierge. **Le démarrage réel reste à tester.** Ne pas écraser un `.env` existant : le bootstrap ne se rejoue pas sur un volume déjà initialisé. Voir le [guide de provisionnement et test isolé](docs/operations/mongodb-bootstrap.md). Ne jamais supprimer les volumes de développement par inadvertance.
+**Installation neuve :** `.env.example` et `compose.yaml` sont alignés ; le compte MongoDB applicatif limité est initialisé sur un volume vierge. **Le démarrage réel et le redémarrage ont été validés sur un projet isolé.** Ne pas écraser un `.env` existant : le bootstrap ne se rejoue pas sur un volume déjà initialisé. Voir le [guide de provisionnement et test isolé](docs/operations/mongodb-bootstrap.md). Ne jamais supprimer les volumes de développement par inadvertance.
 
 ## Tests
 
-Les commandes ci-dessous sont disponibles dans le dépôt. Les résultats chiffrés du 2 novembre sont **historiques**, non une certification de l'état courant :
+Campagne locale du 9 novembre : 2 tests Gateway, 113 tests unitaires KMS Windows et 117 tests KMS Docker réussis. La CI exécute aussi les scénarios de bootstrap et de panne/reprise. Depuis un environnement Python virtuel pour les commandes KMS :
 
 ```bash
 # Gateway
@@ -44,7 +46,7 @@ cd ../..
 
 # KMS sans MongoDB réel
 cd backend/knowledge-service
-python -m pip install -r requirements.txt
+python -m pip install --require-hashes -r requirements-test.txt
 python -m pytest -m "not integration"
 cd ../..
 ```
@@ -57,3 +59,13 @@ docker compose -p devknowledge-kms-crud-test -f backend/knowledge-service/tests/
 ```
 
 Le nettoyage par `down --volumes` est strictement réservé au projet Compose de test `devknowledge-kms-crud-test`. Pour davantage de détails et les objectifs du prochain jalon : [plan de stabilisation](docs/iterations/iteration-2-stabilisation.md).
+
+Validation du Compose réel avec stockage jetable, port Gateway personnalisé,
+redémarrage, panne MongoDB et reprise (Docker démarré, Compose 2.24.4 minimum) :
+
+```bash
+python scripts/check_stabilization.py
+```
+
+Le script supprime uniquement le projet de test qu'il crée et écrit son rapport
+dans `test-results/stabilization.json`.

@@ -1,6 +1,6 @@
 ---
 title: "DevKnowledge — Feuille de route"
-updated: "2026-11-04"
+updated: "2026-11-09"
 status: "Planification évolutive"
 tags: [devknowledge, roadmap, stabilisation]
 ---
@@ -15,15 +15,15 @@ tags: [devknowledge, roadmap, stabilisation]
 - Architecture incrémentale ; ne pas confondre fonctionnalités **documentées**, **implémentées** et **vérifiées en exécution**.
 - Traçabilité Git et documentation Obsidian ; avancement et arbitrages revus ensemble.
 
-## Situation au 4 novembre 2026
+## Situation au 9 novembre 2026
 
 | Étape | État | Livrables / dépendances |
 | --- | --- | --- |
 | Cadrage et architecture | Réalisé pour le socle, arbitrages ouverts | Architecture globale ; ADR 001–003 ; blueprint BrainBlox |
 | Modélisation | Modèle logique v0.2 à relire | 56 tables, huit spécialisations, utilisateurs/RBAC, RNCP et RAG ; aucune garantie d'implémentation physique globale |
-| Socle Docker / Express / FastAPI / MongoDB | Présent, non stabilisé | Trois services Compose, contrôles de santé, stockage local |
+| Socle Docker / Express / FastAPI / MongoDB | Bootstrap, configuration et readiness validés localement | Trois services Compose, contrôles de santé, stockage local |
 | Itération 1 — CRUD générique KMS | Livrée, tests historiques positifs | `knowledge_items` ; routes, schémas, services, repository et tests |
-| **Itération 2 — Stabilisation** | **Engagée : STAB-01/02 déposés, validation Docker en attente** | Config/env, compte MongoDB, readiness, tests, CI, reproductibilité, accès Gateway |
+| **Itération 2 — Stabilisation** | **STAB-01 à 05 et 07 implémentés, validations locales réussies** | Config/env, compte MongoDB, readiness, tests, CI, reproductibilité, accès Gateway |
 | Identité, rôles et droits | Non commencée | `users`, `roles`, `permissions`, `user_roles`, `role_permissions` ; arbitrage local/OIDC |
 | Classification, spécialisations et historique | Non commencée | Référentiel `knowledge_types` ; huit spécialisations ; tags, technologies, sources, versions |
 | Certification RNCP et preuves | Non commencée | Versions du RNCP 37827, compétences, critères, correspondances, preuves |
@@ -35,11 +35,11 @@ tags: [devknowledge, roadmap, stabilisation]
 
 Voir [[iterations/iteration-2-stabilisation]].
 
-**Priorité 1 :** variables MongoDB et script de compte limité déposés sur `chat` ; validation du démarrage sur volume vierge, du rôle et de la readiness à conduire via [[operations/mongodb-bootstrap]].
+**Réalisé le 9 novembre :** bootstrap, compte limité, configuration Gateway, readiness, redémarrage et panne/reprise validés. Voir [[iterations/validation-stabilisation-2026-11-09]].
 
-**Priorité 2 :** cohérence Gateway, readiness KMS, exécution répétable des tests et CI GitHub Actions ; préciser quand le relais Gateway → KMS sera livré.
+**Automatisation :** suites rejouées, workflow GitHub Actions versionné, dépendances Python verrouillées et séparées. Résultats distants consultables dans Actions.
 
-**Priorité 3 :** dépendances reproductibles, procédures d'exploitation et risques de concurrence/continuité des données.
+**Reste à arbitrer et livrer :** relais Gateway → KMS (STAB-06), sauvegarde/restauration et modifications concurrentes (STAB-08), puis revue de sortie. Les images système restent référencées par tags et le build hors ligne reste à qualifier.
 
 Critères de sortie : installation propre reproductible, tests unitaires et intégration **réexécutés** (avec preuves et dates), CI opérationnelle, aucun secret versionné, documentation à jour, aucune donnée de développement supprimée.
 

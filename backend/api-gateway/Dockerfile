@@ -8,8 +8,8 @@ RUN npm ci --omit-dev
 COPY src ./src
 
 ENV NODE_ENV=production
-ENV HOST=0.0.0.0
-ENV PORT=3000
+ENV GATEWAY_HOST=0.0.0.0
+ENV GATEWAY_PORT=3000
 
 EXPOSE 3000
 

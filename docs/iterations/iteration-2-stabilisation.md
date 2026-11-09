@@ -1,13 +1,13 @@
 ---
 title: "DevKnowledge — Itération 2 : stabilisation du socle"
 date: "2026-11-04"
-status: "STAB-01/02 déposées, validation Docker en attente"
+status: "STAB-01 à 05 et 07 implémentées ; validations locales du 9 novembre réussies"
 tags: [devknowledge, stabilisation, qualite, tests, docker, ci]
 ---
 
 # Itération 2 — Stabilisation du socle
 
-> **Statut : stabilisation engagée.** Les correctifs STAB-01/02 et leur test isolé sont déposés sur `chat`, mais les validations Docker restent à réaliser ensemble. Source de l'état initial : [[point-avancement-2026-11-04]].
+> **Mise à jour du 9 novembre :** bootstrap, configuration Gateway, readiness et panne/reprise validés localement. CI versionnée, dépendances Python verrouillées et séparées. Voir [[validation-stabilisation-2026-11-09]]. STAB-06/08 et la revue commune de sortie restent ouverts. Les sections datées du 4 novembre ci-dessous décrivent le point de départ.
 
 ## Objectif
 
@@ -34,7 +34,7 @@ Guide : [[../operations/mongodb-bootstrap]].
 
 ## Préparation commune : état initial et sécurité des données
 
-- [ ] Confirmer le SHA de `chat` et l'état de la copie locale (`git status`).
+- [x] Confirmer le SHA de `chat` et l'état de la copie locale (`git status`).
 - [ ] Sauvegarder les connaissances existantes avant toute intervention sur le Compose de développement ; vérifier la restauration sur un espace distinct lorsque la procédure existe.
 - [ ] Distinguer le Compose de développement `compose.yaml` et le Compose jetable `backend/knowledge-service/tests/compose.integration.yaml`.
 - [ ] Ne jamais effacer de volume de développement pour reproduire une installation neuve : utiliser un **nom de projet Compose dédié**, des volumes propres et des identifiants de test.
@@ -44,32 +44,32 @@ Guide : [[../operations/mongodb-bootstrap]].
 
 ### Lot A — Configuration et provisionnement (STAB-01, STAB-02, STAB-03)
 
-- [ ] Choisir `MONGODB_APP_USERNAME` comme nom canonique (ou modifier les deux fichiers de façon cohérente) et mettre à jour `.env.example` avec des commentaires non sensibles.
-- [ ] Documenter et automatiser la création du compte applicatif MongoDB, limité à la base métier, sans exécuter l'application en root.
-- [ ] Vérifier la configuration de `MONGODB_AUTH_SOURCE` pour le compte réellement créé.
-- [ ] Aligner `GATEWAY_HOST` / `GATEWAY_PORT` entre Compose et Express.
-- [ ] Tester démarrage neuf, deuxième démarrage idempotent et erreur volontaire d'identifiants sans fuite de secret.
+- [x] Choisir `MONGODB_APP_USERNAME` comme nom canonique (ou modifier les deux fichiers de façon cohérente) et mettre à jour `.env.example` avec des commentaires non sensibles.
+- [x] Documenter et automatiser la création du compte applicatif MongoDB, limité à la base métier, sans exécuter l'application en root.
+- [x] Vérifier la configuration de `MONGODB_AUTH_SOURCE` pour le compte réellement créé.
+- [x] Aligner `GATEWAY_HOST` / `GATEWAY_PORT` entre Compose et Express.
+- [x] Tester démarrage neuf, deuxième démarrage idempotent et erreur volontaire d'identifiants sans fuite de secret.
 
 **Acceptation :** une installation depuis un volume jetable vierge fonctionne ; le compte métier a uniquement les permissions nécessaires ; les ports personnalisés et la configuration déclarée sont respectés.
 
 ### Lot B — Santé et robustesse (STAB-04)
 
-- [ ] Réserver `/health` à la vivacité et `/health/ready` à la dépendance MongoDB.
-- [ ] Adapter le healthcheck Compose du KMS à `/health/ready`.
-- [ ] Vérifier les états lors du démarrage, d'une coupure de base, puis d'un rétablissement.
-- [ ] Vérifier les codes d'erreur HTTP (422, 404, 503) et l'absence de secrets dans les journaux.
+- [x] Réserver `/health` à la vivacité et `/health/ready` à la dépendance MongoDB.
+- [x] Adapter le healthcheck Compose du KMS à `/health/ready`.
+- [x] Vérifier les états lors du démarrage, d'une coupure de base, puis d'un rétablissement.
+- [x] Vérifier les codes d'erreur HTTP (422, 404, 503) et l'absence de secrets dans les journaux.
 - [ ] Documenter le rôle exact de `depends_on` et la différence entre santé de conteneur et disponibilité métier.
 
 **Acceptation :** la santé Docker n'indique pas à tort un KMS prêt pendant une indisponibilité MongoDB, et la récupération est observable.
 
 ### Lot C — Tests, CI et reproductibilité (STAB-05, STAB-07)
 
-- [ ] Rejouer `npm test` dans `backend/api-gateway` et enregistrer la couverture réelle.
-- [ ] Rejouer `python -m pytest -m "not integration"` dans `backend/knowledge-service`.
-- [ ] Rejouer le Compose d'intégration jetable avec `--exit-code-from kms-tests` ; enregistrer succès, échecs, versions et couverture.
-- [ ] Ajouter un workflow GitHub Actions avec jobs Gateway et KMS, et un job d'intégration MongoDB si supporté par le runner.
+- [x] Rejouer `npm test` dans `backend/api-gateway` et enregistrer la couverture réelle.
+- [x] Rejouer `python -m pytest -m "not integration"` dans `backend/knowledge-service`.
+- [x] Rejouer le Compose d'intégration jetable avec `--exit-code-from kms-tests` ; enregistrer succès, échecs, versions et couverture.
+- [x] Ajouter un workflow GitHub Actions avec jobs Gateway et KMS, et un job d'intégration MongoDB si supporté par le runner.
 - [ ] Ajouter des tests de configuration et de démarrage neuf ; envisager lint et contrôle de dépendances.
-- [ ] Définir un verrouillage reproductible des dépendances et distinguer runtime/test sans rompre les contraintes d'exécution locale.
+- [x] Définir un verrouillage reproductible des dépendances et distinguer runtime/test sans rompre les contraintes d'exécution locale.
 
 **Acceptation :** jobs reproductibles, statut visible sur GitHub, aucun test historique présenté comme une mesure actuelle ; les causes des éventuels échecs sont conservées.
 
@@ -120,7 +120,7 @@ Tests unitaires KMS :
 
 ```bash
 cd backend/knowledge-service
-python -m pip install -r requirements.txt
+python -m pip install --require-hashes -r requirements-test.txt
 python -m pytest -m "not integration"
 cd ../..
 ```
@@ -134,7 +134,9 @@ docker compose -p devknowledge-kms-crud-test -f backend/knowledge-service/tests/
 
 **Attention :** le `down --volumes` ci-dessus vise uniquement `devknowledge-kms-crud-test`. Il ne doit jamais être recopié vers la pile de développement sans une décision explicite de suppression de données.
 
-## Journal de validation à remplir pendant l'itération
+## Journal initial du 4 novembre (historique)
+
+Résultats datés et environnement : [[validation-stabilisation-2026-11-09]].
 
 | Vérification | Date | Commit | Environnement / version | Résultat / preuve |
 | --- | --- | --- | --- | --- |

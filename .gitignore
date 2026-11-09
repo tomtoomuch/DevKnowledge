@@ -51,3 +51,4 @@ Thumbs.db
 # Fichiers temporaires
 *.tmp
 *.bak
+test-results/

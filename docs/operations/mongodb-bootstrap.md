@@ -1,7 +1,7 @@
 ---
 title: "MongoDB — Bootstrap et smoke test"
 date: "2026-11-04"
-status: "STAB-01/02 implémentées — validation Docker en attente"
+status: "STAB-01/02 validées sur Docker le 9 novembre 2026"
 tags: [devknowledge, mongodb, stabilisation]
 ---
 
@@ -46,7 +46,11 @@ Le Compose de test utilise **une base MongoDB jetable sur `tmpfs`, un réseau in
 
 Le message de réussite attendu est : `STAB-01 / STAB-02 : utilisateur limité, lecture/écriture et readiness KMS OK`.
 
-**Statut : test préparé, pas encore exécuté sur Docker.** Le `down --volumes` ci-dessus s'applique **uniquement au projet de test** `devknowledge-bootstrap-test`. Ne jamais l'utiliser sur le Compose de développement sans sauvegarde et décision de suppression explicite.
+**Statut : test exécuté avec succès sur Docker le 9 novembre 2026.** La commande shell du conteneur de vérification a été corrigée pour être passée comme un seul argument. Le `down --volumes` ci-dessus s'applique **uniquement au projet de test** `devknowledge-bootstrap-test`. Ne jamais l'utiliser sur le Compose de développement sans sauvegarde et décision de suppression explicite.
+
+La campagne complète de redémarrage, refus des identifiants incorrects et
+panne/reprise MongoDB se lance avec `python scripts/check_stabilization.py`.
+Voir le [rapport de validation](../iterations/validation-stabilisation-2026-11-09.md).
 
 ## Avant un démarrage de développement
 
