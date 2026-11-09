@@ -1,0 +1,6 @@
+# Explicit activation of a NEW volume returned by mongodb_backup.py restore.
+# Never used automatically by the backup/restore commands.
+volumes:
+  mongodb:
+    external: true
+    name: ${RESTORED_MONGODB_VOLUME:?RESTORED_MONGODB_VOLUME_required}

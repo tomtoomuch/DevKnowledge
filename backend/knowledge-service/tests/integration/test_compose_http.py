@@ -32,14 +32,14 @@ def test_running_compose_service_crud():
         path = f"/api/v1/knowledges/{identifier}"
         try:
             assert client.get(path).json() == item
-            assert client.patch(path, json={"is_favorite": True}).json()["is_favorite"] is True
+            assert client.patch(path, headers={"If-Match": '"1"'}, json={"is_favorite": True}).json()["is_favorite"] is True
             page = client.get("/api/v1/knowledges", params={
                 "knowledge_type": "TERMINAL_COMMAND", "status": "DRAFT", "limit": 100,
             }).json()
             assert identifier in {entry["knowledge_id"] for entry in page["items"]}
-            assert client.delete(path).status_code == 204
+            assert client.delete(path, headers={"If-Match": '"2"'}).status_code == 204
             assert client.get(path).status_code == 404
-            assert client.delete(path).status_code == 404
+            assert client.delete(path, headers={"If-Match": '"2"'}).status_code == 404
             assert identifier not in {entry["knowledge_id"] for entry in client.get("/api/v1/knowledges").json()["items"]}
         finally:
-            client.delete(path)
+            client.delete(path, headers={"If-Match": '"2"'})

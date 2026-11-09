@@ -1,8 +1,8 @@
 const http = require("node:http");
 const https = require("node:https");
 
-const REQUEST_HEADERS = ["accept", "content-type", "accept-language"];
-const RESPONSE_HEADERS = ["content-type", "content-language", "allow", "retry-after"];
+const REQUEST_HEADERS = ["accept", "content-type", "accept-language", "if-match"];
+const RESPONSE_HEADERS = ["content-type", "content-language", "allow", "retry-after", "etag", "cache-control"];
 
 function createKmsProxy(baseUrl, timeoutMs) {
     let origin;

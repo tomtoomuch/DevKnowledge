@@ -2,11 +2,17 @@
 
 ## État actuel et prochaines étapes
 
+- [[iterations/revue-sortie-stabilisation-2026-11-09|Dossier de revue de sortie de stabilisation]]
+- [[operations/offline-runtime|Qualification du fonctionnement hors ligne]]
+- [[iterations/validation-stab08-2026-11-09|Validation STAB-08 — sauvegarde et concurrence]]
 - [[iterations/validation-gateway-2026-11-09|Validation STAB-06 — Gateway vers KMS]]
 - [[iterations/point-avancement-2026-11-04|Point d'avancement — 4 novembre 2026]]
 - [[iterations/iteration-2-stabilisation|Itération 2 — Plan de stabilisation à réaliser ensemble]]
 - [[roadmap|Feuille de route actualisée]]
 - [[operations/mongodb-bootstrap|MongoDB : provisionnement et smoke test isolé]]
+
+- [[operations/backup-restore|Sauvegarde locale et restauration isolée]]
+- [[architecture/knowledge-concurrency|Révisions et écritures conditionnelles]]
 
 ## Implémentation et référentiel
 

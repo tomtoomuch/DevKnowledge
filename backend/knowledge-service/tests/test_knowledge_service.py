@@ -89,10 +89,10 @@ def test_list_passes_filters_and_total_independently_of_page_size():
 def test_patch_sends_only_explicit_fields_and_server_timestamp():
     repo = repository()
     item = document()
-    repo.update.side_effect = lambda knowledge_id, changes: {**item, **changes}
+    repo.update.side_effect = lambda knowledge_id, changes, revision: {**item, **changes}
     payload = KnowledgeUpdate(title="Updated", description=None)
     result = as_dict(run(KnowledgeService(repo).update(item["knowledge_id"], payload)))
-    knowledge_id, changes = repo.update.await_args.args
+    knowledge_id, changes, revision = repo.update.await_args.args
     assert knowledge_id == item["knowledge_id"]
     assert set(changes) == {"title", "description", "updated_at"}
     assert changes["title"] == "Updated"
@@ -109,7 +109,7 @@ def test_delete_requests_soft_delete_with_server_utc_timestamp():
     repo.soft_delete.return_value = True
     knowledge_id = uuid4()
     run(KnowledgeService(repo).delete(knowledge_id))
-    called_id, timestamp = repo.soft_delete.await_args.args
+    called_id, timestamp, revision = repo.soft_delete.await_args.args
     assert called_id == knowledge_id
     assert timestamp.utcoffset().total_seconds() == 0
     assert timestamp.microsecond % 1000 == 0

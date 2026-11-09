@@ -6,10 +6,16 @@ Assistant personnel de gestion des connaissances, conçu pour fonctionner locale
 
 Le KMS propose le CRUD générique `/api/v1/knowledges`, avec validation, pagination, filtres et suppression logique. **Bootstrap MongoDB, configuration Gateway et readiness sont validés localement ; la CI est définie et les dépendances Python sont verrouillées.** Le frontend Angular, l'authentification/RBAC, les huit spécialisations et le RAG sont des étapes ultérieures.
 
+**PATCH et DELETE exigent désormais `If-Match` avec la révision lue** (428 sans précondition, 412 si elle est dépassée). Les GET individuels renvoient l’ETag correspondant.
+
 La Gateway relaie les routes CRUD sur `127.0.0.1:3000/api/v1/knowledges`. Le KMS est interne au réseau Compose par défaut ; son port de diagnostic est optionnel. Aucune protection d'accès applicative n'est encore en place ; ne pas exposer l'API sur une interface publique.
 
 - [Validation du 9 novembre 2026 et limites restantes](docs/iterations/validation-stabilisation-2026-11-09.md)
 - [CI GitHub Actions](https://github.com/tomtoomuch/DevKnowledge/actions/workflows/ci.yml)
+- [Exécution hors ligne après préparation des images](docs/operations/offline-runtime.md)
+- [Dossier de revue de sortie de stabilisation](docs/iterations/revue-sortie-stabilisation-2026-11-09.md)
+- [Sauvegarde et restauration locales](docs/operations/backup-restore.md)
+- [Écritures conditionnelles : If-Match obligatoire](docs/architecture/knowledge-concurrency.md)
 - [Relais Gateway → KMS : contrat, limites et diagnostic](docs/architecture/gateway-kms.md)
 - [Point d'avancement historique au 4 novembre 2026](docs/iterations/point-avancement-2026-11-04.md)
 - [Plan de stabilisation — itération 2](docs/iterations/iteration-2-stabilisation.md)
@@ -36,7 +42,7 @@ La Gateway écoute par défaut sur `127.0.0.1:3000` ; le KMS et MongoDB ne sont 
 
 ## Tests
 
-Le relais Gateway possède une suite dédiée ; la CI exécute aussi les 113 tests unitaires KMS, les 117 tests KMS avec MongoDB et les scénarios de bootstrap, CRUD via Gateway et panne/reprise. Depuis un environnement Python virtuel pour les commandes KMS :
+Le relais Gateway possède une suite dédiée ; la CI exécute aussi les 123 tests unitaires KMS, les 128 tests KMS avec MongoDB et les scénarios de bootstrap, CRUD via Gateway et panne/reprise. Depuis un environnement Python virtuel pour les commandes KMS :
 
 ```bash
 # Gateway
@@ -70,3 +76,8 @@ python scripts/check_stabilization.py
 
 Le script supprime uniquement le projet de test qu'il crée et écrit son rapport
 dans `test-results/stabilization.json`.
+
+Après cette préparation, `python scripts/check_stabilization.py --offline`
+rejoue les contrôles sans build ni téléchargement, vérifie l'isolation réseau
+et produit `test-results/stabilization-offline.json`. Cela qualifie l'exécution
+du socle préparé ; un build complet hors ligne reste à qualifier.

@@ -6,7 +6,7 @@ from pymongo.errors import PyMongoError
 
 from app.api.routes.knowledges import router
 from app.db.mongodb import lifespan
-from app.services.knowledge_service import KnowledgeNotFound
+from app.services.knowledge_service import KnowledgeNotFound, KnowledgeConflict
 
 
 logger = logging.getLogger(__name__)
@@ -17,6 +17,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.include_router(router)
+
+
+@app.exception_handler(KnowledgeConflict)
+async def knowledge_conflict(request: Request, exc: KnowledgeConflict) -> JSONResponse:
+    return JSONResponse(status_code=412, content={"detail": "Knowledge revision changed; reload before retrying"})
 
 
 @app.exception_handler(KnowledgeNotFound)

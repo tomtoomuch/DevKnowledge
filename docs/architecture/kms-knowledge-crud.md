@@ -6,6 +6,8 @@ tags: [devknowledge, kms, api, mongodb, tests]
 
 # KMS — CRUD générique des connaissances
 
+> STAB-08 : PATCH et DELETE exigent maintenant `If-Match`. Voir [[knowledge-concurrency]] avant d’utiliser les exemples historiques d’écriture ci-dessous.
+
 > Mise à jour STAB-06 : le CRUD est maintenant accessible via la Gateway sur
 > `127.0.0.1:3000`. Les exemples historiques ci-dessous utilisant le port 8000
 > nécessitent `compose.debug.yaml`. Voir [[gateway-kms]] pour l'accès actuel.

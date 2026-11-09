@@ -61,16 +61,40 @@ def test_crud_and_serialization_on_real_isolated_mongodb(isolated_database):
             assert changed["title"] == "Changed"
             assert changed["content"] == original["content"]
             assert changed["updated_at"] == updated_at
-            assert await repository.soft_delete(original["knowledge_id"], updated_at)
+            assert await repository.soft_delete(original["knowledge_id"], updated_at, 1)
             assert await repository.get(original["knowledge_id"]) is None
             assert await repository.update(original["knowledge_id"], {"title": "Hidden"}) is None
             assert await repository.list(skip=0, limit=10) == ([], 0)
-            assert not await repository.soft_delete(original["knowledge_id"], updated_at)
+            assert not await repository.soft_delete(original["knowledge_id"], updated_at, 1)
             stored = await repository.collection.find_one({"_id": str(original["knowledge_id"])})
             assert stored["deleted_at"] == updated_at
             assert await repository.collection.count_documents({}) == 1
             assert await repository.get(UUID(int=999)) is None
 
+    asyncio.run(scenario())
+
+
+def test_concurrent_writes_and_legacy_revision_on_mongodb(isolated_database):
+    async def scenario():
+        async with isolated_database() as database:
+            repository = MongoKnowledgeRepository(database)
+            item = make_item(100)
+            await repository.create(item)  # Legacy document, no revision field.
+            first, second = await asyncio.gather(
+                repository.update(item["knowledge_id"], {"title": "first"}, 0),
+                repository.update(item["knowledge_id"], {"title": "second"}, 0),
+            )
+            assert sum(result is not None for result in (first, second)) == 1
+            current = await repository.get(item["knowledge_id"])
+            assert current["revision"] == 1
+            assert not await repository.soft_delete(item["knowledge_id"], item["updated_at"], 0)
+            update, deleted = await asyncio.gather(
+                repository.update(item["knowledge_id"], {"title": "updated"}, 1),
+                repository.soft_delete(item["knowledge_id"], item["updated_at"], 1),
+            )
+            assert (update is not None) + deleted == 1
+            stored = await repository.collection.find_one({"_id": str(item["knowledge_id"])})
+            assert stored["revision"] == 2
     asyncio.run(scenario())
 
 
@@ -134,7 +158,7 @@ def test_http_crud_roundtrip_on_real_isolated_mongodb(isolated_database):
                 assert read_response.status_code == 200
                 assert read_response.json() == created
 
-                patched_response = await client.patch(f"{prefix}/{knowledge_id}", json={"description": None, "is_favorite": True})
+                patched_response = await client.patch(f"{prefix}/{knowledge_id}", headers={"If-Match": '"1"'}, json={"description": None, "is_favorite": True})
                 assert patched_response.status_code == 200
                 patched = patched_response.json()
                 assert patched["description"] is None and patched["is_favorite"] is True
@@ -148,12 +172,12 @@ def test_http_crud_roundtrip_on_real_isolated_mongodb(isolated_database):
                 assert matching.json() == {"items": [patched], "total": 1, "skip": 0, "limit": 1}
                 assert (await client.get(prefix, params={"status": "VALIDATED"})).json()["total"] == 0
 
-                delete_response = await client.delete(f"{prefix}/{knowledge_id}")
+                delete_response = await client.delete(f"{prefix}/{knowledge_id}", headers={"If-Match": '"2"'})
                 assert delete_response.status_code == 204
                 assert delete_response.content == b""
                 assert (await client.get(f"{prefix}/{knowledge_id}")).status_code == 404
-                assert (await client.patch(f"{prefix}/{knowledge_id}", json={"title": "Hidden"})).status_code == 404
-                assert (await client.delete(f"{prefix}/{knowledge_id}")).status_code == 404
+                assert (await client.patch(f"{prefix}/{knowledge_id}", headers={"If-Match": '"1"'}, json={"title": "Hidden"})).status_code == 404
+                assert (await client.delete(f"{prefix}/{knowledge_id}", headers={"If-Match": '"2"'})).status_code == 404
                 assert (await client.get(prefix)).json()["items"] == []
                 stored = await repository.collection.find_one({"_id": knowledge_id})
                 assert stored is not None

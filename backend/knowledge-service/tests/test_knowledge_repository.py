@@ -122,8 +122,8 @@ def test_update_is_atomic_and_only_targets_active_documents(repository, collecti
     collection.find_one_and_update.return_value = repository._encode({**item, **changes})
     assert run(repository.update(item["knowledge_id"], changes))["title"] == "Updated"
     collection.find_one_and_update.assert_awaited_once_with(
-        {"_id": str(item["knowledge_id"]), "deleted_at": None},
-        {"$set": changes},
+        {"_id": str(item["knowledge_id"]), "deleted_at": None, "$or": [{"revision": 0}, {"revision": {"$exists": False}}]},
+        {"$set": changes, "$inc": {"revision": 1}},
         return_document=ReturnDocument.AFTER,
     )
     collection.find_one_and_update.return_value = None
@@ -134,8 +134,8 @@ def test_soft_delete_is_atomic_and_never_calls_physical_delete(repository, colle
     collection.find_one_and_update.return_value = repository._encode(item)
     assert run(repository.soft_delete(item["knowledge_id"], item["updated_at"])) is True
     collection.find_one_and_update.assert_awaited_once_with(
-        {"_id": str(item["knowledge_id"]), "deleted_at": None},
-        {"$set": {"deleted_at": item["updated_at"], "updated_at": item["updated_at"]}},
+        {"_id": str(item["knowledge_id"]), "deleted_at": None, "$or": [{"revision": 0}, {"revision": {"$exists": False}}]},
+        {"$set": {"deleted_at": item["updated_at"], "updated_at": item["updated_at"]}, "$inc": {"revision": 1}},
         return_document=ReturnDocument.AFTER,
     )
     collection.find_one_and_update.return_value = None

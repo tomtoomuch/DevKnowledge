@@ -20,11 +20,15 @@ class KnowledgeRepository(Protocol):
     async def get(self, knowledge_id: UUID) -> dict | None: ...
     async def list(self, *, skip: int, limit: int, knowledge_type: str | None,
                    status: str | None) -> tuple[list[dict], int]: ...
-    async def update(self, knowledge_id: UUID, changes: dict) -> dict | None: ...
-    async def soft_delete(self, knowledge_id: UUID, deleted_at: datetime) -> bool: ...
+    async def update(self, knowledge_id: UUID, changes: dict, expected_revision: int) -> dict | None: ...
+    async def soft_delete(self, knowledge_id: UUID, deleted_at: datetime, expected_revision: int) -> bool: ...
 
 
 class KnowledgeNotFound(Exception):
+    pass
+
+
+class KnowledgeConflict(Exception):
     pass
 
 
@@ -44,7 +48,7 @@ class KnowledgeService:
         item["knowledge_type"] = payload.knowledge_type.value
         item.update(
             knowledge_id=uuid4(), created_at=now, updated_at=now,
-            validated_at=None, created_by_user_id=requester.user_id, deleted_at=None,
+            validated_at=None, created_by_user_id=requester.user_id, deleted_at=None, revision=1,
         )
         return KnowledgeRead.model_validate(await self.repository.create(item))
 
@@ -61,16 +65,21 @@ class KnowledgeService:
         )
         return KnowledgePage(items=items, total=total, skip=skip, limit=limit)
 
-    async def update(self, knowledge_id: UUID, payload: KnowledgeUpdate) -> KnowledgeRead:
+    async def update(self, knowledge_id: UUID, payload: KnowledgeUpdate, expected_revision: int = 0) -> KnowledgeRead:
         changes = payload.model_dump(exclude_unset=True)
         if payload.knowledge_type is not None:
             changes["knowledge_type"] = payload.knowledge_type.value
         changes["updated_at"] = utc_now()
-        item = await self.repository.update(knowledge_id, changes)
+        item = await self.repository.update(knowledge_id, changes, expected_revision)
         if item is None:
-            raise KnowledgeNotFound
+            await self._raise_write_failure(knowledge_id)
         return KnowledgeRead.model_validate(item)
 
-    async def delete(self, knowledge_id: UUID) -> None:
-        if not await self.repository.soft_delete(knowledge_id, utc_now()):
+    async def _raise_write_failure(self, knowledge_id: UUID) -> None:
+        if await self.repository.get(knowledge_id) is None:
             raise KnowledgeNotFound
+        raise KnowledgeConflict
+
+    async def delete(self, knowledge_id: UUID, expected_revision: int = 0) -> None:
+        if not await self.repository.soft_delete(knowledge_id, utc_now(), expected_revision):
+            await self._raise_write_failure(knowledge_id)

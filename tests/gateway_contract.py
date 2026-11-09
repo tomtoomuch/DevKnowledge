@@ -9,6 +9,10 @@ BASE = "http://api-gateway:3107"
 def call(method, path, payload=None, raw=None, extra_headers=None):
     data = json.dumps(payload).encode() if payload is not None else raw
     headers = {"Content-Type": "application/json", **(extra_headers or {})}
+    if method in ("PATCH", "DELETE") and "If-Match" not in headers:
+        current_status, current = call("GET", path)
+        revision = current["revision"] if current_status == 200 else 0
+        headers["If-Match"] = f'"{revision}"'
     request = urllib.request.Request(BASE + path, data=data, headers=headers, method=method)
     try:
         response = urllib.request.urlopen(request, timeout=15)
@@ -35,6 +39,9 @@ try:
     assert page["items"][0]["knowledge_id"] == identifier
     status, updated = call("PATCH", item_path, {"title": "Titre modifié", "is_favorite": True})
     assert status == 200 and updated["is_favorite"] and updated["title"] == "Titre modifié"
+    assert updated["revision"] == item["revision"] + 1
+    assert call("PATCH", item_path, {"title": "stale"}, extra_headers={"If-Match": f'"{item["revision"]}"'})[0] == 412
+    assert call("DELETE", item_path, extra_headers={"If-Match": f'"{item["revision"]}"'})[0] == 412
     assert call("PATCH", item_path, {"title": None})[0] == 422
     assert call("POST", path, raw=b'{"invalid":')[0] == 422
     assert call("GET", path + "?limit=0")[0] == 422

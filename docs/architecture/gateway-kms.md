@@ -20,12 +20,12 @@ port sur l'hôte dans `compose.yaml`.
 - Destination fixée par `KMS_BASE_URL`, une origine HTTP(S) sans chemin ni
   identifiants. Compose impose `http://api-kms:8000`. Hors Docker, la valeur
   par défaut est `http://127.0.0.1:8000`.
-- Seuls `Accept`, `Content-Type` et `Accept-Language` sont transmis depuis le
+- Seuls `Accept`, `Content-Type`, `Accept-Language` et `If-Match` sont transmis depuis le
   client. `Content-Length` est recalculé. Cookies, Authorization, identités
   déclarées, en-têtes Forwarded et en-têtes de connexion ne sont pas transmis.
-- Les en-têtes de réponse admis sont `Content-Type`, `Content-Language`, `Allow`
-  et `Retry-After`, hors en-têtes désignés par `Connection`. Aucun cookie ou
-  en-tête interne n'est réexposé.
+- Les en-têtes de réponse admis sont `Content-Type`, `Content-Language`, `Allow`,
+  `Retry-After`, `ETag` et `Cache-Control`, hors en-têtes désignés par `Connection`.
+  Aucun cookie ou en-tête interne n'est réexposé.
 - Délai maximal global vers le KMS : `KMS_TIMEOUT_MS`, par défaut **10 secondes**,
   entier entre 1 et 60 000 ms. Il couvre connexion et transfert de réponse.
   Une connexion impossible produit 502 ; un dépassement de délai produit 504.
@@ -76,4 +76,4 @@ puis les coupures MongoDB et KMS et leur reprise. La CI rejoue ces scénarios.
 
 Ce relais n'introduit **aucune authentification ou autorisation**. Il reste local,
 le créateur demeure anonyme, et l'ADR-003 doit être tranché avant l'ajout d'identité.
-Les sauvegardes/restaurations et la concurrence (STAB-08) restent à traiter.
+STAB-08 ajoute les écritures conditionnelles obligatoires ([[knowledge-concurrency]]) et les outils de sauvegarde/restauration ([[../operations/backup-restore]]).

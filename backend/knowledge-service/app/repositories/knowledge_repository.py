@@ -49,6 +49,15 @@ class MongoKnowledgeRepository:
     def _active_filter(knowledge_id: UUID) -> dict[str, Any]:
         return {"_id": str(knowledge_id), "deleted_at": None}
 
+    @classmethod
+    def _revision_filter(cls, knowledge_id: UUID, revision: int) -> dict[str, Any]:
+        query = cls._active_filter(knowledge_id)
+        if revision == 0:
+            query["$or"] = [{"revision": 0}, {"revision": {"$exists": False}}]
+        else:
+            query["revision"] = revision
+        return query
+
     async def create(self, item: dict[str, Any]) -> dict[str, Any]:
         document = self._encode(item)
         await self.collection.insert_one(document)
@@ -82,19 +91,19 @@ class MongoKnowledgeRepository:
         return [self._decode(document) for document in documents], total
 
     async def update(
-        self, knowledge_id: UUID, changes: dict[str, Any]
+        self, knowledge_id: UUID, changes: dict[str, Any], expected_revision: int = 0
     ) -> dict[str, Any] | None:
         document = await self.collection.find_one_and_update(
-            self._active_filter(knowledge_id),
-            {"$set": changes},
+            self._revision_filter(knowledge_id, expected_revision),
+            {"$set": changes, "$inc": {"revision": 1}},
             return_document=ReturnDocument.AFTER,
         )
         return self._decode(document) if document is not None else None
 
-    async def soft_delete(self, knowledge_id: UUID, deleted_at: datetime) -> bool:
+    async def soft_delete(self, knowledge_id: UUID, deleted_at: datetime, expected_revision: int = 0) -> bool:
         document = await self.collection.find_one_and_update(
-            self._active_filter(knowledge_id),
-            {"$set": {"deleted_at": deleted_at, "updated_at": deleted_at}},
+            self._revision_filter(knowledge_id, expected_revision),
+            {"$set": {"deleted_at": deleted_at, "updated_at": deleted_at}, "$inc": {"revision": 1}},
             return_document=ReturnDocument.AFTER,
         )
         return document is not None

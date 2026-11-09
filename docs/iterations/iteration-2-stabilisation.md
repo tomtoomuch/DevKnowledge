@@ -1,13 +1,13 @@
 ---
 title: "DevKnowledge — Itération 2 : stabilisation du socle"
 date: "2026-11-04"
-status: "STAB-01 à 07 implémentées ; STAB-08 et revue de sortie ouverts"
+status: "STAB-01 à 08 implémentées ; revue de sortie ouverte"
 tags: [devknowledge, stabilisation, qualite, tests, docker, ci]
 ---
 
 # Itération 2 — Stabilisation du socle
 
-> **Mise à jour du 9 novembre :** bootstrap, configuration Gateway, readiness et panne/reprise validés localement. CI versionnée, dépendances Python verrouillées et séparées. Voir [[validation-stabilisation-2026-11-09]]. STAB-06 est maintenant implémenté et testé : [[../architecture/gateway-kms]]. STAB-08 et la revue commune de sortie restent ouverts. Les sections datées du 4 novembre ci-dessous décrivent le point de départ.
+> **Mise à jour du 9 novembre :** bootstrap, configuration Gateway, readiness et panne/reprise validés localement. CI versionnée, dépendances Python verrouillées et séparées. Voir [[validation-stabilisation-2026-11-09]]. STAB-06 est maintenant implémenté et testé : [[../architecture/gateway-kms]]. STAB-08 ajoute les sauvegardes/restaurations isolées et les écritures conditionnelles. La revue commune de sortie reste ouverte. Les sections datées du 4 novembre ci-dessous décrivent le point de départ.
 
 ## Objectif
 
@@ -78,8 +78,8 @@ Guide : [[../operations/mongodb-bootstrap]].
 - [x] Arbitrer et documenter la stratégie de proxy Gateway → KMS, sa gestion des erreurs, timeouts et en-têtes, et ses futurs contrôles d'identité.
 - [x] Si implémenté pendant cette itération, tester les cinq opérations via la Gateway et vérifier les statuts/erreurs sans modifier les contrats KMS.
 - [x] Documenter les limites actuelles : KMS interne par défaut, diagnostic local optionnel, absence d'authentification et de RBAC.
-- [ ] Définir les exigences minimales de sauvegarde, restauration et gestion des mises à jour concurrentes.
-- [ ] Vérifier la préparation à l'usage hors ligne **après** construction/téléchargement des dépendances ; ne pas revendiquer un build hors ligne sans test.
+- [x] Implémenter et tester sauvegarde/restauration isolée et mises à jour conditionnelles ; procédures dans [[../operations/backup-restore]] et [[../architecture/knowledge-concurrency]].
+- [x] Vérifier l'exécution hors ligne **après** préparation des images : mode `--offline`, réseau interne et routes contrôlés, CRUD/restauration/reprise. Voir [[../operations/offline-runtime]]. Le build hors ligne n'est pas qualifié.
 
 **Acceptation :** la frontière API et les limites de sécurité ne sont pas ambiguës ; les choix reportés sont explicitement consignés.
 
@@ -152,3 +152,5 @@ Résultats datés et environnement : [[validation-stabilisation-2026-11-09]].
 ## Fin de phase
 
 La phase ne sera clôturée qu'après revue commune des résultats, régressions, conditions d'installation et décisions reportées. Aucune fusion vers `dev` ou `main` n'est incluse par défaut.
+
+Dossier de revue préparé : [[revue-sortie-stabilisation-2026-11-09]].

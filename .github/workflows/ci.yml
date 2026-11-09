@@ -55,6 +55,8 @@ jobs:
           cache-dependency-path: backend/knowledge-service/requirements-test.txt
       - run: python -m pip install --require-hashes -r requirements-test.txt
       - run: python -m pip check
+      - name: Maintenance and offline qualification failure paths
+        run: python -m unittest discover -s ../../scripts -p "test_*.py"
       - run: python -m pytest -m "not integration" -o "addopts=" --cov=app --cov-report=term-missing --cov-report=xml:../../test-results/coverage.xml --junitxml=../../test-results/kms-unit.xml
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
@@ -90,6 +92,8 @@ jobs:
         run: docker compose -p devknowledge-kms-crud-test -f backend/knowledge-service/tests/compose.integration.yaml up --build --abort-on-container-exit --exit-code-from kms-tests kms-tests 2>&1 | tee test-results/kms-integration.log
       - name: Real Compose restart, outage and recovery
         run: python scripts/check_stabilization.py 2>&1 | tee test-results/stabilization.log
+      - name: Offline runtime with prepared images, no builds or pulls
+        run: python scripts/check_stabilization.py --offline 2>&1 | tee test-results/stabilization-offline.log
       - name: Collect diagnostics and clean up disposable projects
         if: always()
         run: |

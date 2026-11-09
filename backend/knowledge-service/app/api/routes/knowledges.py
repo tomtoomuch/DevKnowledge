@@ -1,9 +1,10 @@
 """HTTP transport and injectable dependencies for the knowledge CRUD."""
 
 from typing import Annotated
+import re
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request, Response, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, status
 from pymongo.errors import ConnectionFailure
 
 from app.repositories.knowledge_repository import MongoKnowledgeRepository
@@ -32,11 +33,36 @@ Service = Annotated[KnowledgeService, Depends(get_knowledge_service)]
 Requester = Annotated[RequesterIdentity, Depends(get_requester_identity)]
 
 
+def expected_revision(if_match: Annotated[list[str] | None, Header()] = None) -> int:
+    if if_match is None:
+        raise HTTPException(428, "If-Match is required; read the resource first")
+    if len(if_match) != 1 or not re.fullmatch(r'"(0|[1-9][0-9]{0,18})"', if_match[0]):
+        raise HTTPException(400, 'If-Match must contain one quoted revision number')
+    revision = int(if_match[0][1:-1])
+    if revision >= 2**63 - 1:
+        raise HTTPException(400, "Revision is out of range")
+    return revision
+
+
+Revision = Annotated[int, Depends(expected_revision)]
+WRITE_ERRORS = {404: {"description": "Knowledge not found"},
+                400: {"description": "Invalid If-Match"},
+                412: {"description": "Revision changed"},
+                428: {"description": "If-Match required"},
+                503: {"description": "MongoDB unavailable"}}
+
+
+def with_etag(item: KnowledgeRead, response: Response) -> KnowledgeRead:
+    response.headers["ETag"] = f'"{item.revision}"'
+    response.headers["Cache-Control"] = "no-store"
+    return item
+
+
 @router.post("", response_model=KnowledgeRead, status_code=status.HTTP_201_CREATED,
              responses={503: {"description": "MongoDB unavailable"}})
-async def create_knowledge(payload: KnowledgeCreate, service: Service,
+async def create_knowledge(payload: KnowledgeCreate, response: Response, service: Service,
                            requester: Requester) -> KnowledgeRead:
-    return await service.create(payload, requester)
+    return with_etag(await service.create(payload, requester), response)
 
 
 @router.get("", response_model=KnowledgePage,
@@ -54,21 +80,19 @@ async def list_knowledges(
 @router.get("/{knowledge_id}", response_model=KnowledgeRead,
             responses={404: {"description": "Knowledge not found"},
                        503: {"description": "MongoDB unavailable"}})
-async def get_knowledge(knowledge_id: UUID, service: Service) -> KnowledgeRead:
-    return await service.get(knowledge_id)
+async def get_knowledge(knowledge_id: UUID, response: Response, service: Service) -> KnowledgeRead:
+    return with_etag(await service.get(knowledge_id), response)
 
 
 @router.patch("/{knowledge_id}", response_model=KnowledgeRead,
-              responses={404: {"description": "Knowledge not found"},
-                         503: {"description": "MongoDB unavailable"}})
+              responses=WRITE_ERRORS)
 async def update_knowledge(knowledge_id: UUID, payload: KnowledgeUpdate,
-                           service: Service) -> KnowledgeRead:
-    return await service.update(knowledge_id, payload)
+                           response: Response, service: Service, revision: Revision) -> KnowledgeRead:
+    return with_etag(await service.update(knowledge_id, payload, revision), response)
 
 
 @router.delete("/{knowledge_id}", status_code=status.HTTP_204_NO_CONTENT,
-               responses={404: {"description": "Knowledge not found"},
-                          503: {"description": "MongoDB unavailable"}})
-async def delete_knowledge(knowledge_id: UUID, service: Service) -> Response:
-    await service.delete(knowledge_id)
+               responses=WRITE_ERRORS)
+async def delete_knowledge(knowledge_id: UUID, service: Service, revision: Revision) -> Response:
+    await service.delete(knowledge_id, revision)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
