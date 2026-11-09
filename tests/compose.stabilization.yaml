@@ -17,6 +17,8 @@ services:
       start_period: 2s
   api-kms:
     image: devknowledge-stabilization-kms:local
+    environment:
+      AUTH_MODE: disabled
     ports: !reset []
     restart: "no"
     healthcheck:

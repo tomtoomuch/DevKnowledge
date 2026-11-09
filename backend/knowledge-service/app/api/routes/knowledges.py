@@ -12,6 +12,7 @@ from app.schemas.knowledge import (
     KnowledgeCreate, KnowledgePage, KnowledgeRead, KnowledgeType, KnowledgeUpdate, Status,
 )
 from app.services.knowledge_service import KnowledgeService, RequesterIdentity
+from app.auth.local import requester_identity as get_requester_identity, require
 
 
 router = APIRouter(prefix="/api/v1/knowledges", tags=["Knowledges"])
@@ -22,11 +23,6 @@ def get_knowledge_service(request: Request) -> KnowledgeService:
     if database is None:
         raise ConnectionFailure("MongoDB is not initialized")
     return KnowledgeService(MongoKnowledgeRepository(database))
-
-
-def get_requester_identity() -> RequesterIdentity:
-    # No headers or request data are treated as authenticated identity.
-    return RequesterIdentity()
 
 
 Service = Annotated[KnowledgeService, Depends(get_knowledge_service)]
@@ -62,6 +58,7 @@ def with_etag(item: KnowledgeRead, response: Response) -> KnowledgeRead:
              responses={503: {"description": "MongoDB unavailable"}})
 async def create_knowledge(payload: KnowledgeCreate, response: Response, service: Service,
                            requester: Requester) -> KnowledgeRead:
+    require(requester, "knowledge.create")
     return with_etag(await service.create(payload, requester), response)
 
 
@@ -69,6 +66,7 @@ async def create_knowledge(payload: KnowledgeCreate, response: Response, service
             responses={503: {"description": "MongoDB unavailable"}})
 async def list_knowledges(
     service: Service,
+    requester: Requester,
     skip: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     knowledge_type: KnowledgeType | None = None,
@@ -76,6 +74,7 @@ async def list_knowledges(
     q: Annotated[str | None, Query(min_length=1, max_length=100)] = None,
     is_favorite: Annotated[bool | None, Query()] = None,
 ) -> KnowledgePage:
+    require(requester, "knowledge.read")
     if q is not None:
         q = q.strip()
         if not q:
@@ -89,19 +88,25 @@ async def list_knowledges(
 @router.get("/{knowledge_id}", response_model=KnowledgeRead,
             responses={404: {"description": "Knowledge not found"},
                        503: {"description": "MongoDB unavailable"}})
-async def get_knowledge(knowledge_id: UUID, response: Response, service: Service) -> KnowledgeRead:
+async def get_knowledge(knowledge_id: UUID, response: Response, service: Service,
+                        requester: Requester) -> KnowledgeRead:
+    require(requester, "knowledge.read")
     return with_etag(await service.get(knowledge_id), response)
 
 
 @router.patch("/{knowledge_id}", response_model=KnowledgeRead,
               responses=WRITE_ERRORS)
 async def update_knowledge(knowledge_id: UUID, payload: KnowledgeUpdate,
-                           response: Response, service: Service, revision: Revision) -> KnowledgeRead:
+                           response: Response, service: Service, revision: Revision,
+                           requester: Requester) -> KnowledgeRead:
+    require(requester, "knowledge.update")
     return with_etag(await service.update(knowledge_id, payload, revision), response)
 
 
 @router.delete("/{knowledge_id}", status_code=status.HTTP_204_NO_CONTENT,
                responses=WRITE_ERRORS)
-async def delete_knowledge(knowledge_id: UUID, service: Service, revision: Revision) -> Response:
+async def delete_knowledge(knowledge_id: UUID, service: Service, revision: Revision,
+                           requester: Requester) -> Response:
+    require(requester, "knowledge.delete")
     await service.delete(knowledge_id, revision)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

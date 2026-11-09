@@ -25,6 +25,7 @@ services:
       MONGODB_USERNAME: kms_test_only
       MONGODB_PASSWORD: kms_test_only
       MONGODB_AUTH_SOURCE: admin
+      AUTH_MODE: disabled
     depends_on:
       mongodb-test:
         condition: service_healthy
