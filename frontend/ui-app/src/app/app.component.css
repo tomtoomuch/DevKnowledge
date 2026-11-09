@@ -44,3 +44,10 @@
 .catalog-form .outline{margin-top:10px}
 .tag-choice small{opacity:.8}
 @media(max-width:700px){.technology-filters{grid-template-columns:1fr}}
+
+/* Keep working navigation accessible on narrow screens, including Monitoring. */
+@media(max-width:900px){
+  .sidebar nav{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+  .sidebar nav button.nav-link{width:auto;padding:10px 12px}
+  .sidebar nav .upcoming{display:none}
+}

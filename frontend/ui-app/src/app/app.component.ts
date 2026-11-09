@@ -18,6 +18,7 @@ import { TechnologyApiService } from './services/technology-api.service';
 import { TechnologyRecord, TechnologyVersionRecord } from './models/technology.model';
 import { AuthService, LocalIdentity } from './services/auth.service';
 import { UserAdminComponent } from './components/user-admin.component';
+import { MonitoringComponent } from './components/monitoring.component';
 
 type EditorMode = 'view' | 'create' | 'edit';
 const PAGE_SIZE = 20;
@@ -25,7 +26,7 @@ const PAGE_SIZE = 20;
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, UserAdminComponent],
+  imports: [CommonModule, ReactiveFormsModule, UserAdminComponent, MonitoringComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -39,7 +40,7 @@ export class AppComponent implements OnInit {
 
   readonly authMode = signal<'checking' | 'login' | 'active'>('checking');
   readonly principal = signal<LocalIdentity | null>(null);
-  readonly section = signal<'knowledge' | 'users'>('knowledge');
+  readonly section = signal<'knowledge' | 'users' | 'monitoring'>('knowledge');
   readonly loginError = signal('');
   readonly loggingIn = signal(false);
   readonly loginForm = new FormGroup({
@@ -163,7 +164,7 @@ export class AppComponent implements OnInit {
     return this.principal()?.permissions.includes(permission) ?? false;
   }
 
-  showSection(next: 'knowledge' | 'users'): void {
+  showSection(next: 'knowledge' | 'users' | 'monitoring'): void {
     if (next === 'users' && !this.can('users.manage')) return;
     if (next === this.section() || !this.mayLeaveEditor()) return;
     this.section.set(next);
