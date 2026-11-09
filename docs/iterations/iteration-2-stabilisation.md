@@ -79,7 +79,7 @@ Guide : [[../operations/mongodb-bootstrap]].
 - [x] Si implémenté pendant cette itération, tester les cinq opérations via la Gateway et vérifier les statuts/erreurs sans modifier les contrats KMS.
 - [x] Documenter les limites actuelles : KMS interne par défaut, diagnostic local optionnel, absence d'authentification et de RBAC.
 - [x] Implémenter et tester sauvegarde/restauration isolée et mises à jour conditionnelles ; procédures dans [[../operations/backup-restore]] et [[../architecture/knowledge-concurrency]].
-- [ ] Vérifier la préparation à l'usage hors ligne **après** construction/téléchargement des dépendances ; ne pas revendiquer un build hors ligne sans test.
+- [x] Vérifier l'exécution hors ligne **après** préparation des images : mode `--offline`, réseau interne et routes contrôlés, CRUD/restauration/reprise. Voir [[../operations/offline-runtime]]. Le build hors ligne n'est pas qualifié.
 
 **Acceptation :** la frontière API et les limites de sécurité ne sont pas ambiguës ; les choix reportés sont explicitement consignés.
 
@@ -152,3 +152,5 @@ Résultats datés et environnement : [[validation-stabilisation-2026-11-09]].
 ## Fin de phase
 
 La phase ne sera clôturée qu'après revue commune des résultats, régressions, conditions d'installation et décisions reportées. Aucune fusion vers `dev` ou `main` n'est incluse par défaut.
+
+Dossier de revue préparé : [[revue-sortie-stabilisation-2026-11-09]].

@@ -150,6 +150,8 @@ def restore(compose, directory, *, env=None, keep_volume=False):
     database = settings["MONGODB_DATABASE"]
     if manifest["snapshot"]["database"] != database:
         raise ValueError("Backup database differs from the configured database")
+    # Recovery must also work offline; never download an image implicitly.
+    run(["docker", "image", "inspect", config["services"]["mongodb"]["image"]], env=env)
     token = uuid4().hex
     container = "devknowledge-restore-" + token
     volume = "devknowledge-restored-" + token
@@ -163,7 +165,7 @@ def restore(compose, directory, *, env=None, keep_volume=False):
     container_created = False
     run(["docker", "volume", "create", "--label", f"devknowledge.restore={token}", volume], env=target_env)
     try:
-        command = ["docker", "run", "-d", "--name", container, "--network", "none",
+        command = ["docker", "run", "--pull", "never", "-d", "--name", container, "--network", "none",
                    "--label", f"devknowledge.restore={token}",
                    "--mount", f"type=volume,source={volume},target=/data/db", "--tmpfs", "/data/configdb"]
         for key in ("MONGO_INITDB_ROOT_USERNAME", "MONGO_INITDB_ROOT_PASSWORD", "MONGODB_DATABASE",

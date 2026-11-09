@@ -43,7 +43,9 @@ Voir [[iterations/iteration-2-stabilisation]].
 
 **STAB-08 :** sauvegarde BSON locale, restauration dans un nouveau volume et protection des écritures par révision/If-Match implémentées. Voir [[operations/backup-restore]] et [[architecture/knowledge-concurrency]].
 
-**Reste à conduire :** revue commune de sortie. Les images système restent référencées par tags et le build hors ligne reste à qualifier.
+**Hors ligne :** qualification de l'exécution après préparation des images, sans build ni téléchargement, via [[operations/offline-runtime]]. Les images système restent référencées par tags ; un build complet hors ligne reste à qualifier.
+
+**Reste à conduire :** revue commune de sortie, préparée dans [[iterations/revue-sortie-stabilisation-2026-11-09]], puis arbitrage de l'identité locale (ADR-003).
 
 Critères de sortie : installation propre reproductible, tests unitaires et intégration **réexécutés** (avec preuves et dates), CI opérationnelle, aucun secret versionné, documentation à jour, aucune donnée de développement supprimée.
 

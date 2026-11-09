@@ -4,6 +4,7 @@ Python standard library only. A unique project owns a new volume, removed in
 finally. Never accepts a project name or credentials from the caller.
 """
 
+import argparse
 import json
 import os
 from datetime import datetime, UTC
@@ -88,6 +89,51 @@ def require(condition, message):
         raise AssertionError(message)
 
 
+def local_images(config):
+    """Fail before resource creation if any prepared image is absent locally."""
+    images = {}
+    for service, settings in config["services"].items():
+        reference = settings["image"]
+        result = run(["docker", "image", "inspect", reference], check=False)
+        require(result.returncode == 0,
+                f"Missing local image for {service}: {reference}; prepare images before --offline")
+        image = json.loads(result.stdout)[0]
+        images[service] = {"reference": reference, "id": image["Id"],
+                           "platform": image["Os"] + "/" + image["Architecture"]}
+    return images
+
+
+def verify_offline_network(images):
+    """Inspect actual runtime attachments and routes, not only Compose intent."""
+    network_name = PROJECT + "_default"
+    network = json.loads(run(["docker", "network", "inspect", network_name]).stdout)[0]
+    require(network["Internal"] and not network["EnableIPv6"],
+            "Offline test requires an internal IPv4-only network")
+    for service, image in images.items():
+        container_id = compose("ps", "-q", service).stdout.strip()
+        container = json.loads(run(["docker", "inspect", container_id]).stdout)[0]
+        require(container["Image"] == image["id"], "Running image differs from preflight")
+        attachments = container["NetworkSettings"]["Networks"]
+        require(set(attachments) == {network_name}, "Service has an unexpected network attachment")
+        require(not attachments[network_name].get("GlobalIPv6Address"), "Unexpected IPv6 address")
+        routes = compose("exec", "-T", service, "cat", "/proc/net/route").stdout.splitlines()[1:]
+        require(not any(line.split()[1] == "00000000" for line in routes if line.strip()),
+                f"{service} has an external default route")
+    # TEST-NET address; expect a routing refusal, not an arbitrary unavailable server.
+    kms_python("""
+import errno, socket
+try:
+    connection = socket.create_connection(('198.51.100.1', 443), timeout=3)
+except OSError as error:
+    assert error.errno == errno.ENETUNREACH, type(error).__name__
+else:
+    connection.close()
+    raise AssertionError('External connection unexpectedly succeeded')
+""")
+    return {"network": network_name, "internal": True, "ipv6": False,
+            "services_without_default_route": sorted(images), "external_probe": "ENETUNREACH"}
+
+
 def database_check(insert=False):
     kms_python("""
 import os
@@ -114,9 +160,14 @@ with MongoClient(host='mongodb', username=os.environ['MONGODB_USERNAME'],
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--offline", action="store_true",
+                        help="Use prepared local images; forbid builds/pulls and verify runtime isolation")
+    args = parser.parse_args()
     RESULTS.mkdir(exist_ok=True)
+    report_name = "stabilization-offline" if args.offline else "stabilization"
     report = {"project": PROJECT, "started_at": datetime.now(UTC).isoformat(),
-              "checks": [], "success": False}
+              "offline": args.offline, "checks": [], "success": False}
 
     def passed(label):
         report["checks"].append(label)
@@ -137,8 +188,15 @@ def main():
             "MongoDB data must use a disposable named volume")
     passed("isolated Compose configuration; no published ports or development volumes")
     try:
-        print("Building and starting isolated services...", flush=True)
-        compose("up", "-d", "--build", "--wait", "--wait-timeout", "120", timeout=900)
+        if args.offline:
+            report["images"] = local_images(config)
+            passed("all prepared images available locally; builds and pulls forbidden")
+        print("Starting prepared services..." if args.offline else "Building and starting isolated services...", flush=True)
+        startup = ["--no-build", "--pull", "never"] if args.offline else ["--build"]
+        compose("up", "-d", *startup, "--wait", "--wait-timeout", "120", timeout=900)
+        if args.offline:
+            report["network"] = verify_offline_network(report["images"])
+            passed("runtime network isolated; no external default route; outbound connection refused")
         require(http_status("/health/ready") == 200, "KMS not ready")
         require(http_status("/health", "api-gateway", 3107) == 200, "Custom Gateway port failed")
         database_check(insert=True)
@@ -189,7 +247,9 @@ with urllib.request.urlopen(request) as response:
         passed("BSON backup/restore: documents, revisions, soft deletions, indexes, checksum and isolated recovery volume")
 
         compose("stop")
-        compose("up", "-d", "--wait", "--wait-timeout", "120", timeout=180)
+        compose("up", "-d", "--no-build", "--pull", "never", "--wait", "--wait-timeout", "120", timeout=180)
+        if args.offline:
+            verify_offline_network(report["images"])
         database_check()
         passed("second startup preserves data and application account")
 
@@ -221,7 +281,7 @@ with urllib.request.urlopen(request) as response:
         eventually(lambda: health("api-gateway") == "healthy", "Gateway healthy after KMS restart")
         passed("KMS outage: Gateway liveness 200, readiness/CRUD 502, automatic recovery")
 
-        bad = compose("run", "--rm", "--no-deps", "-e",
+        bad = compose("run", "--rm", "--no-deps", "--pull", "never", "-e",
                       "MONGODB_PASSWORD=deliberately_wrong_test_password", "api-kms",
                       check=False, timeout=90)
         output = bad.stdout + bad.stderr
@@ -236,7 +296,7 @@ with urllib.request.urlopen(request) as response:
         report["success"] = True
     except BaseException:
         logs = compose("logs", "--no-color", check=False)
-        (RESULTS / "stabilization-failure.log").write_text(
+        (RESULTS / (report_name + "-failure.log")).write_text(
             redact(logs.stdout + logs.stderr), encoding="utf-8")
         raise
     finally:
@@ -244,7 +304,7 @@ with urllib.request.urlopen(request) as response:
         cleanup = compose("down", "--volumes", "--remove-orphans", check=False)
         report["cleanup_success"] = cleanup.returncode == 0
         report["success"] = report["success"] and report["cleanup_success"]
-        (RESULTS / "stabilization.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
+        (RESULTS / (report_name + ".json")).write_text(json.dumps(report, indent=2), encoding="utf-8")
         require(report["cleanup_success"], "Disposable project cleanup failed")
 
 

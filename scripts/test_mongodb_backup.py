@@ -39,6 +39,15 @@ class BackupTests(unittest.TestCase):
                 backup.restore([], self.directory)
             run.assert_not_called()
 
+    def test_missing_restore_image_fails_before_allocating_volume(self):
+        self.fixture()
+        config = {"services": {"mongodb": {"image": "missing:local", "environment": {"MONGODB_DATABASE": "test"}}}}
+        with patch.object(backup, "configuration", return_value=config), \
+             patch.object(backup, "run", side_effect=RuntimeError("image missing")) as run:
+            with self.assertRaisesRegex(RuntimeError, "image missing"):
+                backup.restore([], self.directory)
+            run.assert_called_once_with(["docker", "image", "inspect", "missing:local"], env=None)
+
     def test_backup_never_overwrites_an_existing_directory(self):
         with patch.object(backup, "configuration", return_value={}):
             with self.assertRaises(FileExistsError):

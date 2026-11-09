@@ -59,6 +59,10 @@ La base doit porter le même nom que dans le `.env` choisi et le serveur cible
 doit avoir la même version majeure MongoDB. Un changement de version majeure
 relève d'une migration séparée.
 
+L'image MongoDB configurée doit déjà être présente localement : la restauration
+refuse tout téléchargement implicite et échoue avant de créer un volume si
+l'image manque. Voir [[offline-runtime]] pour la préparation hors ligne.
+
 ## Produire un volume de récupération
 
 ```powershell
