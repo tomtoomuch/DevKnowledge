@@ -3,7 +3,11 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { finalize, timer } from 'rxjs';
-import { MonitoredService, MonitoringService, MonitoringSnapshot, ServiceHealth } from '../services/monitoring.service';
+import { GpuDevice, GpuTelemetry, MonitoredService, MonitoringService, MonitoringSnapshot, ServiceHealth } from '../services/monitoring.service';
+
+const GPU_UNKNOWN: GpuTelemetry = {
+  status: 'unknown', detail: 'La disponibilité des métriques GPU n’a pas été vérifiée.', devices: [],
+};
 
 const UNCHECKED: MonitoredService[] = [
   { id: 'api-gateway', name: 'API Gateway', description: 'Point d’entrée HTTP unique',
@@ -30,6 +34,7 @@ export class MonitoringComponent implements OnInit {
   readonly loading = signal(false);
   readonly error = signal('');
   readonly services = computed(() => this.snapshot()?.services ?? UNCHECKED);
+  readonly gpu = computed(() => this.snapshot()?.gpu ?? GPU_UNKNOWN);
   readonly checkedAt = computed(() => this.snapshot()?.checked_at ?? null);
   readonly healthyCount = computed(() => this.services().filter(service => service.status === 'healthy').length);
   readonly degradedCount = computed(() => this.services().filter(service => service.status === 'degraded').length);
@@ -82,6 +87,26 @@ export class MonitoringComponent implements OnInit {
         }
       },
     });
+  }
+
+  gpuStatusLabel(status: GpuTelemetry['status']): string {
+    switch (status) {
+      case 'healthy': return 'Mesures disponibles';
+      case 'unavailable': return 'Collecteur indisponible';
+      case 'disabled': return 'Non configuré';
+      default: return 'Non vérifié';
+    }
+  }
+
+  gpuMetric(value: number | null): string {
+    return value === null || !Number.isFinite(value) ? 'Non disponible' : String(value);
+  }
+
+  gpuMemoryRatio(device: GpuDevice): number | null {
+    if (device.memory_used_mib === null || device.memory_total_mib === null ||
+        !Number.isFinite(device.memory_used_mib) || !Number.isFinite(device.memory_total_mib) ||
+        device.memory_total_mib <= 0) return null;
+    return Math.min(100, Math.max(0, Math.round(device.memory_used_mib * 100 / device.memory_total_mib)));
   }
 
   statusLabel(status: ServiceHealth): string {

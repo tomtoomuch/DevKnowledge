@@ -31,6 +31,22 @@ describe('MonitoringService', () => {
     });
   });
 
+  it('returns GPU telemetry in the same Gateway response (no extra HTTP call)', () => {
+    service.getServices().subscribe(snapshot => {
+      expect(snapshot.gpu?.status).toBe('healthy');
+      expect(snapshot.gpu?.devices[0].temperature_c).toBe(66);
+    });
+    http.expectOne('/api/v1/monitoring/services').flush({
+      checked_at: '2026-11-10T00:00:00Z',
+      services: [],
+      gpu: { status: 'healthy', detail: 'GPU prêt', devices: [
+        { index: 0, name: 'NVIDIA RTX Demo', utilization_pct: 51,
+          memory_used_mib: 1024, memory_total_mib: 8192, temperature_c: 66 },
+      ] },
+    });
+    http.expectNone('/metrics');
+  });
+
   it('preserves a Gateway error for the monitoring UI', () => {
     service.getServices().subscribe({
       next: () => { throw new Error('Unexpected successful response'); },

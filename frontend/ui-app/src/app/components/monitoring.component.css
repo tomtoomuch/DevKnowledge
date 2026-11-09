@@ -29,3 +29,27 @@
 .monitor-hint{font-size:12px;line-height:1.7;color:#91a5c5;margin-top:22px}
 @media(max-width:780px){.monitoring-header,.monitor-summary{display:block}.refresh{margin-top:16px}.monitor-counts{margin-top:20px}}
 @media(max-width:480px){.service-head{flex-direction:column}.monitor-counts{grid-template-columns:1fr 1fr}}
+
+/* Hardware metrics share the dark monitoring theme without mixing GPU and service health. */
+.gpu-section{border-top:1px solid #2e3d57;margin-top:30px;padding-top:27px}
+.gpu-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:18px}
+.gpu-heading h2{font-size:22px;margin:8px 0;color:#f0f5ff}
+.gpu-heading p{color:#9badc9;font-size:13px;line-height:1.6;margin:0}
+.gpu-status{flex-shrink:0;border:1px solid #596782;border-radius:18px;color:#c2ccdd;padding:7px 12px;font-size:11px;font-weight:700}
+.gpu-status.healthy{background:#193a34;border-color:#337866;color:#aeefd7}
+.gpu-status.unavailable{background:#492532;border-color:#9e5662;color:#ffd4d9}
+.gpu-empty{background:#131f34;border:1px solid #30405d;border-radius:13px;padding:21px;color:#b9c8e0;font-size:13px}
+.gpu-empty p{margin:0 0 5px}.gpu-empty small{font-size:12px;color:#96abc9;line-height:1.6}
+.gpu-devices{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.gpu-card{border:1px solid #344360;border-radius:13px;background:#15233b;padding:20px;min-width:0}
+.gpu-card header{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:21px}
+.gpu-card h3{font-size:16px;line-height:1.4;margin:0;color:#ecf2ff}
+.gpu-card header small{font-size:11px;color:#a5b6d0;white-space:nowrap}
+.gpu-metric{margin:17px 0}.gpu-metric-label,.gpu-temperature{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px;color:#afc0de}
+.gpu-metric strong,.gpu-temperature strong{color:#eef5ff;font-size:13px;text-align:right}
+.gpu-metric progress{width:100%;height:10px;margin-top:10px;border:0;border-radius:10px;overflow:hidden;accent-color:#86a7ff}
+.gpu-metric progress::-webkit-progress-bar{background:#293a54;border-radius:10px}
+.gpu-metric progress::-webkit-progress-value{background:#86a7ff;border-radius:10px}
+.gpu-metric progress::-moz-progress-bar{background:#86a7ff;border-radius:10px}
+.gpu-temperature{border-top:1px solid #304360;margin-top:22px;padding-top:18px}
+@media(max-width:640px){.gpu-heading{display:block}.gpu-status{display:inline-block;margin-top:12px}.gpu-card header{display:block}.gpu-card header small{display:block;margin-top:6px}}

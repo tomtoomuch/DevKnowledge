@@ -12,9 +12,27 @@ export interface MonitoredService {
   detail: string;
 }
 
+export interface GpuDevice {
+  index: number;
+  name: string;
+  utilization_pct: number | null;
+  memory_used_mib: number | null;
+  memory_total_mib: number | null;
+  temperature_c: number | null;
+}
+
+export type GpuHealth = 'healthy' | 'unavailable' | 'disabled' | 'unknown';
+
+export interface GpuTelemetry {
+  status: GpuHealth;
+  detail: string;
+  devices: GpuDevice[];
+}
+
 export interface MonitoringSnapshot {
   checked_at: string;
   services: MonitoredService[];
+  gpu?: GpuTelemetry;
 }
 
 @Injectable({ providedIn: 'root' })
