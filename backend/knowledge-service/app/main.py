@@ -9,6 +9,7 @@ from app.api.routes.auth import router as identity_router
 from app.api.routes.knowledge_types import router as knowledge_types_router
 from app.api.routes.tags import router as tags_router
 from app.api.routes.technologies import router as technologies_router
+from app.api.routes.monitoring import router as monitoring_router
 from app.db.mongodb import lifespan
 from app.repositories.tag_repository import UnknownTagError
 from app.repositories.technology_repository import (
@@ -32,6 +33,7 @@ app.include_router(identity_router)
 app.include_router(knowledge_types_router)
 app.include_router(tags_router)
 app.include_router(technologies_router)
+app.include_router(monitoring_router)
 
 
 @app.exception_handler(UnknownTechnologyError)

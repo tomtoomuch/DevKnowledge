@@ -12,6 +12,7 @@
 - [[operations/mongodb-bootstrap|MongoDB : provisionnement et smoke test isolé]]
 
 - [[operations/backup-restore|Sauvegarde locale et restauration isolée]]
+- [[operations/monitoring|Monitoring — santé des services via la Gateway]]
 - [[architecture/knowledge-concurrency|Révisions et écritures conditionnelles]]
 
 ## Implémentation et référentiel
