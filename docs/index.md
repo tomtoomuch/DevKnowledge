@@ -31,3 +31,5 @@
 - [[iterations/iteration-4-search]] — Recherche globale et favoris via Gateway et KMS.
 
 - [[iterations/iteration-5-identite-locale]] — Comptes locaux, sessions et RBAC.
+
+- [[iterations/iteration-5-identite-locale]] — Authentification locale, administration des comptes et RBAC (prototype).

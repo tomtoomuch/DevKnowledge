@@ -24,7 +24,7 @@ tags: [devknowledge, roadmap, stabilisation]
 | Socle Docker / Express / FastAPI / MongoDB | Bootstrap, configuration et readiness validés localement | Trois services Compose, contrôles de santé, stockage local |
 | Itération 1 — CRUD générique KMS | Livrée, tests historiques positifs | `knowledge_items` ; routes, schémas, services, repository et tests |
 | **Itération 2 — Stabilisation** | **STAB-01 à 08 implémentés ; revue de sortie à mener** | Config/env, compte MongoDB, readiness, tests, CI, reproductibilité, accès Gateway |
-| Identité, rôles et droits | Prototype local implémenté (itération 5), revue de sécurité à conduire | `users`, `roles`, `permissions`, `user_roles`, `role_permissions` ; arbitrage local/OIDC |
+| Identité, rôles et droits | Prototype local + création/consultation de comptes Angular (itération 5), revue de sécurité à conduire | `users`, `roles`, `permissions`, `user_roles`, `role_permissions` ; arbitrage local/OIDC |
 | Classification, spécialisations et historique | Non commencée | Référentiel `knowledge_types` ; huit spécialisations ; tags, technologies, sources, versions |
 | Certification RNCP et preuves | Non commencée | Versions du RNCP 37827, compétences, critères, correspondances, preuves |
 | Recherche et assistant RAG local | Recherche textuelle générique implémentée dans l'itération 4 ; index sémantique/RAG non commencés | ChromaDB, chunking, embeddings, Ollama, citations, réponse « informations insuffisantes » |

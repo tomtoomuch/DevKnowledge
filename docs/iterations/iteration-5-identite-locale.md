@@ -59,8 +59,11 @@ concevoir, avant RAG et tout outil MCP.
 - Toutes les routes GET/PATCH/POST/DELETE des connaissances exigent
   une session valide et une permission adaptée.
 
-L'administration des utilisateurs est fournie par API ; une interface
-graphique de gestion des utilisateurs est hors du périmètre de ce lot.
+Une interface graphique Angular d'administration (ADMIN uniquement) expose
+la **consultation** des 100 premiers comptes avec rôles et la **création**
+d'un compte avec un rôle initial. Elle ne permet pas encore la désactivation,
+la modification des rôles ou la récupération d'un mot de passe. Les droits
+restent vérifiés dans le KMS, indépendamment de l'interface.
 
 ## Sécurité et limites
 
@@ -107,3 +110,16 @@ protection Origin de la Gateway soit compatible avec `npm start`.
 Le protocole public est contrôlé par `GATEWAY_PUBLIC_SCHEME=http` en local ;
 si un reverse proxy TLS est introduit, coordonner `https` et
 `AUTH_COOKIE_SECURE=true`.
+
+## Validation des Dockerfiles
+
+Les trois chemins de construction du Compose principal sont explicites :
+`frontend/Dockerfile`, `backend/api-gateway/Dockerfile` et
+`backend/knowledge-service/Dockerfile`. Le script
+`python scripts/check_dockerfiles.py --compose compose.yaml --env-file .env`
+utilise `docker compose config --format json` pour vérifier l'existence du
+contexte et du Dockerfile avant la construction, sans afficher les secrets.
+Le même contrôle est intégré aux workflows pour le Compose principal et les
+compositions de tests. Il faut exécuter ces commandes depuis la racine du
+dépôt et utiliser la branche à jour ; `docker build .` à la racine n'est
+pas supporté.

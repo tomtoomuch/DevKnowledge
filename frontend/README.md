@@ -114,3 +114,14 @@ ne sont qu'un confort d'interface. Ne jamais publier les ports en dehors de
 7. Confirmer la suppression logique, puis constater la disparition.
 8. Couper la Gateway : un message d'erreur doit apparaître sans fausse
    confirmation d'enregistrement.
+
+## Administration locale des comptes
+
+Une fois connecté en tant qu'ADMIN, utiliser **Utilisateurs** dans la barre
+latérale (ou **Gestion des utilisateurs** dans l'en-tête sur mobile).
+La page permet de consulter les 100 premiers utilisateurs et leurs rôles,
+puis de créer un nouveau compte local avec un rôle initial parmi
+READER, EDITOR et ADMIN. Aucun mot de passe n'est affiché ou sauvegardé
+par Angular, et le formulaire vide ses champs secrets après l'envoi.
+La modification des rôles, les réinitialisations de mot de passe et la
+révocation globale restent hors périmètre.
