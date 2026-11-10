@@ -59,7 +59,7 @@ function createFrontendProxy(baseUrl, timeoutMs) {
         }, response => {
             source = response;
             // Nginx should never redirect the browser off the Gateway.
-            if (response.statusCode >= 300 && response.statusCode < 400) {
+            if (response.statusCode >= 300 && response.statusCode < 400 && response.statusCode !== 304) {
                 response.resume();
                 return fail(502);
             }
