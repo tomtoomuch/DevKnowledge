@@ -66,6 +66,47 @@ interne Gateway -> Superviseur et un token HMAC-SHA256 d'audience
 La validation stricte de ces claims et une comparaison de signature
 à temps constant sont obligatoires.
 
+**Précision cryptographique (décision 2026-11-10) : un hash n'est pas
+un chiffrement.** Les sessions restent des tokens opaques aléatoires
+de 32 octets ; **seule leur empreinte SHA-256** est stockée
+dans `sessions._id`. Un JWT de service est **signé** par
+HMAC-SHA-256, sans confidentialité : ses claims peuvent être lus
+par son destinataire et ne doivent contenir ni mot de passe, ni
+cookie, ni secret personnel. Si le chiffrement d'un véritable
+secret devient nécessaire, le traiter séparément avec
+**AES-256-GCM**, une gestion de clés et une politique de rotation.
+
+La phase de transition ajoute :
+- `backend/collector/src/service-tokens.js` : fonction
+  d'émission **non exposée en HTTP** et nécessitant un
+  `Principal` déjà vérifié par le Superviseur ; un token
+  donne exactement **une** permission métier `knowledge.*`;
+- `app/auth/service_tokens.py` dans le KMS : vérification de
+  l'algorithme HS256, du secret, de la signature, de `iss`,
+  `aud=api-kms`, `sub` UUID, `scope`, `iat`, `exp`
+  (durée maximale de 60 secondes) et `jti` ;
+- `KMS_SERVICE_TOKEN_MODE=required` : **mode préparé, non
+  activé** dans Compose avant le basculement des sessions
+  et du routage depuis le Gateway. Dans ce mode, les cookies
+  navigateur et les en-têtes non signés ne constituent plus
+  une preuve d'identité.
+
+Un secret HMAC de **32 octets aléatoires encodés en 64 caractères
+hexadécimaux** est attendu pour
+`SUPERVISOR_KMS_TOKEN_KEY`, par exemple généré localement avec
+`python -c "import secrets; print(secrets.token_hex(32))"`.
+**Ne jamais versionner sa valeur ni la journaliser.** La
+distribution sécurisée de cette clé et sa rotation restent une
+étape de déploiement avant l'activation du mode obligatoire.
+Les tests utilisent une clé fixe **uniquement pour la recette**.
+
+L'implémentation présente des primitives de signature et de vérification,
+**pas encore un circuit d'authentification complet**. Le Superviseur
+doit d'abord reprendre le stockage des sessions, vérifier le RBAC,
+authentifier le Gateway comme service, puis émettre les tokens après
+introspection. Le KMS ne doit pas passer en mode obligatoire avant cette
+migration complète.
+
 **Limite explicitement acceptée pour la phase locale de transition :**
 le vérificateur KMS possède la même clé HMAC que l'émetteur Superviseur,
 donc un KMS compromis pourrait signer des tokens. Une phase dédiée
