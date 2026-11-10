@@ -171,3 +171,16 @@ def test_transactions_rollback(database):
             "SELECT count(*) FROM rncp.certification_frameworks WHERE code='RNCP-ROLLBACK'"
         ).fetchone()[0]
         assert result == 0
+
+
+def test_migration_checksum_drift_is_rejected(database, tmp_path):
+    # An already-applied script must not be silently modified after release.
+    source = MIGRATIONS / "001_certification.sql"
+    (tmp_path / source.name).write_text(
+        source.read_text(encoding="utf-8") + "\n-- unexpected change\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(RuntimeError, match="changed after being applied"):
+        apply_migrations(DSN, tmp_path)
+    with psycopg.connect(DSN) as conn:
+        assert conn.execute("SELECT count(*) FROM rncp.schema_migrations").fetchone()[0] == 2

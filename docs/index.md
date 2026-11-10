@@ -51,3 +51,5 @@
 
 - [[decisions/ADR-005-strategie-stockage]] — **Décision acceptée** : PostgreSQL pour le métier, MongoDB pour les métadonnées et besoins LLM, SQLite pour les métriques.
 - [[operations/metrics-sqlite]] — Échantillonnage, stockage, lecture interne et sauvegarde des métriques du Superviseur.
+
+- [[iterations/postgres-rncp-fondation-2026-11-10]] — Premier lot PostgreSQL RNCP isolé : schéma, migrations, API de lecture et tests Docker ([PR #19](https://github.com/tomtoomuch/DevKnowledge/pull/19)).
