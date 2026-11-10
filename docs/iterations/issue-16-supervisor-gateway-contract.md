@@ -10,8 +10,12 @@ tags: [devknowledge, security, supervisor, gateway, migration]
 La migration complète de l'autorité d'identité décrite dans
 [[decisions/ADR-004-superviseur-identite-securite]] n'est **pas achevée**.
 
-Cette étape ajoute `backend/api-gateway/src/supervisor-client.js` et ses tests.
-Elle formalise un échange interne authentifié, sans modifier le flux actif :
+Cette étape ajoute `backend/api-gateway/src/supervisor-client.js`,
+`backend/collector/src/supervisor-authorization.js` et leurs tests.
+Le serveur Collector accepte un gestionnaire d'identité injecté explicitement
+via son quatrième argument `authorizationHandler`. **La configuration
+Compose actuelle ne l'injecte pas : la route reste donc absente par défaut.**
+Cela formalise un échange interne authentifié, sans modifier le flux actif :
 
 ```text
 Gateway → POST /internal/v1/sessions/authorize (Superviseur)
@@ -44,8 +48,10 @@ Le client Gateway ne considère pas la syntaxe d'un JWT comme preuve cryptograph
 
 ## État du déploiement
 
-**Ce module n'est pas encore appelé par `app.js` ; aucun secret, route
-HTTP, ni modification de `compose.yaml` n'est introduit à cette étape.**
+**Le client n'est pas encore appelé par `app.js` ; l'endpoint interne
+existe sous forme de gestionnaire testé mais n'est pas monté au démarrage
+normal. Aucun secret, route publique ni modification de `compose.yaml`
+n'est introduit à cette étape.**
 Le routage historique continue donc d'être utilisé. Il serait incorrect
 d'activer `KMS_SERVICE_TOKEN_MODE=required` maintenant.
 
