@@ -78,6 +78,10 @@ def verify_kms_token(
         received = base64.urlsafe_b64decode(signature + "=" * (-len(signature) % 4))
     except (binascii.Error, ValueError):
         raise InvalidServiceToken("invalid JWT signature") from None
+    # Base64URL's unused trailing bits can otherwise yield distinct strings
+    # for the same bytes. Require canonical representation for token identity.
+    if base64.urlsafe_b64encode(received).decode("ascii").rstrip("=") != signature:
+        raise InvalidServiceToken("noncanonical JWT signature")
     if not hmac.compare_digest(expected, received):
         raise InvalidServiceToken("invalid JWT signature")
     header_data = _decode(header)
