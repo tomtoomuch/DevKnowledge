@@ -1,13 +1,16 @@
 const express = require("express");
 const { createKmsProxy } = require("./kms-proxy");
+const { sessionCookie, permissionFor, validPrincipal, createSessionLookup } = require("./session-auth");
 
 function createApp({
     kmsBaseUrl = process.env.KMS_BASE_URL || "http://127.0.0.1:8000",
     kmsTimeoutMs = Number(process.env.KMS_TIMEOUT_MS || 10000),
+    sessionLookup = null,
 } = {}) {
     const app = express();
     app.disable("x-powered-by");
     const relay = createKmsProxy(kmsBaseUrl, kmsTimeoutMs);
+    const lookup = sessionLookup || createSessionLookup(kmsBaseUrl, kmsTimeoutMs);
     const publicScheme = process.env.GATEWAY_PUBLIC_SCHEME || "http";
     if (!["http", "https"].includes(publicScheme)) {
         throw new Error("GATEWAY_PUBLIC_SCHEME must be http or https");
@@ -38,6 +41,35 @@ function createApp({
         next();
     }
     app.use("/api/v1", rejectCrossOrigin);
+    // The Gateway validates every authenticated browser session before relaying an API call.
+    // KMS also enforces its own permissions, independently of this external boundary.
+    app.use("/api/v1", async (req, res, next) => {
+        res.setHeader("Cache-Control", "no-store");
+        if (req.method === "POST" && /^\/auth\/(?:login|logout)\/?$/.test(req.path)) {
+            return next();
+        }
+        const cookie = sessionCookie(req.headers.cookie);
+        if (!cookie && !sessionLookup) {
+            return res.status(401).json({ detail: "Authentication required" });
+        }
+        try {
+            const principal = await lookup(cookie);
+            if (!validPrincipal(principal)) {
+                return res.status(401).json({ detail: "Authentication required" });
+            }
+            const permission = permissionFor(req.path, req.method);
+            if (!principal.permissions.includes(permission)) {
+                return res.status(403).json({ detail: "Insufficient permissions" });
+            }
+            if (req.method === "GET" && /^\/auth\/me\/?$/.test(req.path)) {
+                return res.status(200).json(principal);
+            }
+            req.principal = principal;
+            return next();
+        } catch {
+            return res.status(503).json({ detail: "Session verification unavailable" });
+        }
+    });
     // Basic local login throttle; not a substitute for multi-instance rate limiting.
     const attempts = new Map();
     function throttleLogin(req, res, next) {
@@ -54,7 +86,7 @@ function createApp({
     }
     const rawJson = express.raw({ type: () => true, limit: "1mb", inflate: false });
     app.post("/api/v1/auth/login", throttleLogin, rawJson, relay);
-    app.all(/^\/api\/v1\/auth\/(?:me|logout)\/?$/, rawJson, relay);
+    app.post(/^\/api\/v1\/auth\/logout\/?$/, rawJson, relay);
     app.all(/^\/api\/v1\/users\/?$/, rawJson, relay);
     app.get("/api/v1/knowledge-types", relay);
     app.get(/^\/api\/v1\/tags\/?$/, relay);
@@ -63,7 +95,7 @@ function createApp({
     app.get(/^\/api\/v1\/(?:technologies|technology-versions)\/?$/, relay);
     app.post(/^\/api\/v1\/(?:technologies|technology-versions)\/?$/, rawJson, relay);
     app.get(/^\/api\/v1\/(?:technologies|technology-versions)\/[a-zA-Z0-9-]+\/?$/, relay);
-    // Monitoring is authenticated by KMS and always traverses the Gateway.
+    // Monitoring authentication is enforced at the Gateway and again at KMS.
     app.get("/api/v1/monitoring/services", relay);
     // Raw bytes preserve KMS validation (including malformed JSON -> 422).
     // Only the collection and one identifier segment can reach the fixed upstream.
