@@ -36,7 +36,8 @@ MongoDB n'expose pas de route HTTP ; son accès requiert les identifiants
 MongoDB applicatifs.
 
 Ces contrôles d'origine utilisent les adresses IP obtenues par le DNS
-interne Docker : ils ne prouvent **pas** l'identité cryptographique
+interne Docker. Uvicorn ignore les en-têtes proxy entrants pour déterminer
+l'adresse du pair : ils ne prouvent **pas** l'identité cryptographique
 du service appelant et ne protègent pas contre un conteneur compromis
 ayant des privilèges réseau élevés. Le déploiement futur introduira un
 mécanisme d'authentification service-à-service avec renouvellement
