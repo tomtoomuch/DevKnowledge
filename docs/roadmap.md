@@ -123,3 +123,11 @@ Le volume historique MongoDB demeure conservé.
 
 Voir [[iterations/iteration-9-user-crud]],
 [[operations/volume-persistence]] et [[architecture/gateway-kms]].
+
+## Décision ADR-004 — Superviseur (feature/supervisor-identity)
+
+Migration progressive de l'ancien Collector : identité/RBAC/sessions,
+CRUD utilisateurs, vérification de session par la Gateway et tokens internes
+limités par audience et permissions pour le KMS. La PR est dépendante de
+`feature/user-crud-volume-persistence` (PR #12), sans changement du volume
+MongoDB historique ni d'accès direct aux services internes.
