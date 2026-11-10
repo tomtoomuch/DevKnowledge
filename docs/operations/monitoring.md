@@ -72,7 +72,7 @@ cd ../knowledge-service && python -m pytest tests/test_collector_client.py tests
 
 Sur le poste, vérifier `docker compose ps` (cinq services avec le
 collector, sans port Gateway publié), puis ouvrir le frontend sur
-`http://localhost:4201`. Après connexion, l'onglet Réseau du
+`http://127.0.0.1:4201`. Après connexion, l'onglet Réseau du
 navigateur doit montrer `GET /api/v1/monitoring/services` en 200,
 avec `services` et `gpu.status`. La Gateway doit refuser 401 en
 absence de cookie ; elle ne donne jamais accès direct au collector.

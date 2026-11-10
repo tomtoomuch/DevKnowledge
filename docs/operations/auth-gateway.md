@@ -64,7 +64,7 @@ S'il existe déjà un compte, le bootstrap **refuse** de s'exécuter.
 Il ne faut pas supprimer les utilisateurs, le verrou
 `auth_bootstrap` ou le volume MongoDB pour contourner ce refus.
 
-Après création, ouvrir `http://localhost:4201`, se connecter, puis ouvrir
+Après création, ouvrir `http://127.0.0.1:4201`, se connecter, puis ouvrir
 Monitoring. Le navigateur envoie les requêtes relatives
 `/api/v1/auth/login`, `/api/v1/auth/me` et
 `/api/v1/monitoring/services` **via Nginx et la Gateway**.
@@ -81,6 +81,15 @@ La cookie `dk_session` est HttpOnly, Path=/api/v1 et SameSite=Strict.
   les conteneurs et les logs sans publier les ports internes.
 - **401 sur GET /api/v1/auth/me** : absence de cookie valide, session expirée
   ou compte désactivé. La Gateway refuse l'accès avant les ressources privées.
+
+**Attention aux cookies entre environnements parallèles :** les cookies HTTP
+ne sont pas isolés par numéro de port. Deux applications ouvertes sur
+`http://localhost:4200` et `http://localhost:4201` partagent le même
+cookie `dk_session` : une connexion peut invalider celle de l'autre.
+Pour la recette locale, choisir des noms d'hôtes distincts : par exemple
+`http://localhost:4200` pour `dev` et `http://127.0.0.1:4201`
+pour `devknowledge-gpu-test`. Ne pas mélanger les deux noms d'hôte
+au sein d'une même session.
 
 Ne pas utiliser `docker compose down --volumes` sur la pile de développement
 réelle. Les données de `dev` et de l'instance isolée restent distinctes.
