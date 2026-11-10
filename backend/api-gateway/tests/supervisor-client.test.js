@@ -88,3 +88,27 @@ test("rejects malformed, oversized, unauthorized and missing-token responses", a
     async () => ({ status: 200, text: async () => "x".repeat(8193) }));
   await assert.rejects(oversized(cookie, "knowledge.read"), /too large/);
 });
+
+test("users.manage is a Supervisor-only permission and needs no KMS token", async () => {
+  const client = createSupervisorClient("http://supervisor:9109/", secret, 4000,
+    async () => response(200, {
+      principal: {
+        user_id: userId, username: "admin", roles: ["ADMIN"],
+        permissions: ["users.manage", "knowledge.read"],
+      },
+    }));
+  const result = await client(cookie, "users.manage");
+  assert.equal(result.principal.username, "admin");
+  assert.equal(result.kmsToken, null);
+});
+
+test("users.manage authorization rejects a principal without the permission", async () => {
+  const client = createSupervisorClient("http://supervisor:9109/", secret, 4000,
+    async () => response(200, {
+      principal: {
+        user_id: userId, username: "reader", roles: ["READER"],
+        permissions: ["knowledge.read"],
+      },
+    }));
+  await assert.rejects(client(cookie, "users.manage"), /permission/);
+});

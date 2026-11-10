@@ -4,7 +4,7 @@ const { timingSafeEqual } = require("node:crypto");
 const { issueKmsToken, signingKey } = require("./service-tokens");
 
 const COOKIE = /^dk_session=[0-9a-f]{64}$/;
-const PERMISSIONS = new Set(["knowledge.read", "knowledge.create", "knowledge.update", "knowledge.delete"]);
+const PERMISSIONS = new Set(["knowledge.read", "knowledge.create", "knowledge.update", "knowledge.delete", "users.manage"]);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_BODY = 4096;
 
@@ -92,7 +92,10 @@ function createAuthorizationHandler({ gatewayKey, kmsKey, lookupSession }) {
           !principal.permissions.includes(input.permission)) {
         return res.writeHead(403).end(JSON.stringify({ detail: "Access denied" }));
       }
-      const token = issueKmsToken(principal, input.permission, kmsKey);
+      // User administration belongs to Supervisor, never to KMS. Only
+      // knowledge permissions produce a KMS-audience service token.
+      const token = input.permission === "users.manage"
+        ? null : issueKmsToken(principal, input.permission, kmsKey);
       const output = {
         principal: {
           user_id: principal.user_id,
@@ -100,7 +103,7 @@ function createAuthorizationHandler({ gatewayKey, kmsKey, lookupSession }) {
           roles: principal.roles,
           permissions: principal.permissions,
         },
-        kms_token: token,
+        ...(token ? { kms_token: token } : {}),
       };
       return res.writeHead(200).end(JSON.stringify(output));
     } catch {

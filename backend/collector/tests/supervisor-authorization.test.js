@@ -64,7 +64,7 @@ test("untrusted internal caller never reaches identity database", async () => {
 test("rejects invalid permission, session and malformed body", async () => {
   let count = 0;
   await withHandler(async () => { count++; return principal; }, async url => {
-    assert.equal((await request(url, { permission: "users.manage" })).status, 422);
+    assert.equal((await request(url, { permission: "permission.unknown" })).status, 422);
     assert.equal((await request(url, { session: "dk_session=invalid" })).status, 422);
     const invalid = await fetch(url + "/internal/v1/sessions/authorize", {
       method: "POST", headers: {
@@ -92,5 +92,27 @@ test("denies revoked sessions, missing RBAC rights and fails closed on DB outage
     const result = await request(url);
     assert.equal(result.status, 503);
     assert.deepEqual(await result.json(), { detail: "Identity unavailable" });
+  });
+});
+
+test("users.manage is authorized by Supervisor without minting a KMS token", async () => {
+  const admin = {
+    ...principal, username: "admin", roles: ["ADMIN"],
+    permissions: ["knowledge.read", "users.manage"],
+  };
+  await withHandler(async () => admin, async url => {
+    const result = await request(url, { permission: "users.manage" });
+    assert.equal(result.status, 200);
+    const body = await result.json();
+    assert.equal(body.principal.user_id, admin.user_id);
+    assert.equal(Object.hasOwn(body, "kms_token"), false);
+  });
+});
+
+test("users.manage fails closed for a non-admin principal", async () => {
+  await withHandler(async () => principal, async url => {
+    const result = await request(url, { permission: "users.manage" });
+    assert.equal(result.status, 403);
+    assert.equal(Object.hasOwn(await result.json(), "kms_token"), false);
   });
 });
