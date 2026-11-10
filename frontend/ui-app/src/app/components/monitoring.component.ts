@@ -16,6 +16,8 @@ const UNCHECKED: MonitoredService[] = [
     status: 'unknown', detail: 'Aucun résultat de contrôle disponible.' },
   { id: 'mongodb', name: 'MongoDB', description: 'Base documentaire locale',
     status: 'unknown', detail: 'Aucun résultat de contrôle disponible.' },
+  { id: 'collector', name: 'Collector', description: 'Collecte centralisée des services et du GPU',
+    status: 'unknown', detail: 'Aucun résultat de contrôle disponible.' },
 ];
 
 @Component({
@@ -71,6 +73,7 @@ export class MonitoringComponent implements OnInit {
               { ...UNCHECKED[0], status: 'healthy', detail: 'La Gateway a répondu à la requête.' },
               { ...UNCHECKED[1], status: 'unavailable', detail: 'Le KMS ne répond pas à la Gateway.' },
               UNCHECKED[2],
+              { ...UNCHECKED[3], status: 'unknown' },
             ],
           });
           this.error.set('Le Knowledge Service est inaccessible ou n’a pas répondu à temps.');
