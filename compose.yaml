@@ -24,6 +24,7 @@ services:
       KMS_BASE_URL: http://api-kms:8000
       KMS_TIMEOUT_MS: ${KMS_TIMEOUT_MS:-10000}
       GATEWAY_PUBLIC_SCHEME: ${GATEWAY_PUBLIC_SCHEME:-http}
+      AUTH_MODE: required
       NODE_ENV: production
     expose:
       - "${GATEWAY_PORT:-3000}"

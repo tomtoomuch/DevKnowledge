@@ -45,6 +45,9 @@ function simulated({ gateway = 200, live = 200, ready = 200, gpuEnabled = false 
   const requested = [];
   const probe = async url => {
     requested.push(url);
+    if (url === 'http://frontend/') {
+      return { status: 200, data: null };
+    }
     if (url === 'http://api-gateway:3107/health') {
       return { status: gateway, data: gateway === 200 ? { status: 'ok', service: 'api-gateway' } : null };
     }
@@ -71,12 +74,13 @@ test('centralizes service probes and optional GPU in one snapshot', async () => 
   const snapshot = await collect();
   assert.ok(snapshot.checked_at.endsWith('Z'));
   assert.deepEqual(Object.fromEntries(snapshot.services.map(s => [s.id, s.status])), {
-    'api-gateway': 'healthy', 'api-kms': 'healthy', mongodb: 'healthy', collector: 'healthy',
+    'api-gateway': 'healthy', frontend: 'healthy', 'api-kms': 'healthy',
+    mongodb: 'healthy', collector: 'healthy',
   });
   assert.equal(snapshot.gpu.status, 'healthy');
   assert.equal(snapshot.gpu.devices[0].utilization_pct, 75);
   assert.deepEqual(requested.sort(), [
-    'http://api-gateway:3107/health', 'http://api-kms:8000/health',
+    'http://api-gateway:3107/health', 'http://frontend/', 'http://api-kms:8000/health',
     'http://api-kms:8000/health/ready',
   ].sort());
 });

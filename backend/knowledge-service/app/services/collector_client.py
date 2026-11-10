@@ -13,6 +13,7 @@ STATES = frozenset({"healthy", "degraded", "unavailable", "unknown"})
 GPU_STATES = frozenset({"healthy", "unavailable", "disabled", "unknown"})
 SERVICES = {
     "api-gateway": ("API Gateway", "Point d'entrée HTTP unique"),
+    "frontend": ("Frontend Angular", "Interface web servie par Nginx"),
     "api-kms": ("Knowledge Service", "API FastAPI et gestion des connaissances"),
     "mongodb": ("MongoDB", "Base documentaire locale"),
     "collector": ("Collector", "Collecte centralisée des services et du GPU"),

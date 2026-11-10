@@ -10,7 +10,8 @@ from app.services import collector_client as service
 def test_fallback_never_fakes_green_services():
     data = service.fallback()
     assert {x["id"]: x["status"] for x in data["services"]} == {
-        "api-gateway": "unknown", "api-kms": "unknown", "mongodb": "unknown",
+        "api-gateway": "unknown", "frontend": "unknown",
+        "api-kms": "unknown", "mongodb": "unknown",
         "collector": "unavailable",
     }
     assert data["gpu"]["status"] == "unknown"

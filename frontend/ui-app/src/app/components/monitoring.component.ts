@@ -12,6 +12,8 @@ const GPU_UNKNOWN: GpuTelemetry = {
 const UNCHECKED: MonitoredService[] = [
   { id: 'api-gateway', name: 'API Gateway', description: 'Point d’entrée HTTP unique',
     status: 'unknown', detail: 'Aucun résultat de contrôle disponible.' },
+  { id: 'frontend', name: 'Frontend Angular', description: 'Interface web servie par Nginx',
+    status: 'unknown', detail: 'Aucun résultat de contrôle disponible.' },
   { id: 'api-kms', name: 'Knowledge Service', description: 'API FastAPI et gestion des connaissances',
     status: 'unknown', detail: 'Aucun résultat de contrôle disponible.' },
   { id: 'mongodb', name: 'MongoDB', description: 'Base documentaire locale',
@@ -71,9 +73,10 @@ export class MonitoringComponent implements OnInit {
             checked_at: new Date().toISOString(),
             services: [
               { ...UNCHECKED[0], status: 'healthy', detail: 'La Gateway a répondu à la requête.' },
-              { ...UNCHECKED[1], status: 'unavailable', detail: 'Le KMS ne répond pas à la Gateway.' },
-              UNCHECKED[2],
-              { ...UNCHECKED[3], status: 'unknown' },
+              { ...UNCHECKED[1], status: 'unknown' },
+              { ...UNCHECKED[2], status: 'unavailable', detail: 'Le KMS ne répond pas à la Gateway.' },
+              UNCHECKED[3],
+              UNCHECKED[4],
             ],
           });
           this.error.set('Le Knowledge Service est inaccessible ou n’a pas répondu à temps.');

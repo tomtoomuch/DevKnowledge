@@ -10,6 +10,8 @@ services:
       start_period: 2s
   api-gateway:
     image: devknowledge-stabilization-gateway:local
+    environment:
+      AUTH_MODE: disabled
     ports: !reset []
     restart: "no"
     healthcheck:

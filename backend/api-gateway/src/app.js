@@ -6,6 +6,7 @@ function createApp({
     kmsBaseUrl = process.env.KMS_BASE_URL || "http://127.0.0.1:8000",
     kmsTimeoutMs = Number(process.env.KMS_TIMEOUT_MS || 10000),
     sessionLookup = null,
+    authEnabled = process.env.AUTH_MODE !== "disabled",
 } = {}) {
     const app = express();
     app.disable("x-powered-by");
@@ -45,6 +46,8 @@ function createApp({
     // KMS also enforces its own permissions, independently of this external boundary.
     app.use("/api/v1", async (req, res, next) => {
         res.setHeader("Cache-Control", "no-store");
+        // Only disposable test Compose explicitly sets AUTH_MODE=disabled.
+        if (!authEnabled) return next();
         if (req.method === "POST" && /^\/auth\/(?:login|logout)\/?$/.test(req.path)) {
             return next();
         }
