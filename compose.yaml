@@ -72,6 +72,29 @@ services:
       start_period: 10s
     restart: unless-stopped
 
+  collector:
+    image: devknowledge-collector:latest
+    build:
+      context: ./backend/collector
+      dockerfile: Dockerfile
+    environment:
+      GATEWAY_PORT: ${GATEWAY_PORT:-3000}
+      GPU_MONITOR_ENABLED: "false"
+    expose:
+      - "9109"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:9109/health', {signal: AbortSignal.timeout(2000)}).then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
   mongodb:
     image: mongo:8.0
     environment:
