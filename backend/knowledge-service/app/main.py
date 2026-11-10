@@ -8,6 +8,7 @@ from app.api.routes.knowledges import router
 from app.api.routes.auth import router as identity_router
 from app.auth.user_management import (
     UserNotFound, UserRevisionConflict, LastAdminError, SelfLockoutError,
+    AdminMutationBusy,
 )
 from app.api.routes.knowledge_types import router as knowledge_types_router
 from app.api.routes.tags import router as tags_router
@@ -51,6 +52,7 @@ async def user_conflict(request: Request, exc: UserRevisionConflict) -> JSONResp
 
 @app.exception_handler(LastAdminError)
 @app.exception_handler(SelfLockoutError)
+@app.exception_handler(AdminMutationBusy)
 async def admin_lockout(request: Request, exc: Exception) -> JSONResponse:
     return JSONResponse(status_code=409, content={"detail": "Cannot remove the current or last active administrator"})
 

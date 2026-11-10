@@ -161,9 +161,14 @@ async def get_user(user_id: UUID, request: Request, response: Response, requeste
 async def update_user(user_id: UUID, payload: UserUpdate, request: Request,
                       response: Response, requester: Requester, revision: Revision):
     require(requester, "users.manage")
-    result = await UserManagement(db_for(request)).update(
-        user_id, payload, revision, requester.user_id,
-    )
+    try:
+        result = await UserManagement(db_for(request)).update(
+            user_id, payload, revision, requester.user_id,
+        )
+    except DuplicateKeyError:
+        raise HTTPException(409, "Username already exists") from None
+    except ValueError:
+        raise HTTPException(422, "Invalid account identifier") from None
     return etag_user(result, response)
 
 

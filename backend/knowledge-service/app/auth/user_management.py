@@ -6,7 +6,9 @@ projection (best-effort synchronization) for the documented MLD. For legacy
 accounts without role_codes, the prior user_roles assignments remain readable.
 """
 import asyncio
-from uuid import UUID
+from contextlib import asynccontextmanager
+from datetime import timedelta
+from uuid import UUID, uuid4
 
 from pymongo import ReturnDocument
 from pymongo.errors import DuplicateKeyError
@@ -27,6 +29,10 @@ class LastAdminError(Exception):
 
 
 class SelfLockoutError(Exception):
+    pass
+
+
+class AdminMutationBusy(Exception):
     pass
 
 
@@ -139,6 +145,37 @@ class UserManagement:
         if dropping_admin and await self._active_admin_count() <= 1:
             raise LastAdminError
 
+    @asynccontextmanager
+    async def _admin_guard(self):
+        """Serialize administrator mutations across workers on standalone MongoDB.
+
+        A stale lease can be reclaimed after a process crash. The guarded
+        operations are short MongoDB writes, never password hashing.
+        """
+        lock = self.db["identity_admin_mutex"]
+        owner = str(uuid4())
+        now = utcnow()
+        try:
+            await lock.find_one_and_update(
+                {"_id": "admin", "$or": [
+                    {"owner": {"$exists": False}},
+                    {"expires_at": {"$lte": now}},
+                ]},
+                {"$set": {
+                    "owner": owner, "expires_at": now + timedelta(minutes=2),
+                }},
+                upsert=True, return_document=ReturnDocument.AFTER,
+            )
+        except DuplicateKeyError:
+            raise AdminMutationBusy from None
+        try:
+            yield
+        finally:
+            await lock.update_one(
+                {"_id": "admin", "owner": owner},
+                {"$unset": {"owner": "", "expires_at": ""}},
+            )
+
     async def _sync_roles(self, user_id: str, roles):
         # Atomic user.role_codes is authoritative even if this projection fails.
         await self.db["user_roles"].delete_many({"user_id": user_id})
@@ -157,34 +194,31 @@ class UserManagement:
         raise UserRevisionConflict
 
     async def update(self, user_id: UUID, payload, revision: int, actor_user_id):
-        current = await self._get_record(user_id)
-        self._check_revision(current, revision)
-        roles = sorted(payload.roles if payload.roles is not None
-                       else await self._current_roles(current))
-        status = payload.account_status or current["account_status"]
-        await self._guard_admin(current, roles, status, actor_user_id)
-        changes = {
-            "role_codes": roles, "account_status": status,
-            "revision": revision + 1, "updated_at": utcnow(),
-        }
-        if payload.username is not None:
-            changes["username"] = changes["username_key"] = username_key(payload.username)
-        try:
+        async with self._admin_guard():
+            current = await self._get_record(user_id)
+            self._check_revision(current, revision)
+            roles = sorted(payload.roles if payload.roles is not None
+                           else await self._current_roles(current))
+            status = payload.account_status or current["account_status"]
+            await self._guard_admin(current, roles, status, actor_user_id)
+            changes = {
+                "role_codes": roles, "account_status": status,
+                "revision": revision + 1, "updated_at": utcnow(),
+            }
+            if payload.username is not None:
+                changes["username"] = changes["username_key"] = username_key(payload.username)
             result = await self.users.find_one_and_update(
                 self._revision_query(user_id, revision),
                 {"$set": changes},
                 return_document=ReturnDocument.AFTER,
             )
-        except DuplicateKeyError:
-            # Unique username index protects against races and case duplicates.
-            raise
-        if result is None:
-            await self._write_failure(user_id)
-        if payload.roles is not None:
-            await self._sync_roles(str(user_id), roles)
-        # Invalidate physical sessions and old revision cookies on *any* edit.
-        await self.db["sessions"].delete_many({"user_id": str(user_id)})
-        return self.public(result)
+            if result is None:
+                await self._write_failure(user_id)
+            if payload.roles is not None:
+                await self._sync_roles(str(user_id), roles)
+            # Older cookies fail by identity_revision even before cleanup.
+            await self.db["sessions"].delete_many({"user_id": str(user_id)})
+            return self.public(result)
 
     async def reset_password(self, user_id: UUID, password: str, revision: int):
         # Hash before obtaining any lock; password never enters logs/URLs.
@@ -202,19 +236,20 @@ class UserManagement:
         await self.db["sessions"].delete_many({"user_id": str(user_id)})
 
     async def delete(self, user_id: UUID, revision: int, actor_user_id):
-        current = await self._get_record(user_id)
-        self._check_revision(current, revision)
-        await self._guard_admin(current, [], "DELETED", actor_user_id)
-        updated = await self.users.find_one_and_update(
-            self._revision_query(user_id, revision),
-            {"$set": {
-                "account_status": "DELETED", "deleted_at": utcnow(),
-                "password_hash": None, "role_codes": [],
-                "revision": revision + 1, "updated_at": utcnow(),
-            }},
-            return_document=ReturnDocument.AFTER,
-        )
-        if updated is None:
-            await self._write_failure(user_id)
-        await self.db["sessions"].delete_many({"user_id": str(user_id)})
-        await self.db["user_roles"].delete_many({"user_id": str(user_id)})
+        async with self._admin_guard():
+            current = await self._get_record(user_id)
+            self._check_revision(current, revision)
+            await self._guard_admin(current, [], "DELETED", actor_user_id)
+            updated = await self.users.find_one_and_update(
+                self._revision_query(user_id, revision),
+                {"$set": {
+                    "account_status": "DELETED", "deleted_at": utcnow(),
+                    "password_hash": None, "role_codes": [],
+                    "revision": revision + 1, "updated_at": utcnow(),
+                }},
+                return_document=ReturnDocument.AFTER,
+            )
+            if updated is None:
+                await self._write_failure(user_id)
+            await self.db["sessions"].delete_many({"user_id": str(user_id)})
+            await self.db["user_roles"].delete_many({"user_id": str(user_id)})
