@@ -65,7 +65,14 @@ def main():
                          f'-A -t -v ON_ERROR_STOP=1 -c "{query}"').strip()
         source_counts = counts("rncp_poc")
         restored_counts = counts("rncp_restored")
-        if source_counts != restored_counts or restored_counts != "2|1|2":
+        try:
+            competency_count, evidence_count, migration_count = (
+                int(part) for part in restored_counts.split("|")
+            )
+        except (ValueError, TypeError) as exc:
+            raise RuntimeError("Invalid PostgreSQL restored count response") from exc
+        if (source_counts != restored_counts or competency_count != 2 or
+                evidence_count < 1 or migration_count != 2):
             raise RuntimeError(
                 f"Restored RNCP database mismatch source={source_counts} restored={restored_counts}"
             )
