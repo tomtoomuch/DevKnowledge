@@ -26,7 +26,7 @@
 ## Décisions
 
 - [[decisions/ADR-001-architecture|ADR 001 : architecture]]
-- [[decisions/ADR-002-stockage|ADR 002 : stockage]]
+- [[decisions/ADR-002-stockage|ADR 002 : stockage historique MongoDB]]
 - [[decisions/ADR-003-identite-securite|ADR 003 : identité et sécurité — à valider]]
 
 - [[iterations/iteration-4-search]] — Recherche globale et favoris via Gateway et KMS.
@@ -49,5 +49,5 @@
 
 - [[decisions/ADR-004-superviseur-identite-securite]] — Gateway unique, Superviseur autorité d’identité et tokens interservices.
 
-- [[decisions/ADR-005-strategie-stockage]] — SQLite métriques, SQL Server/PostgreSQL/MongoDB pour le MLD métier.
+- [[decisions/ADR-005-strategie-stockage]] — **Décision acceptée** : PostgreSQL pour le métier, MongoDB pour les métadonnées et besoins LLM, SQLite pour les métriques.
 - [[operations/metrics-sqlite]] — Échantillonnage, stockage, lecture interne et sauvegarde des métriques du Superviseur.
