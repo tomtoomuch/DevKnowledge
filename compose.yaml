@@ -92,8 +92,13 @@ services:
       GATEWAY_PORT: ${GATEWAY_PORT:-3000}
       GPU_MONITOR_ENABLED: "false"
       COLLECTOR_NETWORK_GUARD: required
+      METRICS_DB_PATH: /var/lib/devknowledge-supervisor/metrics.sqlite3
+      METRICS_SAMPLE_INTERVAL_MS: "60000"
     networks:
       - internal
+    # Writable data volume despite an otherwise read-only container filesystem.
+    volumes:
+      - supervisor-metrics:/var/lib/devknowledge-supervisor
     expose:
       - "9109"
     healthcheck:
@@ -144,6 +149,8 @@ volumes:
   mongodb:
     driver: local
   mongodb-configdb:
+    driver: local
+  supervisor-metrics:
     driver: local
 
 networks:
