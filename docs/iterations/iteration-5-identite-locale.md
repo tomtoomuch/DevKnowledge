@@ -123,3 +123,13 @@ Le même contrôle est intégré aux workflows pour le Compose principal et les
 compositions de tests. Il faut exécuter ces commandes depuis la racine du
 dépôt et utiliser la branche à jour ; `docker build .` à la racine n'est
 pas supporté.
+
+
+## Mise à jour : Gateway comme frontière d'authentification
+
+Depuis la consolidation du monitoring, Express vérifie désormais la session et
+les permissions avant tout relais API. Le KMS demeure le référentiel d'identité
+interne (vérification des secrets et persistance des sessions) et conserve ses
+vérifications RBAC en défense en profondeur. Les appels du navigateur passent
+uniquement par Nginx et la Gateway ; aucun port Gateway n'est publié.
+Voir [la procédure d'authentification](../operations/auth-gateway.md).

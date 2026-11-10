@@ -75,6 +75,12 @@ def gateway_status(path):
     return int(compose("exec", "-T", "api-gateway", "node", "-e", code).stdout.strip())
 
 
+def frontend_status(path):
+    # The frontend is DMZ-only: probe from Gateway, never from KMS.
+    code = f"fetch('http://frontend:80{path}', {{signal: AbortSignal.timeout(15000)}}).then(r => console.log(r.status))"
+    return int(compose("exec", "-T", "api-gateway", "node", "-e", code).stdout.strip())
+
+
 def eventually(predicate, label, timeout=90):
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
@@ -103,19 +109,30 @@ def local_images(config):
     return images
 
 
+def expected_networks(service):
+    return {"frontend": {"dmz"}, "api-gateway": {"dmz", "internal"},
+            "api-kms": {"internal"}, "mongodb": {"internal"},
+            "collector": {"internal"}}[service]
+
+
 def verify_offline_network(images):
-    """Inspect actual runtime attachments and routes, not only Compose intent."""
-    network_name = PROJECT + "_default"
-    network = json.loads(run(["docker", "network", "inspect", network_name]).stdout)[0]
-    require(network["Internal"] and not network["EnableIPv6"],
-            "Offline test requires an internal IPv4-only network")
+    """Check actual two-network isolation, routes, and container images."""
+    networks = {}
+    for name in ("internal", "dmz"):
+        network_name = PROJECT + "_" + name
+        network = json.loads(run(["docker", "network", "inspect", network_name]).stdout)[0]
+        require(network["Internal"] and not network["EnableIPv6"],
+                "Offline test requires two internal IPv4-only networks")
+        networks[name] = network_name
     for service, image in images.items():
         container_id = compose("ps", "-q", service).stdout.strip()
         container = json.loads(run(["docker", "inspect", container_id]).stdout)[0]
         require(container["Image"] == image["id"], "Running image differs from preflight")
         attachments = container["NetworkSettings"]["Networks"]
-        require(set(attachments) == {network_name}, "Service has an unexpected network attachment")
-        require(not attachments[network_name].get("GlobalIPv6Address"), "Unexpected IPv6 address")
+        expected = {networks[name] for name in expected_networks(service)}
+        require(set(attachments) == expected, "Service has an unexpected network attachment")
+        require(all(not item.get("GlobalIPv6Address") for item in attachments.values()),
+                "Unexpected IPv6 address")
         routes = compose("exec", "-T", service, "cat", "/proc/net/route").stdout.splitlines()[1:]
         require(not any(line.split()[1] == "00000000" for line in routes if line.strip()),
                 f"{service} has an external default route")
@@ -130,7 +147,7 @@ else:
     connection.close()
     raise AssertionError('External connection unexpectedly succeeded')
 """)
-    return {"network": network_name, "internal": True, "ipv6": False,
+    return {"networks": networks, "internal": True, "ipv6": False,
             "services_without_default_route": sorted(images), "external_probe": "ENETUNREACH"}
 
 
@@ -175,11 +192,24 @@ def main():
 
     config = json.loads(compose("config", "--format", "json").stdout)
     base_config = json.loads(run(COMPOSE[:-2] + ["config", "--format", "json"]).stdout)
-    require(not base_config["services"]["api-kms"].get("ports"), "KMS must remain internal by default")
-    require(not base_config["services"]["mongodb"].get("ports"), "MongoDB must remain internal")
-    require(all(port.get("host_ip") == "127.0.0.1"
-                for port in base_config["services"]["api-gateway"]["ports"]),
-            "Gateway must only bind to localhost")
+    for name in ("frontend", "api-kms", "mongodb", "collector"):
+        require(not base_config["services"][name].get("ports"),
+                f"{name} must never publish a host port")
+    gateway_ports = base_config["services"]["api-gateway"].get("ports", [])
+    require(len(gateway_ports) == 1 and
+            gateway_ports[0].get("host_ip") == "127.0.0.1" and
+            gateway_ports[0].get("target") == 3107,
+            "Only Gateway must publish one loopback port")
+    require(set(base_config["networks"]) == {"dmz", "internal"},
+            "Compose must define exactly DMZ and internal networks")
+    require(base_config["networks"]["internal"].get("internal") is True,
+            "Service network must have no external routing")
+    require(not base_config["networks"]["dmz"].get("internal", False),
+            "DMZ is an edge bridge network")
+    for name in base_config["services"]:
+        actual = set(base_config["services"][name].get("networks", []))
+        require(actual == expected_networks(name),
+                f"Invalid base network attachment for {name}")
     require(all(not service.get("ports") for service in config["services"].values()),
             "Test ports must not be published")
     require(all(not volume.get("external") and volume["name"].startswith(PROJECT + "_")
@@ -198,10 +228,15 @@ def main():
             report["network"] = verify_offline_network(report["images"])
             passed("runtime network isolated; no external default route; outbound connection refused")
         require(http_status("/health/ready") == 200, "KMS not ready")
-        require(http_status("/", "frontend", 80) == 200, "Angular frontend not served")
-        require(http_status("/api/v1/knowledges", "frontend", 80) == 200,
-                "Frontend proxy must forward CRUD through Gateway")
-        passed("Angular static frontend and internal Gateway proxy")
+        require(gateway_status("/") == 200,
+                "Angular SPA must be served exclusively through Gateway")
+        require(gateway_status("/api/v1/knowledges") == 200,
+                "Gateway must route API calls to KMS")
+        require(gateway_status("/health/frontend") == 200,
+                "Gateway must probe private Nginx through DMZ")
+        require(frontend_status("/api/v1/knowledges") == 404,
+                "Private Nginx must not act as a second API gateway")
+        passed("Gateway is the only entry point for Angular assets and API")
         require(http_status("/health", "api-gateway", 3107) == 200, "Custom Gateway port failed")
         database_check(insert=True)
         passed("fresh bootstrap, least privileges, indexes, custom Gateway port 3107")

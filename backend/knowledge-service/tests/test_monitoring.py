@@ -1,27 +1,22 @@
-"""Monitoring endpoint contracts without live Docker or MongoDB."""
-
-from types import SimpleNamespace
+"""Monitoring authorization and unprivileged collector delegation."""
 from unittest.mock import AsyncMock
-
 import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
-from pymongo.errors import ConnectionFailure
-
 from app.auth.local import requester_identity
-from app.main import app
 from app.api.routes import monitoring as monitoring_route
+from app.main import app
+from app.services.collector_client import fallback
 from app.services.knowledge_service import RequesterIdentity
 
 ENDPOINT = "/api/v1/monitoring/services"
 
 
 @pytest.fixture
-def client(monkeypatch):
+def client():
     app.dependency_overrides[requester_identity] = lambda: RequesterIdentity(
         permissions=frozenset({"knowledge.read"}),
     )
-    monkeypatch.setitem(app.state._state, "mongodb_client", None)
     test_client = TestClient(app)
     try:
         yield test_client
@@ -30,72 +25,27 @@ def client(monkeypatch):
         app.dependency_overrides.pop(requester_identity, None)
 
 
-def test_missing_mongodb_client_is_unknown_and_kms_degraded(client):
+def test_snapshot_requires_permission_and_is_never_cached(client, monkeypatch):
+    sample = fallback()
+    probe = AsyncMock(return_value=sample)
+    monkeypatch.setattr(monitoring_route, "read_snapshot", probe)
     response = client.get(ENDPOINT)
     assert response.status_code == 200
     assert response.headers["cache-control"] == "no-store"
-    data = response.json()
-    assert data["checked_at"].endswith("Z")
-    assert data["gpu"]["status"] == "disabled"
-    assert data["gpu"]["devices"] == []
-    statuses = {entry["id"]: entry["status"] for entry in data["services"]}
-    assert statuses == {"api-gateway": "healthy", "api-kms": "degraded", "mongodb": "unknown"}
-
-
-def test_healthy_mongodb_ping(client, monkeypatch):
-    command = AsyncMock()
-    monkeypatch.setitem(app.state._state, "mongodb_client", SimpleNamespace(
-        admin=SimpleNamespace(command=command),
-    ))
-    response = client.get(ENDPOINT)
-    assert response.status_code == 200
-    statuses = {entry["id"]: entry["status"] for entry in response.json()["services"]}
-    assert statuses == {"api-gateway": "healthy", "api-kms": "healthy", "mongodb": "healthy"}
-    command.assert_awaited_once_with("ping")
-
-
-def test_failed_ping_is_sanitized_and_does_not_cascade_to_gateway(client, monkeypatch):
-    command = AsyncMock(side_effect=ConnectionFailure("mongodb://secret:password@internal.invalid"))
-    monkeypatch.setitem(app.state._state, "mongodb_client", SimpleNamespace(
-        admin=SimpleNamespace(command=command),
-    ))
-    response = client.get(ENDPOINT)
-    assert response.status_code == 200
-    assert "password" not in response.text
-    assert "internal.invalid" not in response.text
-    statuses = {entry["id"]: entry["status"] for entry in response.json()["services"]}
-    assert statuses == {"api-gateway": "healthy", "api-kms": "degraded", "mongodb": "unavailable"}
-
-
-def test_monitoring_requires_read_permission(client):
+    assert response.json() == sample
+    probe.assert_awaited_once()
     app.dependency_overrides[requester_identity] = lambda: RequesterIdentity(
         permissions=frozenset(),
     )
     assert client.get(ENDPOINT).status_code == 403
+    probe.assert_awaited_once()
 
 
-def test_monitoring_requires_session(client):
-    def unauthenticated():
+def test_snapshot_rejects_unauthenticated_request(client, monkeypatch):
+    probe = AsyncMock(return_value=fallback())
+    monkeypatch.setattr(monitoring_route, "read_snapshot", probe)
+    def forbidden():
         raise HTTPException(status_code=401, detail="Authentication required")
-    app.dependency_overrides[requester_identity] = unauthenticated
+    app.dependency_overrides[requester_identity] = forbidden
     assert client.get(ENDPOINT).status_code == 401
-
-
-def test_gpu_snapshot_is_included_only_after_authentication(client, monkeypatch):
-    sample = {
-        "status": "healthy", "detail": "Mesures GPU disponibles.",
-        "devices": [{"index": 0, "name": "NVIDIA Demo", "utilization_pct": 40,
-                     "memory_used_mib": 2048, "memory_total_mib": 8192,
-                     "temperature_c": 62}],
-    }
-    probe = AsyncMock(return_value=sample)
-    monkeypatch.setattr(monitoring_route, "read_gpu_metrics", probe)
-    response = client.get(ENDPOINT)
-    assert response.status_code == 200
-    assert response.json()["gpu"] == sample
-    probe.assert_awaited_once()
-    app.dependency_overrides[requester_identity] = lambda: RequesterIdentity(
-        permissions=frozenset(),
-    )
-    assert client.get(ENDPOINT).status_code == 403
-    probe.assert_awaited_once()
+    probe.assert_not_awaited()

@@ -1,79 +1,107 @@
-# Monitoring — état de santé des services
+# Monitoring centralisé : Collector
 
-## Architecture et sécurité
+## Architecture
 
-Tous les appels Angular passent par la Gateway Express. Le seul endpoint utilisé par l'onglet Monitoring est GET /api/v1/monitoring/services. La Gateway relaie exclusivement cette route GET vers le KMS ; le KMS valide la session locale (cookie dk_session) et la permission knowledge.read. Aucune connexion MongoDB n'est effectuée depuis Angular ni depuis la Gateway. Les réponses sont marquées Cache-Control: no-store.
+Toute requête du navigateur passe par
+`Navigateur -> Gateway Express -> KMS FastAPI` (API) et
+`Navigateur -> Gateway Express -> Angular/Nginx` (HTML/assets).
+Le point d'entrée unique
+des métriques côté navigateur est `GET /api/v1/monitoring/services`, en
+lecture seule. La Gateway vérifie la session et la permission
+`knowledge.read`; le KMS refait ces vérifications pour la défense en
+profondeur, puis récupère l'instantané du collecteur.
 
-Le KMS utilise son propre client MongoDB pour exécuter un ping. Aucune API Docker ou socket Docker n'est exposée : il s'agit d'une disponibilité applicative et non d'un inventaire des états de conteneurs Docker.
+Le service **collector** (anciennement `gpu-monitor`) fonctionne en
+permanence dans `compose.yaml`, même sans GPU. Il effectue les sondes
+applicatives sur des destinations fixes et uniquement internes :
 
-## Sémantique du tableau de bord
+- Frontend/Nginx : le Collector appelle la sonde interne
+  `http://api-gateway:${GATEWAY_PORT}/health/frontend` ;
+  **la Gateway** appelle le frontend à travers `dmz`
+  (`http://frontend:80/health/frontend`). Le Collector n'est pas
+  connecté au réseau DMZ ;
+- Gateway : `http://api-gateway:${GATEWAY_PORT}/health` ;
+- KMS : `http://api-kms:8000/health` ;
+- MongoDB : contrôlée via `http://api-kms:8000/health/ready`, laquelle
+  réalise le ping avec le client MongoDB existant du KMS ;
+- Collector : succès de l'assemblage de sa propre réponse.
 
-- API Gateway : healthy lorsque la requête de monitoring a traversé la Gateway et atteint le KMS.
-- Knowledge Service : healthy si l'API répond et MongoDB répond au ping ; degraded dans le cas contraire.
-- MongoDB : healthy si le ping réussit ; unavailable en cas d'erreur du pilote ; unknown si aucun client n'est initialisé.
-- Si le relais Gateway retourne 502/504, Angular indique une Gateway joignable, un KMS indisponible et un état MongoDB inconnu. Une erreur de réseau ou d'authentification laisse tous les états inconnus : aucune santé n'est inventée.
+Le collecteur n'utilise ni identifiant MongoDB, ni socket Docker, ni
+port publié sur l'hôte. Son endpoint `GET /snapshot` est interne
+(`collector:9109`), avec un JSON limité et validé par le KMS, sans
+transmission des URL privées, exceptions et autres secrets au navigateur.
+La disponibilité MongoDB est `unknown` lorsque le KMS n'est pas
+interrogeable, pas artificiellement `unavailable`.
 
-Le frontend actualise les mesures à l'ouverture de l'onglet, toutes les 30 secondes tant que l'onglet est visible, et sur demande. L'horodatage affiché est celui du contrôle renvoyé par l'API. Les réponses ne sont pas conservées après destruction du composant.
+Le tableau de bord affiche les cinq services (frontend, Gateway, KMS,
+MongoDB, collector), ainsi que les métriques NVIDIA si elles sont activées.
+Les vérifications ont lieu à l'ouverture de l'onglet, toutes les
+30 secondes tant qu'il est visible, et lors de l'actualisation manuelle.
+Aucun historique n'est conservé à ce stade.
 
-Seuls les services déjà déployés dans le Compose courant sont listés. RAG, ChromaDB, Ollama, MCP et autres services seront ajoutés avec leurs propres sondes et règles d'autorisation lorsqu'ils existeront.
+## GPU facultatif
 
-## Vérification
-
-Depuis le frontend connecté, ouvrir Monitoring et confirmer que les trois services apparaissent. Couper temporairement MongoDB dans un environnement de test isolé et vérifier que l'état n'est pas présenté comme sain. Tester l'absence de session et les rôles sans knowledge.read. Sur la Gateway, la route doit refuser POST et les chemins arbitraires. Les tests sont dans backend/api-gateway/tests/kms-proxy.test.js, backend/knowledge-service/tests/test_monitoring.py et frontend/ui-app/src/app/services/monitoring.service.spec.ts.
-
-
-## Mesures GPU NVIDIA (profil facultatif)
-
-Le monitoring GPU suit exactement le circuit imposé par l'architecture :
-
-```text
-Angular -> Gateway Express -> KMS FastAPI -> gpu-monitor (réseau Docker privé)
-                                               -> nvidia-smi (pilote NVIDIA)
-```
-
-Le navigateur ne connaît que `GET /api/v1/monitoring/services` sur la Gateway. Le KMS interroge un collecteur HTTP interne et fixe (`gpu-monitor:9109`), jamais une URL fournie par le client. Ce collecteur n'est **pas publié sur l'hôte**, ne reçoit aucune session et n'utilise ni socket Docker ni commandes arbitraires. Il n'a pas de dépendances npm externes. Seule la permission de lecture existante est utilisée.
-
-Cette première version concerne les **GPU NVIDIA** avec pilotes, `nvidia-smi` et prise en charge GPU par Docker / NVIDIA Container Toolkit. Une carte AMD, Intel ou Apple n'est pas surveillée par ce collecteur. Le démarrage normal du projet n'exige **aucun GPU** et n'active pas la collecte.
-
-La charge et les compteurs sont des instantanés, actualisés toutes les 30 secondes dans l'onglet ouvert, sans stockage historique :
-
-- `utilization_pct` : activité GPU en % ;
-- `memory_used_mib` et `memory_total_mib` : mémoire vidéo allouée et totale en MiB ;
-- `temperature_c` : température en °C ;
-- `index` et `name` : identifiant local et nom de chaque GPU ; plusieurs cartes sont prises en charge.
-
-Si le matériel ne publie pas un capteur, sa valeur est `null` et Angular affiche **Non disponible**, sans inventer une valeur nulle. Si la collecte est désactivée, l'état est **Non configuré**. Si elle est activée mais indisponible, le GPU apparaît **Collecteur indisponible** ; cela ne transforme pas artificiellement le statut de la Gateway ou de MongoDB en erreur.
-
-### Activer (Git Bash / Docker Desktop)
-
-1. Vérifier qu'une carte NVIDIA est accessible sur l'hôte avec `nvidia-smi` et que l'accès GPU aux conteneurs est pris en charge par Docker/WSL2. Le test Docker avec `--gpus all` doit réussir ; les images nécessaires doivent déjà être disponibles si l'environnement est hors ligne.
-2. Depuis la racine DevKnowledge, avec le fichier `.env` habituel, lancer :
+Le Compose de base déploie le collector sans accès GPU. Sur les
+machines NVIDIA prises en charge (NVIDIA Container Toolkit, Docker
+Desktop avec WSL2, pilote compatible), la surcouche `compose.gpu.yaml`
+ajoute l'accès GPU à **ce même collector**. Elle ne lance pas
+un second microservice.
 
 ```bash
-docker compose --env-file .env -f compose.yaml -f compose.gpu.yaml --profile gpu up -d --build
+docker compose --env-file .env -f compose.yaml -f compose.gpu.yaml up -d --build
 ```
 
-3. Se connecter au frontend, puis ouvrir **Monitoring**. La section « GPU NVIDIA » doit afficher les cartes détectées et leurs métriques.
-
-Le fichier `compose.gpu.yaml` ajoute un conteneur `gpu-monitor` optionnel et active `GPU_MONITOR_ENABLED=true` uniquement dans le KMS lorsque cette configuration est utilisée. Il ne modifie pas le socle standard. L'intégration utilise les réservations de périphériques NVIDIA documentées pour Compose, la capacité `utility` étant nécessaire à `nvidia-smi`. Le démarrage peut échouer en absence de GPU / pilote / runtime compatible : ce n'est pas une défaillance du mode sans GPU.
-
-### Mode entièrement hors ligne
-
-Après constitution des images locales requises, le lancement peut se faire sans reconstruction ni téléchargement :
+Pour l'instance de test isolée déjà utilisée :
 
 ```bash
-docker compose --env-file .env -f compose.yaml -f compose.gpu.yaml --profile gpu up -d --no-build --pull never
+FRONTEND_PORT=4201 GATEWAY_PORT=3001 \
+docker compose -p devknowledge-gpu-test --env-file ../DevKnowledge/.env \
+  -f compose.yaml -f compose.gpu.yaml up -d --build
 ```
 
-La validation du mode GPU **réel** nécessite une machine équipée. Les tests unitaires utilisent une sortie simulée de `nvidia-smi` afin de s'exécuter sur les runners CI dépourvus de GPU.
+Le service collector interroge `nvidia-smi` sans shell et transmet
+utilisation %, VRAM utilisée/totale (MiB), température (°C) et nom/index
+du GPU. Une sonde indisponible est `unavailable` ou `unknown`, un GPU
+désactivé est `disabled`. Le statut du GPU ne modifie pas le calcul
+de santé applicative.
 
-Pour revenir au fonctionnement standard, retirer le profil optionnel et relancer le socle habituel après arrêt de la pile précédente (la commande `down` interrompt aussi les autres conteneurs ; effectuer cette opération en connaissance de cause).
-
-### Tests
+## Validation
 
 ```bash
-cd backend/gpu-monitor && npm test
-cd ../knowledge-service && python -m pytest tests/test_gpu_metrics.py tests/test_monitoring.py
+cd backend/collector && npm test
+cd ../knowledge-service && python -m pytest tests/test_collector_client.py tests/test_monitoring.py
 ```
 
-La CI exécute également `npm test` du collecteur et vérifie que la superposition Compose est syntaxiquement valide, sans requérir de matériel GPU.
+Sur le poste, vérifier `docker compose ps` (cinq services avec le
+collector, sans port Gateway publié), puis ouvrir le frontend sur
+`http://127.0.0.1:4201`. Après connexion, l'onglet Réseau du
+navigateur doit montrer `GET /api/v1/monitoring/services` en 200,
+avec `services` et `gpu.status`. La Gateway doit refuser 401 en
+absence de cookie ; elle ne donne jamais accès direct au collector.
+
+Pour résoudre un problème de connexion de l'instance jetable,
+consulter [Authentification et ports](auth-gateway.md).
+
+## Frontend Angular : présentation séparée des mesures
+
+L'onglet Monitoring est organisé en trois composants Angular standalone :
+
+- `MonitoringComponent` : charge le snapshot depuis la Gateway, gère
+  les autorisations, l'état des requêtes et la période de rafraîchissement ;
+- `MonitoringServiceCardsComponent` : représente les cinq états de santé,
+  détails de sondes, y compris les états dégradés/inconnus ;
+- `MonitoringGpuPanelComponent` : affiche le GPU NVIDIA détecté, ses jauges
+  d'utilisation/VRAM et sa température (ou un message de sonde désactivée).
+
+Les sous-composants n'effectuent aucun appel HTTP. Le service Angular
+`MonitoringService` appelle seulement `/api/v1/monitoring/services`.
+
+## Topologie réseau et limites des sondes
+
+Le Compose définit `dmz` (frontend + Gateway) et `internal`
+(Gateway + KMS + MongoDB + Collector, avec `internal: true`).
+Le Collector ne consulte pas Nginx directement, puisque les deux services
+ne partagent aucun réseau. Le contrôle des pairs à l'intérieur d'un réseau
+est provisoirement fondé sur leurs adresses IP internes et le DNS Docker.
+Les jetons d'identité entre microservices seront traités séparément ;
+ils ne sont pas encore en place.

@@ -10,6 +10,8 @@ services:
       start_period: 2s
   api-gateway:
     image: devknowledge-stabilization-gateway:local
+    environment:
+      AUTH_MODE: disabled
     ports: !reset []
     restart: "no"
     healthcheck:
@@ -19,16 +21,24 @@ services:
     image: devknowledge-stabilization-kms:local
     environment:
       AUTH_MODE: disabled
+      KMS_NETWORK_GUARD: disabled
     ports: !reset []
     restart: "no"
     healthcheck:
       interval: 2s
       start_period: 2s
+  collector:
+    image: devknowledge-stabilization-collector:local
+    environment:
+      COLLECTOR_NETWORK_GUARD: disabled
+    restart: "no"
   mongodb:
     restart: "no"
     healthcheck:
       interval: 2s
       start_period: 2s
 networks:
-  default:
+  dmz:
+    internal: true
+  internal:
     internal: true

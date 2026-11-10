@@ -1,15 +1,14 @@
 <div class="admin-layout">
   <section class="admin-panel" aria-label="Créer un compte">
     <h2>Créer un compte local</h2>
-    <p>Les nouveaux comptes n'ont pas d'inscription publique. Choisis un rôle et transmets
-      les identifiants au titulaire par un moyen approprié.</p>
+    <p>La création d'un compte est réservée aux administrateurs. Les identifiants ne sont jamais inscrits dans les journaux.</p>
     <form [formGroup]="form" (ngSubmit)="submit()">
       <label for="new-username">Identifiant *</label>
       <input id="new-username" formControlName="username" autocomplete="off" maxlength="40"
         placeholder="ex. dev_reader" />
       <small>3 à 40 lettres ASCII, chiffres, points, tirets ou underscores.</small>
 
-      <label for="new-role">Rôle attribué *</label>
+      <label for="new-role">Rôle initial *</label>
       <select id="new-role" formControlName="role">
         @for (role of roles; track role.code) {
           <option [value]="role.code">{{ role.label }}</option>
@@ -19,39 +18,105 @@
       <label for="new-password">Mot de passe *</label>
       <input id="new-password" type="password" formControlName="password"
         autocomplete="new-password" maxlength="256" />
-      <small>12 caractères minimum ; évite la réutilisation d'un mot de passe existant.</small>
+      <small>12 à 256 caractères, pas uniquement des espaces.</small>
 
       <label for="confirm-password">Confirmer le mot de passe *</label>
       <input id="confirm-password" type="password" formControlName="confirmation"
         autocomplete="new-password" maxlength="256" />
-
-      @if (error()) { <p role="alert" class="admin-error">{{ error() }}</p> }
-      @if (notice()) { <p role="status" class="admin-notice">{{ notice() }}</p> }
-      <button type="submit" class="admin-submit" [disabled]="saving()">
+      <button type="submit" class="admin-submit" [disabled]="saving() || form.invalid">
         {{ saving() ? 'Création…' : 'Créer le compte' }}
       </button>
     </form>
-    <p class="admin-note">Cette version permet de consulter et de créer des comptes. La révocation
-      des comptes, la rotation des mots de passe et la gestion détaillée des rôles restent à développer.</p>
+    <p class="admin-note">Les comptes supprimés sont désactivés et conservés pour la traçabilité des connaissances.
+      Leurs identifiants ne sont pas réattribués.</p>
   </section>
 
-  <section class="admin-panel" aria-label="Comptes existants">
+  <section class="admin-panel" aria-label="Gestion des comptes">
     <div class="users-heading">
-      <div><h2>Comptes locaux</h2><p>100 premiers comptes, triés par identifiant.</p></div>
+      <div><h2>Comptes locaux</h2><p>Jusqu'à 100 comptes par page, triés par identifiant.</p></div>
       <button class="admin-refresh" type="button" (click)="refresh()" [disabled]="loading()">Actualiser</button>
     </div>
+    @if (error()) { <p role="alert" class="admin-error">{{ error() }}</p> }
+    @if (notice()) { <p role="status" class="admin-notice">{{ notice() }}</p> }
     @if (loading()) { <p role="status">Chargement des comptes…</p> }
-    @else if (!users().length) { <p>Aucun compte trouvé.</p> }
+    @else if (!users().length) { <p>Aucun compte sur cette page.</p> }
     @else {
       <div class="users-list">
         @for (user of users(); track user.user_id) {
           <div class="user-row">
             <div><strong>{{ user.username }}</strong>
-              <small>{{ user.account_status }}</small></div>
-            <span class="user-roles">{{ user.roles.join(', ') || 'Aucun rôle' }}</span>
+              <small>{{ user.account_status }} · Révision {{ user.revision }}</small>
+              <small>{{ user.roles.join(', ') }}</small>
+            </div>
+            <button class="admin-refresh" type="button" (click)="inspect(user)" [disabled]="saving()">
+              Gérer
+            </button>
           </div>
         }
       </div>
+    }
+    <div class="admin-pages">
+      <button class="admin-refresh" type="button" (click)="previousPage()"
+        [disabled]="loading() || page() === 0">Précédent</button>
+      <span>Page {{ page() + 1 }}</span>
+      <button class="admin-refresh" type="button" (click)="nextPage()"
+        [disabled]="loading() || users().length !== 100">Suivant</button>
+    </div>
+
+    @if (selected(); as user) {
+      <section class="admin-details" aria-label="Modifier un compte">
+        <header class="users-heading">
+          <div><h3>Compte {{ user.username }}</h3><small>Identifiant : {{ user.user_id }}</small></div>
+          <button type="button" class="admin-refresh" (click)="closeDetails()">Fermer</button>
+        </header>
+        <form [formGroup]="editForm" (ngSubmit)="saveUser()">
+          <label for="edit-username">Identifiant</label>
+          <input id="edit-username" formControlName="username" maxlength="40" />
+          <label for="edit-status">Statut du compte</label>
+          <select id="edit-status" formControlName="account_status">
+            <option value="ACTIVE">Actif</option>
+            <option value="DISABLED">Désactivé</option>
+          </select>
+          <fieldset class="admin-role-set">
+            <legend>Rôles attribués (un ou plusieurs)</legend>
+            <label><input type="checkbox" formControlName="admin" /> Administrateur</label>
+            <label><input type="checkbox" formControlName="editor" /> Éditeur</label>
+            <label><input type="checkbox" formControlName="reader" /> Lecteur</label>
+          </fieldset>
+          <small>Toute modification invalide les sessions précédentes. Les protections contre la perte du dernier administrateur sont appliquées par le KMS.</small>
+          <button class="admin-submit" type="submit" [disabled]="saving() || editForm.invalid">
+            {{ saving() ? 'Enregistrement…' : 'Enregistrer les modifications' }}
+          </button>
+        </form>
+
+        <form [formGroup]="passwordForm" (ngSubmit)="rotatePassword()">
+          <h3>Réinitialiser le mot de passe</h3>
+          <label for="reset-password">Nouveau mot de passe</label>
+          <input id="reset-password" formControlName="password" type="password" autocomplete="new-password" maxlength="256" />
+          <label for="reset-confirm">Confirmer</label>
+          <input id="reset-confirm" formControlName="confirmation" type="password" autocomplete="new-password" maxlength="256" />
+          <button type="submit" class="admin-submit" [disabled]="saving() || passwordForm.invalid">
+            Réinitialiser et révoquer les sessions
+          </button>
+        </form>
+
+        <div class="admin-delete">
+          <h3>Supprimer le compte</h3>
+          <p>Suppression logique : les connaissances et leur attribution sont préservées. Les sessions sont révoquées.</p>
+          @if (!confirmingDelete()) {
+            <button type="button" class="admin-danger" (click)="confirmingDelete.set(true)"
+              [disabled]="saving() || user.user_id === currentId()">Demander la suppression</button>
+          } @else {
+            <strong>Confirmer la suppression de {{ user.username }} ?</strong>
+            <div class="admin-delete-actions">
+              <button type="button" class="admin-refresh" (click)="confirmingDelete.set(false)">Annuler</button>
+              <button type="button" class="admin-danger" (click)="deleteUser()" [disabled]="saving()">
+                Confirmer la suppression
+              </button>
+            </div>
+          }
+        </div>
+      </section>
     }
   </section>
 </div>

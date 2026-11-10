@@ -198,9 +198,17 @@ export class AppComponent implements OnInit {
         this.signedIn(principal);
       },
       error: (error: unknown) => {
-        this.loginError.set(error instanceof HttpErrorResponse && error.status === 429
-          ? 'Trop de tentatives. Réessaie après une minute.'
-          : 'Connexion refusée. Vérifie les identifiants et le compte administrateur initial.');
+        if (error instanceof HttpErrorResponse && error.status === 429) {
+          this.loginError.set('Trop de tentatives. Réessaie après une minute.');
+        } else if (error instanceof HttpErrorResponse && error.status === 401) {
+          this.loginError.set('Identifiants invalides ou compte absent. Dans une nouvelle instance de test, initialise d’abord l’administrateur local.');
+        } else if (error instanceof HttpErrorResponse && error.status === 403) {
+          this.loginError.set('Connexion bloquée par la politique de sécurité de la Gateway. Vérifie l’URL et le protocole utilisés.');
+        } else if (error instanceof HttpErrorResponse && [502, 503, 504].includes(error.status)) {
+          this.loginError.set('Le service d’identité n’est pas disponible via la Gateway. Vérifie l’état du KMS.');
+        } else {
+          this.loginError.set('Impossible de joindre la Gateway. Vérifie les conteneurs et la connexion au frontend.');
+        }
       },
     });
   }

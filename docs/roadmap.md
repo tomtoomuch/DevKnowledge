@@ -124,3 +124,15 @@ Cette séquence est indicative : les arbitrages métiers et le résultat des tes
 - [[decisions/ADR-001-architecture]] / [[decisions/ADR-002-stockage]] / [[decisions/ADR-003-identite-securite]] : décisions confirmées ou encore à valider.
 
 Les tâches de stabilisation doivent être traitées sur `chat`, avec revue commune ; aucune fusion automatique vers `dev` ou `main` n'est prévue.
+
+## Itération 9 — CRUD utilisateurs et invariant d'entrée unique (PR #12)
+
+La branche `feature/user-crud-volume-persistence` propose le CRUD complet
+des comptes locaux (pagination, détails, rôles, statut, réinitialisation
+des mots de passe et suppression logique avec révisions/ETag), ainsi qu'un
+audit de persistance des volumes. L'unique point d'entrée extérieur est
+**API Gateway Express**, pour les pages Angular comme pour les API.
+Le volume historique MongoDB demeure conservé.
+
+Voir [[iterations/iteration-9-user-crud]],
+[[operations/volume-persistence]] et [[architecture/gateway-kms]].

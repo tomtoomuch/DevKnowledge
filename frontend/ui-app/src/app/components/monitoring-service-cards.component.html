@@ -1,0 +1,23 @@
+<div class="service-grid">
+    @for (service of services; track service.id) {
+      <article class="service-card">
+        <div class="service-head">
+          <div>
+            <h2>{{ service.name }}</h2>
+            <p>{{ service.description }}</p>
+          </div>
+          <span class="service-badge" [class.healthy]="service.status === 'healthy'"
+                [class.degraded]="service.status === 'degraded'"
+                [class.unavailable]="service.status === 'unavailable'">
+            <span class="service-dot" aria-hidden="true"></span>
+            {{ statusLabel(service.status) }}
+          </span>
+        </div>
+        <p class="service-detail">{{ service.detail }}</p>
+        <div class="service-meta">
+          <span>Identifiant : {{ service.id }}</span>
+          <span>Mesure : disponibilité applicative</span>
+        </div>
+      </article>
+    }
+  </div>

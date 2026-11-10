@@ -3,7 +3,9 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { finalize, timer } from 'rxjs';
-import { GpuDevice, GpuTelemetry, MonitoredService, MonitoringService, MonitoringSnapshot, ServiceHealth } from '../services/monitoring.service';
+import { GpuTelemetry, MonitoredService, MonitoringService, MonitoringSnapshot } from '../services/monitoring.service';
+import { MonitoringServiceCardsComponent } from './monitoring-service-cards.component';
+import { MonitoringGpuPanelComponent } from './monitoring-gpu-panel.component';
 
 const GPU_UNKNOWN: GpuTelemetry = {
   status: 'unknown', detail: 'La disponibilité des métriques GPU n’a pas été vérifiée.', devices: [],
@@ -12,16 +14,20 @@ const GPU_UNKNOWN: GpuTelemetry = {
 const UNCHECKED: MonitoredService[] = [
   { id: 'api-gateway', name: 'API Gateway', description: 'Point d’entrée HTTP unique',
     status: 'unknown', detail: 'Aucun résultat de contrôle disponible.' },
+  { id: 'frontend', name: 'Frontend Angular', description: 'Interface web servie par Nginx',
+    status: 'unknown', detail: 'Aucun résultat de contrôle disponible.' },
   { id: 'api-kms', name: 'Knowledge Service', description: 'API FastAPI et gestion des connaissances',
     status: 'unknown', detail: 'Aucun résultat de contrôle disponible.' },
   { id: 'mongodb', name: 'MongoDB', description: 'Base documentaire locale',
+    status: 'unknown', detail: 'Aucun résultat de contrôle disponible.' },
+  { id: 'collector', name: 'Collector', description: 'Collecte centralisée des services et du GPU',
     status: 'unknown', detail: 'Aucun résultat de contrôle disponible.' },
 ];
 
 @Component({
   selector: 'app-monitoring',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, MonitoringServiceCardsComponent, MonitoringGpuPanelComponent],
   templateUrl: './monitoring.component.html',
   styleUrl: './monitoring.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -69,8 +75,10 @@ export class MonitoringComponent implements OnInit {
             checked_at: new Date().toISOString(),
             services: [
               { ...UNCHECKED[0], status: 'healthy', detail: 'La Gateway a répondu à la requête.' },
-              { ...UNCHECKED[1], status: 'unavailable', detail: 'Le KMS ne répond pas à la Gateway.' },
-              UNCHECKED[2],
+              { ...UNCHECKED[1], status: 'unknown' },
+              { ...UNCHECKED[2], status: 'unavailable', detail: 'Le KMS ne répond pas à la Gateway.' },
+              UNCHECKED[3],
+              UNCHECKED[4],
             ],
           });
           this.error.set('Le Knowledge Service est inaccessible ou n’a pas répondu à temps.');
@@ -87,34 +95,5 @@ export class MonitoringComponent implements OnInit {
         }
       },
     });
-  }
-
-  gpuStatusLabel(status: GpuTelemetry['status']): string {
-    switch (status) {
-      case 'healthy': return 'Mesures disponibles';
-      case 'unavailable': return 'Collecteur indisponible';
-      case 'disabled': return 'Non configuré';
-      default: return 'Non vérifié';
-    }
-  }
-
-  gpuMetric(value: number | null): string {
-    return value === null || !Number.isFinite(value) ? 'Non disponible' : String(value);
-  }
-
-  gpuMemoryRatio(device: GpuDevice): number | null {
-    if (device.memory_used_mib === null || device.memory_total_mib === null ||
-        !Number.isFinite(device.memory_used_mib) || !Number.isFinite(device.memory_total_mib) ||
-        device.memory_total_mib <= 0) return null;
-    return Math.min(100, Math.max(0, Math.round(device.memory_used_mib * 100 / device.memory_total_mib)));
-  }
-
-  statusLabel(status: ServiceHealth): string {
-    switch (status) {
-      case 'healthy': return 'Opérationnel';
-      case 'degraded': return 'Dégradé';
-      case 'unavailable': return 'Indisponible';
-      default: return 'Inconnu';
-    }
   }
 }

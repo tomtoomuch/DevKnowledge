@@ -6,12 +6,17 @@ from pymongo.errors import PyMongoError
 
 from app.api.routes.knowledges import router
 from app.api.routes.auth import router as identity_router
+from app.auth.user_management import (
+    UserNotFound, UserRevisionConflict, LastAdminError,
+    SelfLockoutError, AdminMutationBusy,
+)
 from app.api.routes.knowledge_types import router as knowledge_types_router
 from app.api.routes.tags import router as tags_router
 from app.api.routes.technologies import router as technologies_router
 from app.api.routes.relations import router as relations_router
 from app.api.routes.monitoring import router as monitoring_router
 from app.db.mongodb import lifespan
+from app.auth.network_guard import restrict_to_internal_peers
 from app.repositories.tag_repository import UnknownTagError
 from app.repositories.relation_repository import (
     RelationNotFound, RelationConflict, RelationReferenceError,
@@ -32,6 +37,7 @@ app = FastAPI(
     version="0.2.0",
     lifespan=lifespan,
 )
+app.middleware("http")(restrict_to_internal_peers)
 app.include_router(router)
 app.include_router(identity_router)
 app.include_router(knowledge_types_router)
@@ -54,6 +60,21 @@ async def relation_conflict(request: Request, exc: RelationConflict) -> JSONResp
 @app.exception_handler(RelationReferenceError)
 async def relation_reference_error(request: Request, exc: RelationReferenceError) -> JSONResponse:
     return JSONResponse(status_code=422, content={"detail": "Relation type or active endpoint missing"})
+@app.exception_handler(UserNotFound)
+async def user_not_found(request: Request, exc: UserNotFound) -> JSONResponse:
+    return JSONResponse(status_code=404, content={"detail": "User not found"})
+
+
+@app.exception_handler(UserRevisionConflict)
+async def user_conflict(request: Request, exc: UserRevisionConflict) -> JSONResponse:
+    return JSONResponse(status_code=412, content={"detail": "User revision changed; reload"})
+
+
+@app.exception_handler(LastAdminError)
+@app.exception_handler(SelfLockoutError)
+@app.exception_handler(AdminMutationBusy)
+async def admin_lockout(request: Request, exc: Exception) -> JSONResponse:
+    return JSONResponse(status_code=409, content={"detail": "Administrator change refused or already in progress"})
 
 
 @app.exception_handler(UnknownTechnologyError)
