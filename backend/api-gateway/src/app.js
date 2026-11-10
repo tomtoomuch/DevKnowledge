@@ -90,7 +90,12 @@ function createApp({
     const rawJson = express.raw({ type: () => true, limit: "1mb", inflate: false });
     app.post("/api/v1/auth/login", throttleLogin, rawJson, relay);
     app.post(/^\/api\/v1\/auth\/logout\/?$/, rawJson, relay);
-    app.all(/^\/api\/v1\/users\/?$/, rawJson, relay);
+    app.get(/^\/api\/v1\/users\/?$/, relay);
+    app.post(/^\/api\/v1\/users\/?$/, rawJson, relay);
+    app.get(/^\/api\/v1\/users\/[0-9a-fA-F-]+\/?$/, relay);
+    app.patch(/^\/api\/v1\/users\/[0-9a-fA-F-]+\/?$/, rawJson, relay);
+    app.delete(/^\/api\/v1\/users\/[0-9a-fA-F-]+\/?$/, relay);
+    app.post(/^\/api\/v1\/users\/[0-9a-fA-F-]+\/password\/?$/, rawJson, relay);
     app.get("/api/v1/knowledge-types", relay);
     app.get(/^\/api\/v1\/tags\/?$/, relay);
     app.post(/^\/api\/v1\/tags\/?$/, rawJson, relay);

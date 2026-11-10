@@ -1,5 +1,12 @@
 """Local identity HTTP endpoints; public signup is intentionally absent."""
 from typing import Annotated, Literal
+from uuid import UUID
+
+from fastapi import Header, Query
+from pydantic import model_validator
+
+from app.api.routes.knowledges import expected_revision
+from app.auth.user_management import UserManagement
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, ConfigDict, Field
@@ -26,6 +33,39 @@ class UserInput(BaseModel):
     username: str = Field(min_length=3, max_length=40)
     password: str = Field(min_length=12, max_length=256)
     roles: list[Literal["ADMIN", "EDITOR", "READER"]] = Field(min_length=1, max_length=3)
+
+    @model_validator(mode="after")
+    def unique_roles(self):
+        if len(self.roles) != len(set(self.roles)):
+            raise ValueError("Roles must be unique")
+        return self
+
+
+class UserUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    username: str | None = Field(default=None, min_length=3, max_length=40)
+    roles: list[Literal["ADMIN", "EDITOR", "READER"]] | None = Field(
+        default=None, min_length=1, max_length=3,
+    )
+    account_status: Literal["ACTIVE", "DISABLED"] | None = None
+
+    @model_validator(mode="after")
+    def validate_patch(self):
+        if not self.model_fields_set:
+            raise ValueError("At least one field is required")
+        if any(getattr(self, key) is None for key in self.model_fields_set):
+            raise ValueError("Explicit null is not allowed")
+        if self.roles is not None and len(self.roles) != len(set(self.roles)):
+            raise ValueError("Roles must be unique")
+        return self
+
+
+class UserPasswordReset(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    password: str = Field(min_length=12, max_length=256)
+
+
+Revision = Annotated[int, Depends(expected_revision)]
 
 
 def db_for(request):
@@ -70,36 +110,23 @@ async def logout(request: Request, response: Response):
     response.headers["Cache-Control"] = "no-store"
 
 
+def etag_user(data: dict, response: Response):
+    response.headers["ETag"] = f'"{data["revision"]}"'
+    response.headers["Cache-Control"] = "no-store"
+    return data
+
+
 @router.get("/users")
-async def list_users(request: Request, response: Response, requester: Requester):
+async def list_users(request: Request, response: Response, requester: Requester,
+                     skip: Annotated[int, Query(ge=0)] = 0,
+                     limit: Annotated[int, Query(ge=1, le=100)] = 100):
     require(requester, "users.manage")
     response.headers["Cache-Control"] = "no-store"
-    db = db_for(request)
-    users = await db["users"].find(
-        {}, {"password_hash": 0, "oidc_subject": 0}
-    ).sort("username_key", 1).limit(100).to_list(length=100)
-    assignments = await db["user_roles"].find(
-        {"user_id": {"$in": [user["_id"] for user in users]}}
-    ).to_list(length=300)
-    roles = await db["roles"].find({
-        "_id": {"$in": list({assignment["role_id"] for assignment in assignments})}
-    }).to_list(length=100)
-    role_codes = {role["_id"]: role["code"] for role in roles}
-    assigned = {}
-    for assignment in assignments:
-        code = role_codes.get(assignment["role_id"])
-        if code is not None:
-            assigned.setdefault(assignment["user_id"], []).append(code)
-    return [
-        {"user_id": user["_id"], "username": user["username"],
-         "account_status": user["account_status"],
-         "roles": sorted(assigned.get(user["_id"], []))}
-        for user in users
-    ]
+    return await UserManagement(db_for(request)).list(skip=skip, limit=limit)
 
 
 @router.post("/users", status_code=status.HTTP_201_CREATED)
-async def add_user(payload: UserInput, request: Request, requester: Requester):
+async def add_user(payload: UserInput, request: Request, response: Response, requester: Requester):
     require(requester, "users.manage")
     try:
         user = await create_user(db_for(request), payload.username, payload.password, payload.roles)
@@ -107,7 +134,40 @@ async def add_user(payload: UserInput, request: Request, requester: Requester):
         raise HTTPException(422, str(exc)) from None
     except DuplicateKeyError:
         raise HTTPException(409, "Username already exists") from None
-    return {
-        "user_id": user["_id"], "username": user["username"],
-        "account_status": user["account_status"], "roles": sorted(set(payload.roles)),
-    }
+    return etag_user(UserManagement.public(user, payload.roles), response)
+
+
+@router.get("/users/{user_id}")
+async def get_user(user_id: UUID, request: Request, response: Response, requester: Requester):
+    require(requester, "users.manage")
+    return etag_user(await UserManagement(db_for(request)).get(user_id), response)
+
+
+@router.patch("/users/{user_id}")
+async def update_user(user_id: UUID, payload: UserUpdate, request: Request,
+                      response: Response, requester: Requester, revision: Revision):
+    require(requester, "users.manage")
+    result = await UserManagement(db_for(request)).update(
+        user_id, payload, revision, requester.user_id,
+    )
+    return etag_user(result, response)
+
+
+@router.post("/users/{user_id}/password", status_code=status.HTTP_204_NO_CONTENT)
+async def reset_user_password(user_id: UUID, payload: UserPasswordReset,
+                              request: Request, requester: Requester, revision: Revision):
+    require(requester, "users.manage")
+    await UserManagement(db_for(request)).reset_password(
+        user_id, payload.password, revision,
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT,
+                    headers={"Cache-Control": "no-store"})
+
+
+@router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user(user_id: UUID, request: Request, requester: Requester,
+                      revision: Revision):
+    require(requester, "users.manage")
+    await UserManagement(db_for(request)).delete(user_id, revision, requester.user_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT,
+                    headers={"Cache-Control": "no-store"})

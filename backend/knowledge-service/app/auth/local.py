@@ -97,7 +97,9 @@ async def create_user(db, username, password, roles):
         "email": None, "password_hash": encoded,
         "oidc_issuer": None, "oidc_subject": None,
         "account_status": "ACTIVE", "created_at": utcnow(), "updated_at": utcnow(),
-        "last_login_at": None,
+        "last_login_at": None, "revision": 1,
+        # Atomic authorization projection for mutable roles; user_roles is kept in sync.
+        "role_codes": sorted(set(roles)), "deleted_at": None,
     }
     await db["users"].insert_one(user)
     for code in set(roles):
@@ -144,6 +146,15 @@ class Principal:
 
 
 async def principal_for(db, user):
+    if "role_codes" in user:
+        codes = tuple(sorted(code for code in user["role_codes"] if code in ROLES))
+        return Principal(
+            user_id=user["_id"], username=user["username"], roles=codes,
+            permissions=frozenset(
+                permission for code in codes for permission in ROLES[code]
+            ),
+        )
+    # Historical accounts created before role_codes existed.
     assignments = await db["user_roles"].find({"user_id": user["_id"]}).to_list(length=100)
     roles = await db["roles"].find({"_id": {"$in": [a["role_id"] for a in assignments]}}).to_list(length=100)
     grants = await db["role_permissions"].find({
@@ -164,7 +175,11 @@ async def session_principal(db, token):
     if session is None or session["expires_at"] <= utcnow():
         return None
     user = await db["users"].find_one({"_id": session["user_id"], "account_status": "ACTIVE"})
-    return await principal_for(db, user) if user else None
+    if user is None:
+        return None
+    if session.get("identity_revision", 1) != user.get("revision", 1):
+        return None
+    return await principal_for(db, user)
 
 
 async def create_session(db, user):
@@ -172,6 +187,7 @@ async def create_session(db, user):
     await db["sessions"].insert_one({
         "_id": hashlib.sha256(token.encode()).hexdigest(), "user_id": user["_id"],
         "created_at": utcnow(), "expires_at": utcnow() + timedelta(hours=HOURS),
+        "identity_revision": user.get("revision", 1),
     })
     await db["users"].update_one({"_id": user["_id"]}, {"$set": {"last_login_at": utcnow()}})
     return token, await principal_for(db, user)
