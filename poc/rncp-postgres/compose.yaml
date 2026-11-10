@@ -1,0 +1,47 @@
+# Independent disposable Compose project; never merge with root compose.yaml.
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: rncp_poc
+      POSTGRES_PASSWORD: ${RNCP_PG_PASSWORD:?generated_by_runner}
+      POSTGRES_DB: rncp_poc
+    volumes:
+      - rncp-pg-data:/var/lib/postgresql/data
+    networks: [rncp_isolated]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rncp_poc -d rncp_poc"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 15s
+    mem_limit: 512m
+
+  test:
+    build:
+      context: ../..
+      dockerfile: poc/rncp-postgres/Dockerfile
+    environment:
+      RNCP_PG_HOST: postgres
+      RNCP_PG_PORT: "5432"
+      RNCP_PG_DATABASE: rncp_poc
+      RNCP_PG_USER: rncp_poc
+      RNCP_PG_PASSWORD: ${RNCP_PG_PASSWORD:?generated_by_runner}
+      PYTHONDONTWRITEBYTECODE: "1"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [rncp_isolated]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 512m
+
+volumes:
+  rncp-pg-data:
+
+networks:
+  rncp_isolated:
+    driver: bridge
+    internal: true
