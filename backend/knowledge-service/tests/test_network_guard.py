@@ -22,9 +22,12 @@ def test_guard_disabled_for_in_process_tests(monkeypatch):
 
 def test_guard_denies_unexpected_peer_before_private_routes(monkeypatch):
     monkeypatch.setenv("KMS_NETWORK_GUARD", "required")
-    with TestClient(app) as client:
+    client = TestClient(app)
+    try:
         assert client.get("/api/v1/knowledges").status_code == 404
         assert client.get("/health").status_code == 404
+    finally:
+        client.close()
 
 
 def test_kms_peer_gateway_api_and_collector_health(monkeypatch):

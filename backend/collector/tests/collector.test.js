@@ -46,7 +46,7 @@ function simulated({ gateway = 200, live = 200, ready = 200, gpuEnabled = false 
   const probe = async url => {
     requested.push(url);
     if (url === 'http://api-gateway:3107/health/frontend') {
-      return { status: 200, data: null };
+      return { status: 200, data: { status: 'ok', service: 'frontend' } };
     }
     if (url === 'http://api-gateway:3107/health') {
       return { status: gateway, data: gateway === 200 ? { status: 'ok', service: 'api-gateway' } : null };
