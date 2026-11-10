@@ -56,26 +56,60 @@ function createServer(collectSnapshot = createSnapshotCollector(), authorizePeer
   });
 }
 
-if (require.main === module) {
-  // A mounted named volume is required in Compose; failed SQLite startup is fatal.
-  const collect = createSnapshotCollector();
-  const metricsStore = openMetricsStore(process.env.METRICS_DB_PATH);
-  const scheduler = startMetricSampling(collect, metricsStore, {
-    intervalMs: samplingInterval(process.env.METRICS_SAMPLE_INTERVAL_MS),
-    retentionDays: 90,
-    onFailure: (kind) => console.error('Supervisor metrics sampling failure (' + kind + ')'),
+async function startSupervisor(config = process.env) {
+  // A genuine identity authority is opt-in until Gateway/KMS have completed
+  // their token-only integration. The default Collector behavior is preserved.
+  const { startIdentityAuthority } = require('./identity-runtime');
+  const { identityPeerAllowed } = require('./peer-guard');
+  const mode = config.SUPERVISOR_IDENTITY_MODE || 'disabled';
+  const MongoClient = mode === 'shadow' ? require('mongodb').MongoClient : null;
+  const identity = await startIdentityAuthority({
+    mode, config, MongoClient, peerGuard: identityPeerAllowed,
   });
-  const server = createServer(collect, peerAllowed, metricsStore);
-  server.listen(9109, '0.0.0.0');
-  const stop = () => {
-    scheduler.stop();
-    server.close(() => {
-      metricsStore.close();
-      process.exit(0);
+  let metricsStore;
+  let scheduler;
+  try {
+    const collect = createSnapshotCollector();
+    metricsStore = openMetricsStore(config.METRICS_DB_PATH);
+    scheduler = startMetricSampling(collect, metricsStore, {
+      intervalMs: samplingInterval(config.METRICS_SAMPLE_INTERVAL_MS),
+      retentionDays: 90,
+      onFailure: (kind) => console.error('Supervisor metrics sampling failure (' + kind + ')'),
     });
-  };
-  process.once('SIGINT', stop);
-  process.once('SIGTERM', stop);
+    const server = createServer(collect, peerAllowed, metricsStore, identity.authorizationHandler);
+    await new Promise((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(9109, '0.0.0.0', resolve);
+    });
+    const stop = () => {
+      scheduler.stop();
+      server.close(async () => {
+        try {
+          metricsStore.close();
+          await identity.close();
+          process.exitCode = 0;
+        } catch {
+          process.exitCode = 1;
+        }
+      });
+    };
+    process.once('SIGINT', stop);
+    process.once('SIGTERM', stop);
+    return server;
+  } catch (error) {
+    scheduler?.stop();
+    metricsStore?.close();
+    await identity.close();
+    throw error;
+  }
 }
 
-module.exports = { createServer };
+if (require.main === module) {
+  startSupervisor().catch(() => {
+    // Never print connection strings, MongoDB credentials or token material.
+    console.error('Supervisor startup failed');
+    process.exitCode = 1;
+  });
+}
+
+module.exports = { createServer, startSupervisor };
