@@ -2,6 +2,7 @@ const express = require("express");
 const { createKmsProxy } = require("./kms-proxy");
 const { sessionCookie, permissionFor, validPrincipal, createSessionLookup } = require("./session-auth");
 const { checkFrontend } = require("./frontend-health");
+const { createFrontendProxy } = require("./frontend-proxy");
 
 function createApp({
     kmsBaseUrl = process.env.KMS_BASE_URL || "http://127.0.0.1:8000",
@@ -9,10 +10,12 @@ function createApp({
     sessionLookup = null,
     authEnabled = process.env.AUTH_MODE !== "disabled",
     frontendProbe = checkFrontend,
+    frontendBaseUrl = process.env.FRONTEND_BASE_URL || "http://frontend:80",
 } = {}) {
     const app = express();
     app.disable("x-powered-by");
     const relay = createKmsProxy(kmsBaseUrl, kmsTimeoutMs);
+    const serveFrontend = createFrontendProxy(frontendBaseUrl, kmsTimeoutMs);
     const lookup = sessionLookup || createSessionLookup(kmsBaseUrl, kmsTimeoutMs);
     const publicScheme = process.env.GATEWAY_PUBLIC_SCHEME || "http";
     if (!["http", "https"].includes(publicScheme)) {
@@ -101,7 +104,12 @@ function createApp({
     const rawJson = express.raw({ type: () => true, limit: "1mb", inflate: false });
     app.post("/api/v1/auth/login", throttleLogin, rawJson, relay);
     app.post(/^\/api\/v1\/auth\/logout\/?$/, rawJson, relay);
-    app.all(/^\/api\/v1\/users\/?$/, rawJson, relay);
+    app.get(/^\/api\/v1\/users\/?$/, relay);
+    app.post(/^\/api\/v1\/users\/?$/, rawJson, relay);
+    app.get(/^\/api\/v1\/users\/[0-9a-fA-F-]+\/?$/, relay);
+    app.patch(/^\/api\/v1\/users\/[0-9a-fA-F-]+\/?$/, rawJson, relay);
+    app.delete(/^\/api\/v1\/users\/[0-9a-fA-F-]+\/?$/, relay);
+    app.post(/^\/api\/v1\/users\/[0-9a-fA-F-]+\/password\/?$/, rawJson, relay);
     app.get("/api/v1/knowledge-types", relay);
     app.get(/^\/api\/v1\/tags\/?$/, relay);
     app.post(/^\/api\/v1\/tags\/?$/, rawJson, relay);
@@ -115,6 +123,22 @@ function createApp({
     // Only the collection and one identifier segment can reach the fixed upstream.
     app.all(/^\/api\/v1\/knowledges(?:\/[a-zA-Z0-9-]+)?\/?$/,
         rawJson, relay);
+    // Fail closed for unregistered API/health paths: never serve Angular for them.
+    app.use((req, res, next) => {
+        // Internal FastAPI/OpenAPI paths are deliberately NOT SPA routes.
+        const reserved = new Set(["/docs", "/redoc", "/openapi.json",
+            "/metrics", "/internal"]);
+        if (reserved.has(req.path.toLowerCase()) ||
+            req.path === "/api" || req.path.startsWith("/api/") ||
+            req.path === "/health" || req.path.startsWith("/health/")) {
+            return res.status(404).json({ detail: "Route not found" });
+        }
+        if (req.method !== "GET" && req.method !== "HEAD") {
+            return res.status(404).json({ detail: "Route not found" });
+        }
+        return serveFrontend(req, res);
+    });
+
     app.use((error, req, res, next) => {
         if (res.headersSent) return next(error);
         const status = error.status === 413 ? 413 : error.status === 415 ? 415 : 400;

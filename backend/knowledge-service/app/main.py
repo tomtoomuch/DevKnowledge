@@ -6,6 +6,10 @@ from pymongo.errors import PyMongoError
 
 from app.api.routes.knowledges import router
 from app.api.routes.auth import router as identity_router
+from app.auth.user_management import (
+    UserNotFound, UserRevisionConflict, LastAdminError,
+    SelfLockoutError, AdminMutationBusy,
+)
 from app.api.routes.knowledge_types import router as knowledge_types_router
 from app.api.routes.tags import router as tags_router
 from app.api.routes.technologies import router as technologies_router
@@ -36,6 +40,23 @@ app.include_router(knowledge_types_router)
 app.include_router(tags_router)
 app.include_router(technologies_router)
 app.include_router(monitoring_router)
+
+
+@app.exception_handler(UserNotFound)
+async def user_not_found(request: Request, exc: UserNotFound) -> JSONResponse:
+    return JSONResponse(status_code=404, content={"detail": "User not found"})
+
+
+@app.exception_handler(UserRevisionConflict)
+async def user_conflict(request: Request, exc: UserRevisionConflict) -> JSONResponse:
+    return JSONResponse(status_code=412, content={"detail": "User revision changed; reload"})
+
+
+@app.exception_handler(LastAdminError)
+@app.exception_handler(SelfLockoutError)
+@app.exception_handler(AdminMutationBusy)
+async def admin_lockout(request: Request, exc: Exception) -> JSONResponse:
+    return JSONResponse(status_code=409, content={"detail": "Administrator change refused or already in progress"})
 
 
 @app.exception_handler(UnknownTechnologyError)

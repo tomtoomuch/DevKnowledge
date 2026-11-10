@@ -3,7 +3,9 @@
 ## Architecture
 
 Toute requête du navigateur passe par
-`Angular/Nginx -> Gateway Express -> KMS FastAPI`. Le point d'entrée unique
+`Navigateur -> Gateway Express -> KMS FastAPI` (API) et
+`Navigateur -> Gateway Express -> Angular/Nginx` (HTML/assets).
+Le point d'entrée unique
 des métriques côté navigateur est `GET /api/v1/monitoring/services`, en
 lecture seule. La Gateway vérifie la session et la permission
 `knowledge.read`; le KMS refait ces vérifications pour la défense en

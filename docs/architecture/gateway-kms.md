@@ -1,30 +1,37 @@
 # Communication obligatoire : Angular → Gateway → KMS
 
-## Contrat des flux
+## Contrat des flux — Gateway point d'entrée unique
 
-Le navigateur ne peut contacter que le serveur Angular/Nginx lié à
-`127.0.0.1:${FRONTEND_PORT:-4200}` (`4201` sur l'instance GPU de test).
-Les requêtes API `/api/v1/**` de Nginx sont relayées uniquement vers
-`api-gateway:${GATEWAY_PORT:-3000}` sur le réseau Docker **dmz**.
-La Gateway appartient aux réseaux **dmz** et **internal** et relaie les
-routes autorisées vers le KMS uniquement sur **internal**. Son port n'est
-pas publié sur l'hôte.
+**Tout trafic extérieur (frontend Angular inclus) arrive d'abord au
+Gateway Express.** Son port interne `GATEWAY_PORT` (3000 par défaut)
+est l'unique port publié localement, sous
+`127.0.0.1:${FRONTEND_PORT:-4200}`.
 
 ```text
-Navigateur --HTTP localhost:4200/4201--> Angular/Nginx
-                                              | dmz
-                                              v
-                                         Gateway Express
-                                              | internal
-                            +-----------------+------------------+
-                            |                 |                  |
-                         KMS FastAPI       Collector          MongoDB
-                            |             (sondes HTTP)     (client KMS)
-                            +-----> MongoDB    |
-                            +<----- Collector  +-----> Gateway /health/frontend
-                                                         |
-                                                         +----dmz----> Nginx
+Navigateur --HTTP localhost:4200/4201--> Gateway Express
+                                             |
+                         +-------------------+------------------+
+                         | dmz                                  | internal
+                         v                                      v
+                   Angular/Nginx                             KMS FastAPI
+                  (HTML, JS, CSS)                              |
+                   aucun port                          MongoDB + Collector
+                    publié                         (aucun port publié)
 ```
+
+Les ressources du frontend passent par un reverse-proxy **GET/HEAD**
+dans Express vers `http://frontend:80` sur `dmz`. Aucun cookie
+de session ni jeton utilisateur n'est transmis à Nginx. Les URL
+`/api/v1/*` sont prises en charge par la Gateway elle-même puis
+relayées au KMS sur `internal` après authentification et contrôle RBAC.
+Les chemins inconnus sous `/api/` ou `/health/` retournent 404
+sans tomber dans la page Angular.
+
+Nginx reste privé, relié exclusivement à `dmz`, et rejette `/api/`.
+L'interface Angular utilise uniquement des URL relatives
+`/api/v1/*` vers le Gateway. Les autres microservices n'ont aucun
+port publié sur l'hôte. La Gateway est seule à posséder les deux
+interfaces réseau `dmz` et `internal`.
 
 Le KMS et le Collector ont leurs gardes provisoires de pairs réseau :
 sur `/api/v1`, KMS n'accepte que la Gateway ; ses sondes
@@ -63,7 +70,8 @@ Les chemins sont déclarés explicitement dans Express, en particulier
 `GET /api/v1/monitoring/services`. Les routes métier CRUD acceptent
 seulement la collection et un segment d'identifiant, avec les méthodes
 et les contrôles d'accès requis. La Gateway ne relaie pas les routes
-arbitraires du KMS.
+arbitraires du KMS et refuse de servir l'application Angular
+pour les routes API inexistantes.
 
 Seuls les en-têtes autorisés transitent ; le cookie de session `dk_session`
 est le seul cookie transmis, jamais les autres cookies, le jeton bearer
@@ -85,8 +93,9 @@ docker compose --env-file .env config --quiet
 docker compose --env-file .env ps
 ```
 
-Dans `ps`, **seul le frontend** a un port hôte lié à `127.0.0.1`.
-Le KMS, MongoDB, le Collector et la Gateway n'ont aucun port publié.
+Dans `ps`, **seule la Gateway** présente un port hôte lié à
+`127.0.0.1` (4200 vers 3000 par défaut).
+Frontend, KMS, MongoDB et Collector n'ont aucun port publié.
 Pour inspecter un service de manière autorisée, employer
 `docker compose exec` sur son conteneur ; ne pas publier directement
 ses ports. L'ancienne superposition `compose.debug.yaml` de

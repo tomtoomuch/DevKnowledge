@@ -1,45 +1,46 @@
 # Authentification et ports — Gateway obligatoire
 
-## Topologie du navigateur
+## Topologie du navigateur — invariant obligatoire
 
-Le navigateur ouvre **uniquement** le frontend Angular/Nginx, lié à
-`127.0.0.1:${FRONTEND_PORT:-4200}` sur le poste. Le port de test 4201 est
-uniquement un autre port de cette **interface web**, pas un accès direct au KMS.
-Nginx sert les ressources statiques Angular et reverse-proxy les URLs relatives
-`/api/v1/**` vers `api-gateway:${GATEWAY_PORT:-3000}` **sur le réseau Docker**.
-Il n'existe plus de publication `127.0.0.1:3000/3001` pour la Gateway dans
-`compose.yaml`. KMS, MongoDB et collector n'ont pas non plus de port publié.
+**TOUTES les communications depuis l'extérieur, frontend compris,
+traversent d'abord l'API Gateway Express.** C'est le seul service
+avec un port Docker publié : par défaut
+`127.0.0.1:${FRONTEND_PORT:-4200}` redirige vers son port interne
+`GATEWAY_PORT=3000`. Le port 4201 d'une instance de test peut pointer
+vers le Gateway d'un autre projet Compose ; il ne publie pas Nginx.
 
 ```text
-Navigateur --HTTP localhost:4200/4201--> Nginx + Angular
-                                            |
-                                            +-- /api/v1/* --> Gateway Express
-                                                               |
-                                                               +--> KMS FastAPI (privé)
-                                                               |      +--> MongoDB (privé)
-                                                               |      +--> Collector (privé)
-                                                               |
-                                                               +--> KMS /auth/me (session)
+Navigateur / client --localhost:4200--> API Gateway Express
+                                           | dmz (GET/HEAD pages, CSS, JS)
+                                           +-----> Frontend Angular/Nginx (privé)
+                                           |
+                                           | internal (/api/v1/* uniquement)
+                                           +-----> KMS FastAPI (privé)
+                                                      |
+                                                      +-----> MongoDB
+                                                      +-----> Collector
 ```
 
-L'authentification et le filtrage des autorisations HTTP au **point d'entrée
-externe** sont sous responsabilité de la Gateway Express, avec contrôle de
-l'Origin, limitation des tentatives de connexion, vérification de la session
-`dk_session` et du RBAC avant chaque relais. Le KMS joue encore le rôle
-**interne de référentiel d'identité** : il conserve les comptes, hache/vérifie
-les mots de passe et persiste les sessions dans MongoDB ; il revalide également
-les permissions en défense en profondeur. La séparation complète du stockage
-d'identité vers un service dédié reste une étape distincte. **Ne pas confondre
-la responsabilité de la Gateway comme frontière d'authentification et le
-stockage technique interne des identifiants dans KMS.**
+Le Gateway reverse-proxy les ressources Angular depuis Nginx sur la DMZ ;
+Nginx ne publie aucun port hôte et **refuse `/api/`**. Toutes les
+requêtes métier restent sur `/api/v1/*` et passent par le contrôle
+d'authentification et de permissions du Gateway. Les chemins API inconnus
+ne doivent jamais être redirigés vers le `index.html` Angular.
+Les méthodes autres que GET/HEAD ne sont pas admises par le relais frontend.
 
-Aucun appel direct Angular → KMS, MongoDB ou collector n'est autorisé.
-`AUTH_MODE=required` est fixé explicitement pour Gateway et KMS dans le
-Compose normal. Seules les piles CI jetables désactivent les deux contrôles
-via un override spécialisé. Un navigateur sans session obtient 401 depuis
-la Gateway ; un rôle insuffisant obtient 403. En cas d'indisponibilité du
-référentiel d'identité, la Gateway refuse l'accès (503), sans laisser
-passer de requêtes non authentifiées.
+Le Gateway conserve les contrôles d'Origin, limitation de connexion,
+cookie `dk_session`, RBAC et délégation des vérifications au KMS.
+KMS reste le magasin interne des comptes, rôles, mots de passe hachés
+et sessions MongoDB ; il applique lui aussi les permissions.
+Le relais de ressources **ne transmet jamais les cookies, Authorization
+ni les en-têtes d'identité utilisateur à Nginx**, même pour une page
+privée : la sécurité des connaissances reste sur les API.
+
+Le Compose normal impose `AUTH_MODE=required` dans Gateway et KMS ;
+seules les piles de test jetables utilisent un override désactivant
+l'authentification. En cas d'identité invalide 401/403 ; en cas de
+référentiel indisponible 503. Frontend, KMS, MongoDB et Collector
+n'exposent pas de ports hôte.
 
 ## Premier administrateur dans une instance de test indépendante
 
@@ -67,7 +68,8 @@ Il ne faut pas supprimer les utilisateurs, le verrou
 Après création, ouvrir `http://127.0.0.1:4201`, se connecter, puis ouvrir
 Monitoring. Le navigateur envoie les requêtes relatives
 `/api/v1/auth/login`, `/api/v1/auth/me` et
-`/api/v1/monitoring/services` **via Nginx et la Gateway**.
+`/api/v1/monitoring/services` **directement vers la Gateway**, qui
+relaie uniquement les appels autorisés au KMS.
 La cookie `dk_session` est HttpOnly, Path=/api/v1 et SameSite=Strict.
 
 ## Diagnostic des erreurs
@@ -101,8 +103,8 @@ Le Compose définit exactement deux réseaux **gérés par Compose** :
 `internal`, réseau bridge avec `internal: true` pour la Gateway,
 le KMS, MongoDB et le Collector. La Gateway a deux interfaces réseau.
 La DMZ est un réseau Docker *edge*, pas un réseau `external: true`
-préexistant ni un port publié de la Gateway. Seul le frontend publie
-son port sur `127.0.0.1`.
+préexistant. **Seule la Gateway publie un port hôte**, sur
+`127.0.0.1`. Nginx est privé sur la DMZ.
 
 Les sondes du frontend passent par la Gateway et la DMZ ; les appels du
 Collector au KMS sont limités aux deux endpoints de santé. KMS n'accepte

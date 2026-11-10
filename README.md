@@ -8,7 +8,7 @@ Le KMS propose le CRUD générique `/api/v1/knowledges` (validation, pagination,
 
 **PATCH et DELETE exigent désormais `If-Match` avec la révision lue** (428 sans précondition, 412 si elle est dépassée). Les GET individuels renvoient l’ETag correspondant.
 
-Les APIs sont accessibles au navigateur **exclusivement via le frontend** (`http://127.0.0.1:4200/api/v1/*`) : Nginx relaie vers la Gateway Express sur le réseau Docker DMZ. La Gateway n'a pas de port publié. Elle vérifie les sessions et permissions avant relais au KMS, lequel conserve le référentiel d'identité et un contrôle RBAC interne. Le réseau Docker interne isole KMS, MongoDB et Collector. L'application ne doit pas être exposée à Internet.
+**Le Gateway Express est l'unique point d'entrée de toutes les requêtes extérieures, y compris les pages Angular et les ressources statiques.** L'URL locale `http://127.0.0.1:4200` publie le port du **Gateway**, pas celui du frontend Nginx. Le Gateway sert le frontend via son relais interne sur `dmz` et fait transiter `/api/v1/*` vers KMS sur `internal`. Il authentifie et autorise les appels métier. Angular/Nginx, KMS, MongoDB et Collector ne publient aucun port. Le projet n'est pas destiné à être exposé à Internet.
 
 - [Validation du 9 novembre 2026 et limites restantes](docs/iterations/validation-stabilisation-2026-11-09.md)
 - [CI GitHub Actions](https://github.com/tomtoomuch/DevKnowledge/actions/workflows/ci.yml)
@@ -28,9 +28,11 @@ Le MLD v0.2 décrit **56 tables logiques candidates**, et non 56 tables/collecti
 
 ## Frontend Angular
 
-Le frontend Angular est disponible par défaut sur http://127.0.0.1:4200 après le
-lancement Compose, configurable avec FRONTEND_PORT. Son serveur Nginx relaie
-les requêtes /api/ exclusivement à la Gateway Express sur le réseau Docker.
+L'interface Angular est accessible via **le Gateway Express** sur http://127.0.0.1:4200
+après le lancement Compose (`FRONTEND_PORT` configure le port hôte du Gateway).
+Le Gateway relaie les pages et fichiers JavaScript/CSS vers Nginx **interne** ;
+les API `/api/v1/*` sont relayées par le Gateway vers le KMS. Nginx refuse
+tout accès à `/api/` pour éviter un second chemin applicatif.
 
 La liste, la recherche textuelle et les filtres type/statut/favoris
 s'exécutent côté serveur, avant pagination. La
@@ -113,7 +115,7 @@ Dockerfile à la racine : utiliser Docker Compose, et non
 `docker build .`.** Le script de vérification examine les chemins
 effectivement calculés par Compose avant toute construction.
 
-Le frontend est seul publié sur `127.0.0.1:4200` ; la Gateway, le KMS, MongoDB et le Collector restent **strictement internes à Docker**. Le KMS ne publie plus de port Swagger direct : effectuer les diagnostics nécessaires via `docker compose exec api-kms`, conformément à l'architecture. Voir [la séparation DMZ/interne](docs/architecture/gateway-kms.md).
+Seul **le Gateway** publie le port hôte `127.0.0.1:4200` (réacheminé vers son port interne `3000`). Frontend/Nginx, KMS, MongoDB et Collector restent strictement internes à Docker. Le KMS ne publie pas Swagger directement ; effectuer les diagnostics via `docker compose exec api-kms`. Voir [la séparation DMZ/interne](docs/architecture/gateway-kms.md).
 
 **Installation neuve :** `.env.example` et `compose.yaml` sont alignés ; le compte MongoDB applicatif limité est initialisé sur un volume vierge. **Le démarrage réel et le redémarrage ont été validés sur un projet isolé.** Ne pas écraser un `.env` existant : le bootstrap ne se rejoue pas sur un volume déjà initialisé. Voir le [guide de provisionnement et test isolé](docs/operations/mongodb-bootstrap.md). Ne jamais supprimer les volumes de développement par inadvertance.
 
@@ -196,14 +198,37 @@ Gateway, KMS et MongoDB (via la readiness KMS), la collecte GPU NVIDIA
 facultative, ainsi que des composants de présentation Angular indépendants.
 
 ```text
-Navigateur --> Frontend/Nginx --dmz--> Gateway --internal--> KMS/MongoDB/Collector
+Navigateur --> Gateway Express --dmz--> Frontend/Nginx (pages et assets)
+                       |
+                       +--internal--> KMS/MongoDB/Collector (API)
 ```
 
 Le réseau `dmz` est un bridge Docker géré par Compose ; le réseau
-`internal` est isolé (`internal: true`). Seul le frontend publie un
+`internal` est isolé (`internal: true`). Seul le Gateway publie un
 port lié à localhost. Les APIs des microservices rejettent les pairs
 non autorisés grâce à des contrôles d'adresses IP internes, solution
 provisoire en attendant l'authentification cryptographique interservices.
 
 Voir [monitoring](docs/operations/monitoring.md) et
 [authentification et ports](docs/operations/auth-gateway.md).
+
+## Itération 9 — CRUD utilisateurs et stockage (PR #12)
+
+La PR #12 ajoute un CRUD complet des comptes locaux sous `/api/v1/users`
+(lecture individuelle, pagination, mise à jour des rôles et du statut,
+réinitialisation du mot de passe, suppression logique). Les écritures
+exigent `If-Match`, invalident les anciennes sessions et protègent
+l'administrateur courant et le dernier ADMIN actif.
+
+Le volume historique `mongodb:/data/db` est conservé ; un second volume
+nommé `mongodb-configdb` est introduit pour rendre explicite le montage
+`/data/configdb`. Aucun volume métier n'est effacé ni remplacé.
+L'outil `scripts/persistence_check.py` inspecte les volumes en lecture seule.
+
+**Invariant réseau :** toutes les communications entrantes, y compris vers
+Angular, passent obligatoirement par Express Gateway. Cette PR déplace le
+seul port publié vers la Gateway, sans changer l'URL locale 4200.
+
+Voir [CRUD et recette](docs/iterations/iteration-9-user-crud.md),
+[persistance](docs/operations/volume-persistence.md) et
+[architecture Gateway](docs/architecture/gateway-kms.md).

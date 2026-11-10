@@ -8,7 +8,7 @@ function sessionCookie(header) {
 }
 
 function permissionFor(path, method) {
-  if (/^\/users\/?$/.test(path)) return "users.manage";
+  if (/^\/users(?:\/[0-9a-fA-F-]+(?:\/password)?)?\/?$/.test(path)) return "users.manage";
   if (/^\/(?:knowledges)(?:\/[a-zA-Z0-9-]+)?\/?$/.test(path)) {
     return { GET: "knowledge.read", POST: "knowledge.create", PATCH: "knowledge.update",
       PUT: "knowledge.update", DELETE: "knowledge.delete" }[method] || "knowledge.read";
