@@ -19,3 +19,18 @@
 .user-row small{display:block;margin-top:4px}
 .user-roles{font-size:11px;color:#a9ccfd;background:#243758;border-radius:8px;padding:7px 9px;text-align:right}
 @media(max-width:880px){.admin-layout{grid-template-columns:1fr}}
+
+/* Administration v2: revision-safe account editing and soft deletion. */
+.admin-details{margin-top:20px;padding-top:18px;border-top:1px solid #344561}
+.admin-details h3{font-size:15px;color:#c7dafa;margin:10px 0}
+.admin-details form{margin-top:14px;border:1px solid #30405a;border-radius:12px;padding:15px}
+.admin-role-set{border:1px solid #435876;border-radius:9px;margin-top:12px;display:grid;gap:10px;padding:10px}
+.admin-role-set legend{font-size:12px;color:#c6d5f3}
+.admin-role-set label{display:flex;gap:9px;align-items:center;margin:0}
+.admin-role-set input{width:auto}
+.admin-pages,.admin-delete-actions{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:16px}
+.admin-pages span{font-size:12px;color:#9db5d6}
+.admin-delete{margin-top:20px;border:1px solid #86444d;border-radius:11px;padding:15px}
+.admin-delete strong{display:block;font-size:13px;margin:9px 0}
+.admin-danger{border:1px solid #be6070;background:#6b2738;border-radius:9px;padding:10px 13px;color:#fff;cursor:pointer}
+.admin-delete button:disabled{opacity:.5;cursor:not-allowed}
