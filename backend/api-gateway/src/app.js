@@ -125,7 +125,11 @@ function createApp({
         rawJson, relay);
     // Fail closed for unregistered API/health paths: never serve Angular for them.
     app.use((req, res, next) => {
-        if (req.path === "/api" || req.path.startsWith("/api/") ||
+        // Internal FastAPI/OpenAPI paths are deliberately NOT SPA routes.
+        const reserved = new Set(["/docs", "/redoc", "/openapi.json",
+            "/metrics", "/internal"]);
+        if (reserved.has(req.path.toLowerCase()) ||
+            req.path === "/api" || req.path.startsWith("/api/") ||
             req.path === "/health" || req.path.startsWith("/health/")) {
             return res.status(404).json({ detail: "Route not found" });
         }

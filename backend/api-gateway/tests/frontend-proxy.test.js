@@ -89,6 +89,9 @@ test("Gateway forwards safe caching headers and preserves 304 not-modified", asy
 test("Unknown API and health paths never reach Nginx", async () => {
     await request(app).get("/api/not-a-real-api").expect(404);
     await request(app).get("/health/unknown").expect(404);
+    await request(app).get("/docs").expect(404);
+    await request(app).get("/openapi.json").expect(404);
+    await request(app).get("/redoc").expect(404);
     await request(app).post("/some-angular-route").send({value: 1}).expect(404);
     expect(requests).toHaveLength(0);
 });
