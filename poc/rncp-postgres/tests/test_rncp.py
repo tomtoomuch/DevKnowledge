@@ -25,9 +25,19 @@ KNOWLEDGE = uuid.UUID("70000000-0000-0000-0000-000000000001")
 
 @pytest.fixture(scope="session", autouse=True)
 def database():
-    assert apply_migrations(DSN, MIGRATIONS) == [1, 2]
-    # Safe to rerun without modifying previous migrations.
+    # The same session-scoped fixture is reused by the API route test module.
+    # It may be invoked under a second pytest fixture identity, so seeding is
+    # idempotent without hiding missing/partially committed test fixtures.
+    first = apply_migrations(DSN, MIGRATIONS)
+    assert first in ([1, 2], [])
     assert apply_migrations(DSN, MIGRATIONS) == []
+    if first == []:
+        with psycopg.connect(DSN) as conn:
+            assert conn.execute(
+                "SELECT count(*) FROM rncp.certification_frameworks WHERE code = 'RNCP-TEST'"
+            ).fetchone()[0] == 1
+        yield
+        return
     with psycopg.connect(DSN) as conn:
         with conn.cursor() as c:
             c.execute(
