@@ -42,3 +42,6 @@
 - [Gateway, authentification et ports locaux](operations/auth-gateway.md)
 
 - [Réseaux DMZ et interne / règles de communication](architecture/gateway-kms.md)
+
+- [[iterations/iteration-9-user-crud]] — CRUD complet des comptes locaux (PR #12).
+- [[operations/volume-persistence]] — Audit sans destruction du stockage MongoDB, identité Compose et persistance.

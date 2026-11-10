@@ -154,8 +154,10 @@ actuel utilise exactement deux réseaux :
 - `internal` (`internal: true`) : API Gateway Express, Knowledge Service,
   MongoDB et Collector.
 
-La Gateway est le seul service présent sur les deux réseaux. Seul le
-frontend publie son port sur localhost. La Gateway reste responsable des
+La Gateway est le seul service présent sur les deux réseaux. **Seule la
+Gateway publie son port sur localhost** : toutes les communications
+extérieures, y compris les ressources Angular, passent par elle.
+La Gateway reste responsable des
 contrôles d'accès avant relais, le KMS maintient le stockage interne de
 l'identité et le RBAC de défense en profondeur. Le Collector fournit des
 sondes de santé et la télémétrie GPU facultative, sans publier de port.

@@ -37,20 +37,29 @@ un compte existe déjà ou si le marqueur de bootstrap est présent.
 
 Ouvrir [http://127.0.0.1:4200](http://127.0.0.1:4200) (paramètre FRONTEND_PORT pour le port hôte)
 et se connecter avec le compte créé.
-Le conteneur Nginx sert les fichiers Angular et relaie /api/ vers
-api-gateway sur le port GATEWAY_PORT au sein du réseau Compose. Les conteneurs KMS et MongoDB
-ne sont pas exposés à Internet. Ne jamais utiliser down --volumes pour
+Le port 4200 appartient exclusivement à **l'API Gateway Express**.
+Le Gateway relaie les pages et assets Angular à Nginx **interne**
+sur la DMZ, puis les URL /api/v1/ au KMS sur le réseau interne.
+Nginx refuse /api/ et ne publie aucun port. KMS et MongoDB
+ne sont pas exposés sur l'hôte. Ne jamais utiliser down --volumes pour
 arrêter le projet contenant tes données de développement.
 
 ## Développement Angular
 
-Démarrer d'abord la Gateway, puis avec Node.js compatible Angular 20 :
+Pour le développement, construire et tester Angular puis reconstruire
+le frontend privé dans Compose, afin que **même le développement** soit
+consulté depuis le Gateway sans exposer le serveur Angular directement :
 
     cd frontend/ui-app
     npm install
-    npm start
+    npm run build
+    npm test
+    cd ../..
+    docker compose --env-file .env up -d --build
 
-Le proxy du serveur de développement envoie /api vers 127.0.0.1:3000.
+L'URL de recette reste http://127.0.0.1:4200. Ne pas exposer
+`npm start` directement dans le parcours DevKnowledge : cela contournerait
+l'unique point d'entrée.
 Tests et construction :
 
     npm run build
