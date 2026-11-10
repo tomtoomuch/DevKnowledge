@@ -44,7 +44,7 @@ function createMongoSessionLookup(db, now = () => new Date()) {
     const user = await db.collection("users").findOne({
       _id: session.user_id, account_status: "ACTIVE",
     });
-    if (!user || user.deleted_at || typeof user._id !== "string" ||
+    if (!user || user.account_status !== "ACTIVE" || user.deleted_at || typeof user._id !== "string" ||
         typeof user.username !== "string" ||
         (session.identity_revision ?? 1) !== (user.revision ?? 1)) return null;
 
