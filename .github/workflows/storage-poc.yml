@@ -1,0 +1,31 @@
+name: POC SQL Server vs PostgreSQL
+
+on:
+  pull_request:
+    paths:
+      - 'poc/storage/**'
+      - '.github/workflows/storage-poc.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  storage-poc:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [sqlserver, postgres]
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Test real official Docker image
+        run: python3 poc/storage/run.py --engine ${{ matrix.engine }}
+      - name: Upload independently verifiable results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: storage-poc-${{ matrix.engine }}
+          path: test-results/storage-poc/
+          retention-days: 14
