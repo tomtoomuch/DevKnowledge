@@ -15,7 +15,7 @@ from app.auth.service_tokens import InvalidServiceToken, verify_kms_token
 KEY = "0123456789abcdef" * 4
 SUB = "e627de24-880c-4a22-b18e-7884ee0396a3"
 NOW = 1794300000
-FIXTURE = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJkZXZrbm93bGVkZ2Utc3VwZXJ2aXNvciIsImF1ZCI6ImFwaS1rbXMiLCJzdWIiOiJlNjI3ZGUyNC04ODBjLTRhMjItYjE4ZS03ODg0ZWUwMzk2YTMiLCJzY29wZSI6Imtub3dsZWRnZS5yZWFkIiwiaWF0IjoxNzk0MzAwMDAwLCJleHAiOjE3OTQzMDAwNjAsImp0aSI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIn0.eqvXQ0NG2-vu7zYGcGCDYIfGlzFwBp9sZuDvQEmGs_w"
+FIXTURE = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJkZXZrbm93bGVkZ2Utc3VwZXJ2aXNvciIsImF1ZCI6ImFwaS1rbXMiLCJzdWIiOiJlNjI3ZGUyNC04ODBjLTRhMjItYjE4ZS03ODg0ZWUwMzk2YTMiLCJzY29wZSI6Imtub3dsZWRnZS5yZWFkIiwiaWF0IjoxNzk0MzAwMDAwLCJleHAiOjE3OTQzMDAwNjAsImp0aSI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIn0.eqvXQ0NG2-vu7zYGcGCDYIfGlzFwBp9sZuDvQEmGs_w"
 PAYLOAD = {
     "iss": "devknowledge-supervisor", "aud": "api-kms", "sub": SUB,
     "scope": "knowledge.read", "iat": NOW, "exp": NOW + 60,

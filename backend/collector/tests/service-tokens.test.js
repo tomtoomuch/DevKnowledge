@@ -6,7 +6,7 @@ const { issueKmsToken, signingKey } = require('../src/service-tokens');
 const KEY = '0123456789abcdef'.repeat(4);
 const SUBJECT = 'e627de24-880c-4a22-b18e-7884ee0396a3';
 const VERIFIED = { user_id: SUBJECT, permissions: ['knowledge.read'] };
-const FIXTURE = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJkZXZrbm93bGVkZ2Utc3VwZXJ2aXNvciIsImF1ZCI6ImFwaS1rbXMiLCJzdWIiOiJlNjI3ZGUyNC04ODBjLTRhMjItYjE4ZS03ODg0ZWUwMzk2YTMiLCJzY29wZSI6Imtub3dsZWRnZS5yZWFkIiwiaWF0IjoxNzk0MzAwMDAwLCJleHAiOjE3OTQzMDAwNjAsImp0aSI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIn0.eqvXQ0NG2-vu7zYGcGCDYIfGlzFwBp9sZuDvQEmGs_w';
+const FIXTURE = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJkZXZrbm93bGVkZ2Utc3VwZXJ2aXNvciIsImF1ZCI6ImFwaS1rbXMiLCJzdWIiOiJlNjI3ZGUyNC04ODBjLTRhMjItYjE4ZS03ODg0ZWUwMzk2YTMiLCJzY29wZSI6Imtub3dsZWRnZS5yZWFkIiwiaWF0IjoxNzk0MzAwMDAwLCJleHAiOjE3OTQzMDAwNjAsImp0aSI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIn0.eqvXQ0NG2-vu7zYGcGCDYIfGlzFwBp9sZuDvQEmGs_w';
 
 test('issues a deterministic standard HS256 JWT usable by the Python verifier', () => {
   const token = issueKmsToken(VERIFIED, 'knowledge.read', KEY, {
