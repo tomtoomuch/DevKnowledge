@@ -136,3 +136,20 @@ Le volume historique MongoDB demeure conservé.
 
 Voir [[iterations/iteration-9-user-crud]],
 [[operations/volume-persistence]] et [[architecture/gateway-kms]].
+
+## Décision ADR-004 — Superviseur (feature/supervisor-identity)
+
+Migration progressive de l'ancien Collector : identité/RBAC/sessions,
+CRUD utilisateurs, vérification de session par la Gateway et tokens internes
+limités par audience et permissions pour le KMS. La PR est dépendante de
+`feature/user-crud-volume-persistence` (PR #12), sans changement du volume
+MongoDB historique ni d'accès direct aux services internes.
+
+## Lot stockage observabilité — SQLite métriques et étude SQL (PR #14)
+
+Le Superviseur doit stocker ses métriques dans un volume SQLite3 distinct
+(`supervisor-metrics`) et centraliser ultérieurement les journaux techniques
+et les audits de sécurité authentifiés. L'étude [[decisions/ADR-005-strategie-stockage]]
+compare SQL Server 2025 Express, PostgreSQL et MongoDB pour le MLD métier de
+56 tables, **sans activer de migration de données**. Les sauvegardes et
+le fonctionnement offline doivent rester validés avant fusion.

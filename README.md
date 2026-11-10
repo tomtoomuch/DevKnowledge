@@ -255,3 +255,15 @@ seul port publié vers la Gateway, sans changer l'URL locale 4200.
 Voir [CRUD et recette](docs/iterations/iteration-9-user-crud.md),
 [persistance](docs/operations/volume-persistence.md) et
 [architecture Gateway](docs/architecture/gateway-kms.md).
+
+## Stockage des métriques (PR #14)
+
+Le service Collector, destiné à devenir Superviseur, écrit désormais
+les snapshots techniques dans SQLite3 via le volume nommé
+`supervisor-metrics`, entièrement distinct du volume MongoDB métier.
+La collecte est périodique et l'historique est consultable uniquement
+sur le réseau interne. La journalisation centralisée par service demeure
+un lot distinct de cette base de métriques. L'étude de SQL Server et
+PostgreSQL pour le MLD relationnel est décrite dans
+[ADR-005](docs/decisions/ADR-005-strategie-stockage.md) : **aucune
+migration des données métier n'est déclenchée dans ce lot**.

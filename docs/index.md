@@ -46,3 +46,8 @@
 
 - [[iterations/iteration-9-user-crud]] — CRUD complet des comptes locaux (PR #12).
 - [[operations/volume-persistence]] — Audit sans destruction du stockage MongoDB, identité Compose et persistance.
+
+- [[decisions/ADR-004-superviseur-identite-securite]] — Gateway unique, Superviseur autorité d’identité et tokens interservices.
+
+- [[decisions/ADR-005-strategie-stockage]] — SQLite métriques, SQL Server/PostgreSQL/MongoDB pour le MLD métier.
+- [[operations/metrics-sqlite]] — Échantillonnage, stockage, lecture interne et sauvegarde des métriques du Superviseur.
