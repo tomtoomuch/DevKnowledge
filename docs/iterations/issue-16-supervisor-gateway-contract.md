@@ -12,6 +12,12 @@ La migration complète de l'autorité d'identité décrite dans
 
 Cette étape ajoute `backend/api-gateway/src/supervisor-client.js`,
 `backend/collector/src/supervisor-authorization.js` et leurs tests.
+Le module `backend/collector/src/mongo-session-lookup.js` fournit une introspection
+MongoDB indépendante de la connexion : empreinte SHA-256 de session,
+expiration, état du compte, révision d'identité et droits RBAC ; il gère
+également les rôles historiques par les collections `user_roles`, `roles`,
+`role_permissions` et `permissions`.
+
 Le serveur Collector accepte un gestionnaire d'identité injecté explicitement
 via son quatrième argument `authorizationHandler`. **La configuration
 Compose actuelle ne l'injecte pas : la route reste donc absente par défaut.**
@@ -57,7 +63,9 @@ d'activer `KMS_SERVICE_TOKEN_MODE=required` maintenant.
 
 ## Suite indispensable avant basculement
 
-- Portage du CRUD comptes/sessions/RBAC vers le Superviseur et MongoDB.
+- Initialisation du client MongoDB dans le processus Superviseur, droits d'accès
+  restreints, branchement de `createMongoSessionLookup` sur le gestionnaire HTTP,
+  ainsi que portage du CRUD comptes/sessions/RBAC.
 - Implémentation et tests du point d'entrée `/internal/v1/sessions/authorize`.
 - Injection du token interne côté proxy Gateway → KMS et bascule
   des routes d'identité vers le Superviseur.
