@@ -6,13 +6,19 @@ const { peerAllowed } = require('./peer-guard');
 const { openMetricsStore, startMetricSampling, samplingInterval } = require('./metrics-store');
 
 function createServer(collectSnapshot = createSnapshotCollector(), authorizePeer = peerAllowed,
-                      metricsStore = null) {
+                      metricsStore = null, authorizationHandler = null) {
   return http.createServer(async (req, res) => {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     const parsed = new URL(req.url, 'http://localhost');
     const path = parsed.pathname;
+    // The identity endpoint is only mounted if an authenticated session store
+    // and a signing-key-backed handler are explicitly injected. Production's
+    // current Collector startup does not mount it.
+    if (path === '/internal/v1/sessions/authorize' && authorizationHandler) {
+      return authorizationHandler(req, res);
+    }
     if (req.method !== 'GET' || !['/health', '/snapshot', '/metrics/history'].includes(path)) {
       res.writeHead(404).end(JSON.stringify({ detail: 'Not found' }));
       return;
