@@ -3,7 +3,9 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { finalize, timer } from 'rxjs';
-import { GpuDevice, GpuTelemetry, MonitoredService, MonitoringService, MonitoringSnapshot, ServiceHealth } from '../services/monitoring.service';
+import { GpuTelemetry, MonitoredService, MonitoringService, MonitoringSnapshot } from '../services/monitoring.service';
+import { MonitoringServiceCardsComponent } from './monitoring-service-cards.component';
+import { MonitoringGpuPanelComponent } from './monitoring-gpu-panel.component';
 
 const GPU_UNKNOWN: GpuTelemetry = {
   status: 'unknown', detail: 'La disponibilité des métriques GPU n’a pas été vérifiée.', devices: [],
@@ -25,7 +27,7 @@ const UNCHECKED: MonitoredService[] = [
 @Component({
   selector: 'app-monitoring',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, MonitoringServiceCardsComponent, MonitoringGpuPanelComponent],
   templateUrl: './monitoring.component.html',
   styleUrl: './monitoring.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -93,34 +95,5 @@ export class MonitoringComponent implements OnInit {
         }
       },
     });
-  }
-
-  gpuStatusLabel(status: GpuTelemetry['status']): string {
-    switch (status) {
-      case 'healthy': return 'Mesures disponibles';
-      case 'unavailable': return 'Collecteur indisponible';
-      case 'disabled': return 'Non configuré';
-      default: return 'Non vérifié';
-    }
-  }
-
-  gpuMetric(value: number | null): string {
-    return value === null || !Number.isFinite(value) ? 'Non disponible' : String(value);
-  }
-
-  gpuMemoryRatio(device: GpuDevice): number | null {
-    if (device.memory_used_mib === null || device.memory_total_mib === null ||
-        !Number.isFinite(device.memory_used_mib) || !Number.isFinite(device.memory_total_mib) ||
-        device.memory_total_mib <= 0) return null;
-    return Math.min(100, Math.max(0, Math.round(device.memory_used_mib * 100 / device.memory_total_mib)));
-  }
-
-  statusLabel(status: ServiceHealth): string {
-    switch (status) {
-      case 'healthy': return 'Opérationnel';
-      case 'degraded': return 'Dégradé';
-      case 'unavailable': return 'Indisponible';
-      default: return 'Inconnu';
-    }
   }
 }

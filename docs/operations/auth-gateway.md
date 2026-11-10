@@ -64,7 +64,7 @@ S'il existe déjà un compte, le bootstrap **refuse** de s'exécuter.
 Il ne faut pas supprimer les utilisateurs, le verrou
 `auth_bootstrap` ou le volume MongoDB pour contourner ce refus.
 
-Après création, ouvrir `http://localhost:4201`, se connecter, puis ouvrir
+Après création, ouvrir `http://127.0.0.1:4201`, se connecter, puis ouvrir
 Monitoring. Le navigateur envoie les requêtes relatives
 `/api/v1/auth/login`, `/api/v1/auth/me` et
 `/api/v1/monitoring/services` **via Nginx et la Gateway**.
@@ -82,5 +82,32 @@ La cookie `dk_session` est HttpOnly, Path=/api/v1 et SameSite=Strict.
 - **401 sur GET /api/v1/auth/me** : absence de cookie valide, session expirée
   ou compte désactivé. La Gateway refuse l'accès avant les ressources privées.
 
+**Attention aux cookies entre environnements parallèles :** les cookies HTTP
+ne sont pas isolés par numéro de port. Deux applications ouvertes sur
+`http://localhost:4200` et `http://localhost:4201` partagent le même
+cookie `dk_session` : une connexion peut invalider celle de l'autre.
+Pour la recette locale, choisir des noms d'hôtes distincts : par exemple
+`http://localhost:4200` pour `dev` et `http://127.0.0.1:4201`
+pour `devknowledge-gpu-test`. Ne pas mélanger les deux noms d'hôte
+au sein d'une même session.
+
 Ne pas utiliser `docker compose down --volumes` sur la pile de développement
 réelle. Les données de `dev` et de l'instance isolée restent distinctes.
+
+## Cloisonnement réseau DMZ et interne
+
+Le Compose définit exactement deux réseaux **gérés par Compose** :
+`dmz`, réseau bridge d'accès entre le frontend et la Gateway, et
+`internal`, réseau bridge avec `internal: true` pour la Gateway,
+le KMS, MongoDB et le Collector. La Gateway a deux interfaces réseau.
+La DMZ est un réseau Docker *edge*, pas un réseau `external: true`
+préexistant ni un port publié de la Gateway. Seul le frontend publie
+son port sur `127.0.0.1`.
+
+Les sondes du frontend passent par la Gateway et la DMZ ; les appels du
+Collector au KMS sont limités aux deux endpoints de santé. KMS n'accepte
+les API privées que depuis la Gateway (gardes d'adresses IP internes,
+à remplacer par une authentification cryptographique entre services).
+Les appels rejetés retournent 404 sans divulguer les services internes.
+
+Voir [le contrat Gateway-KMS](../architecture/gateway-kms.md).

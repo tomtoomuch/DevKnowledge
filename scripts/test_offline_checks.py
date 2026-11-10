@@ -23,7 +23,7 @@ class OfflineChecksTests(unittest.TestCase):
         images = {"api-kms": {"id": "sha256:test"}}
         network = [{"Internal": True, "EnableIPv6": False}]
         container = [{"Image": "sha256:test", "NetworkSettings": {"Networks": attachments}}]
-        with patch.object(checks, "run", side_effect=[result(network), result(container)]), \
+        with patch.object(checks, "run", side_effect=[result(network), result(network), result(container)]), \
              patch.object(checks, "compose", side_effect=[subprocess.CompletedProcess([], 0, "container", ""),
                                                           subprocess.CompletedProcess([], 0, routes, "")]), \
              patch.object(checks, "kms_python") as probe:
@@ -32,10 +32,10 @@ class OfflineChecksTests(unittest.TestCase):
             probe.assert_not_called()
 
     def test_extra_network_attachment_is_rejected(self):
-        self.verify_rejection({checks.PROJECT + "_default": {}, "outside": {}}, "", "attachment")
+        self.verify_rejection({checks.PROJECT + "_internal": {}, "outside": {}}, "", "attachment")
 
     def test_default_route_is_rejected_even_on_declared_internal_network(self):
-        self.verify_rejection({checks.PROJECT + "_default": {}},
+        self.verify_rejection({checks.PROJECT + "_internal": {}},
                               "Iface Destination Gateway\neth0 00000000 010011AC\n", "default route")
 
 

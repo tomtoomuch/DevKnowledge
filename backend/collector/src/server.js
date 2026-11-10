@@ -2,13 +2,18 @@
 
 const http = require('node:http');
 const { createSnapshotCollector } = require('./snapshot');
+const { peerAllowed } = require('./peer-guard');
 
-function createServer(collectSnapshot = createSnapshotCollector()) {
+function createServer(collectSnapshot = createSnapshotCollector(), authorizePeer = peerAllowed) {
   return http.createServer(async (req, res) => {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     if (req.method !== 'GET' || !['/health', '/snapshot'].includes(req.url)) {
+      res.writeHead(404).end(JSON.stringify({ detail: 'Not found' }));
+      return;
+    }
+    if (!(await authorizePeer(req))) {
       res.writeHead(404).end(JSON.stringify({ detail: 'Not found' }));
       return;
     }

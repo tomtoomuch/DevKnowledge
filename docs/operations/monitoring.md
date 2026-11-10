@@ -13,7 +13,11 @@ Le service **collector** (anciennement `gpu-monitor`) fonctionne en
 permanence dans `compose.yaml`, même sans GPU. Il effectue les sondes
 applicatives sur des destinations fixes et uniquement internes :
 
-- Frontend/Nginx : `http://frontend/` ;
+- Frontend/Nginx : le Collector appelle la sonde interne
+  `http://api-gateway:${GATEWAY_PORT}/health/frontend` ;
+  **la Gateway** appelle le frontend à travers `dmz`
+  (`http://frontend:80/health/frontend`). Le Collector n'est pas
+  connecté au réseau DMZ ;
 - Gateway : `http://api-gateway:${GATEWAY_PORT}/health` ;
 - KMS : `http://api-kms:8000/health` ;
 - MongoDB : contrôlée via `http://api-kms:8000/health/ready`, laquelle
@@ -68,10 +72,34 @@ cd ../knowledge-service && python -m pytest tests/test_collector_client.py tests
 
 Sur le poste, vérifier `docker compose ps` (cinq services avec le
 collector, sans port Gateway publié), puis ouvrir le frontend sur
-`http://localhost:4201`. Après connexion, l'onglet Réseau du
+`http://127.0.0.1:4201`. Après connexion, l'onglet Réseau du
 navigateur doit montrer `GET /api/v1/monitoring/services` en 200,
 avec `services` et `gpu.status`. La Gateway doit refuser 401 en
 absence de cookie ; elle ne donne jamais accès direct au collector.
 
 Pour résoudre un problème de connexion de l'instance jetable,
 consulter [Authentification et ports](auth-gateway.md).
+
+## Frontend Angular : présentation séparée des mesures
+
+L'onglet Monitoring est organisé en trois composants Angular standalone :
+
+- `MonitoringComponent` : charge le snapshot depuis la Gateway, gère
+  les autorisations, l'état des requêtes et la période de rafraîchissement ;
+- `MonitoringServiceCardsComponent` : représente les cinq états de santé,
+  détails de sondes, y compris les états dégradés/inconnus ;
+- `MonitoringGpuPanelComponent` : affiche le GPU NVIDIA détecté, ses jauges
+  d'utilisation/VRAM et sa température (ou un message de sonde désactivée).
+
+Les sous-composants n'effectuent aucun appel HTTP. Le service Angular
+`MonitoringService` appelle seulement `/api/v1/monitoring/services`.
+
+## Topologie réseau et limites des sondes
+
+Le Compose définit `dmz` (frontend + Gateway) et `internal`
+(Gateway + KMS + MongoDB + Collector, avec `internal: true`).
+Le Collector ne consulte pas Nginx directement, puisque les deux services
+ne partagent aucun réseau. Le contrôle des pairs à l'intérieur d'un réseau
+est provisoirement fondé sur leurs adresses IP internes et le DNS Docker.
+Les jetons d'identité entre microservices seront traités séparément ;
+ils ne sont pas encore en place.

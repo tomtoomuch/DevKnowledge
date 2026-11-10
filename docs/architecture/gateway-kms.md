@@ -1,79 +1,97 @@
-# Relais Gateway → KMS — STAB-06
+# Communication obligatoire : Angular → Gateway → KMS
 
-La Gateway est le point d'entrée HTTP par défaut du Compose local. Les cinq
-opérations CRUD sont accessibles sur `http://127.0.0.1:3000/api/v1/knowledges`
-avec les mêmes corps JSON, filtres, pagination et statuts métier que le KMS.
-`GATEWAY_PORT` permet de changer ce port. MongoDB et le KMS ne publient aucun
-port sur l'hôte dans `compose.yaml`.
+## Contrat des flux
 
-## Contrat du relais
+Le navigateur ne peut contacter que le serveur Angular/Nginx lié à
+`127.0.0.1:${FRONTEND_PORT:-4200}` (`4201` sur l'instance GPU de test).
+Les requêtes API `/api/v1/**` de Nginx sont relayées uniquement vers
+`api-gateway:${GATEWAY_PORT:-3000}` sur le réseau Docker **dmz**.
+La Gateway appartient aux réseaux **dmz** et **internal** et relaie les
+routes autorisées vers le KMS uniquement sur **internal**. Son port n'est
+pas publié sur l'hôte.
 
-- Chemins admis : `/api/v1/knowledges` et `/api/v1/knowledges/{id}` ; l'identifiant
-  est un segment alphanumérique avec tirets (UUID canonique). Les identifiants
-  mal formés admis par ce routage sont validés par le KMS. Un slash final est
-  retiré avant transmission pour éviter une redirection vers le service interne.
-- Les méthodes, paramètres de requête et octets du corps sont transmis sans
-  transformation JSON. Les réponses KMS, notamment 201, 204, 404, 405, 422 et
-  503, conservent leur statut et leur corps. Aucune écriture n'est réessayée.
-- Corps entrant limité à **1 Mio** (413 au-delà), compression entrante refusée
-  (415). Ces limites sont propres à l'entrée Gateway ; le contrat KMS est inchangé.
-- Destination fixée par `KMS_BASE_URL`, une origine HTTP(S) sans chemin ni
-  identifiants. Compose impose `http://api-kms:8000`. Hors Docker, la valeur
-  par défaut est `http://127.0.0.1:8000`.
-- Seuls `Accept`, `Content-Type`, `Accept-Language` et `If-Match` sont transmis depuis le
-  client. `Content-Length` est recalculé. Cookies, Authorization, identités
-  déclarées, en-têtes Forwarded et en-têtes de connexion ne sont pas transmis.
-- Les en-têtes de réponse admis sont `Content-Type`, `Content-Language`, `Allow`,
-  `Retry-After`, `ETag` et `Cache-Control`, hors en-têtes désignés par `Connection`.
-  Aucun cookie ou en-tête interne n'est réexposé.
-- Délai maximal global vers le KMS : `KMS_TIMEOUT_MS`, par défaut **10 secondes**,
-  entier entre 1 et 60 000 ms. Il couvre connexion et transfert de réponse.
-  Une connexion impossible produit 502 ; un dépassement de délai produit 504.
-  Ces erreurs ne contiennent pas d'adresse interne ou de détails techniques.
-- Les redirections amont sont refusées (502), sans les suivre. Une interruption
-  après le début d'une réponse coupe le flux : le client doit considérer cette
-  réponse comme incomplète. La déconnexion du client ferme la requête amont.
-
-Le relais utilise les modules HTTP(S) de Node ; aucune dépendance supplémentaire.
-La réponse est transférée en flux avec la gestion de débit native des streams.
-Référence : [API HTTP Node](https://nodejs.org/api/http.html).
-
-## Santé et exposition
-
-`GET /health` vérifie seulement la vivacité de la Gateway. `GET /health/ready`
-relaie la readiness du KMS : 200 quand MongoDB est accessible, 503 quand le KMS
-signale une panne MongoDB, 502 si le KMS est injoignable, 504 s'il ne répond pas
-dans le délai. Le healthcheck Docker de la Gateway vise cette readiness.
-
-La Gateway dépend du KMS `healthy` au démarrage, lui-même dépendant de MongoDB.
-`depends_on` organise ce démarrage ; il ne redémarre pas automatiquement les
-services quand une dépendance tombe. Les healthchecks rendent la panne visible
-et les nouvelles requêtes fonctionnent après rétablissement de la dépendance.
-
-Pour un accès direct de diagnostic au KMS/OpenAPI :
-
-```bash
-docker compose -f compose.yaml -f compose.debug.yaml up -d --build
+```text
+Navigateur --HTTP localhost:4200/4201--> Angular/Nginx
+                                              | dmz
+                                              v
+                                         Gateway Express
+                                              | internal
+                            +-----------------+------------------+
+                            |                 |                  |
+                         KMS FastAPI       Collector          MongoDB
+                            |             (sondes HTTP)     (client KMS)
+                            +-----> MongoDB    |
+                            +<----- Collector  +-----> Gateway /health/frontend
+                                                         |
+                                                         +----dmz----> Nginx
 ```
 
-OpenAPI devient alors accessible à `http://127.0.0.1:8000/docs`. Pour revenir à
-l'exposition normale, recréer le KMS sans cette surcharge :
+Le KMS et le Collector ont leurs gardes provisoires de pairs réseau :
+sur `/api/v1`, KMS n'accepte que la Gateway ; ses sondes
+`/health` et `/health/ready` acceptent également le Collector,
+ainsi que l'adresse loopback pour le healthcheck local. Le Collector
+n'accepte `/snapshot` que depuis le KMS ; son `/health` est réservé
+à son propre healthcheck loopback. Les appels inattendus reçoivent 404.
+MongoDB n'expose pas de route HTTP ; son accès requiert les identifiants
+MongoDB applicatifs.
+
+Ces contrôles d'origine utilisent les adresses IP obtenues par le DNS
+interne Docker. Uvicorn ignore les en-têtes proxy entrants pour déterminer
+l'adresse du pair : ils ne prouvent **pas** l'identité cryptographique
+du service appelant et ne protègent pas contre un conteneur compromis
+ayant des privilèges réseau élevés. Le déploiement futur introduira un
+mécanisme d'authentification service-à-service avec renouvellement
+des secrets et vérification de chaque appel. Les gardes échouent de
+façon sécurisée si la résolution DNS interne échoue.
+
+## Authentification et autorisation
+
+La Gateway porte la responsabilité du contrôle d'accès HTTP externe :
+vérification du cookie de session opaque `dk_session`, interrogation
+du référentiel d'identité interne du KMS et vérification des permissions
+avant tout relais API. Les identifiants et sessions persistent encore
+dans le KMS/MongoDB ; le KMS effectue à son tour le contrôle RBAC
+comme défense en profondeur. La création du premier administrateur
+se fait uniquement par CLI, jamais par une route publique.
+
+Voir [le guide Authentification et ports](../operations/auth-gateway.md).
+
+## Relais HTTP
+
+Les chemins sont déclarés explicitement dans Express, en particulier
+`/api/v1/knowledges`, `/api/v1/auth/*`, les catalogues et
+`GET /api/v1/monitoring/services`. Les routes métier CRUD acceptent
+seulement la collection et un segment d'identifiant, avec les méthodes
+et les contrôles d'accès requis. La Gateway ne relaie pas les routes
+arbitraires du KMS.
+
+Seuls les en-têtes autorisés transitent ; le cookie de session `dk_session`
+est le seul cookie transmis, jamais les autres cookies, le jeton bearer
+ou des identités déclarées par le navigateur. Taille du corps plafonnée
+à 1 Mio ; délais, réponses de panne et validation suivent le contrat
+du relais Node existant. Les requêtes de connexion sont ralenties et
+les écritures cross-origin refusées.
+
+`GET /health` vérifie la Gateway ; `GET /health/ready` demande la
+readiness du KMS ; `GET /health/frontend` sonde Nginx depuis la Gateway
+à travers la DMZ. Ces sondes techniques ne contiennent pas de secrets.
+La surveillance agrégée se consulte, après authentification, par
+`GET /api/v1/monitoring/services`.
+
+## Vérification
 
 ```bash
-docker compose -f compose.yaml up -d --force-recreate api-kms
+docker compose --env-file .env config --quiet
+docker compose --env-file .env ps
 ```
 
-Les exemples historiques visant directement le port 8000 nécessitent désormais
-ce mode de diagnostic ; les appels CRUD habituels doivent utiliser le port Gateway.
+Dans `ps`, **seul le frontend** a un port hôte lié à `127.0.0.1`.
+Le KMS, MongoDB, le Collector et la Gateway n'ont aucun port publié.
+Pour inspecter un service de manière autorisée, employer
+`docker compose exec` sur son conteneur ; ne pas publier directement
+ses ports. L'ancienne superposition `compose.debug.yaml` de
+publication du KMS a été retirée.
 
-## Validation et limites
-
-Les tests Gateway utilisent un serveur HTTP réel sur port éphémère. Ils couvrent
-la transmission, les statuts, les en-têtes, les tailles, les chemins exclus, les
-délais, les interruptions et la configuration. `python scripts/check_stabilization.py`
-exécute aussi les cinq opérations via les vrais conteneurs, avec MongoDB isolé,
-puis les coupures MongoDB et KMS et leur reprise. La CI rejoue ces scénarios.
-
-Ce relais n'introduit **aucune authentification ou autorisation**. Il reste local,
-le créateur demeure anonyme, et l'ADR-003 doit être tranché avant l'ajout d'identité.
-STAB-08 ajoute les écritures conditionnelles obligatoires ([[knowledge-concurrency]]) et les outils de sauvegarde/restauration ([[../operations/backup-restore]]).
+La CI vérifie la topologie, la propagation HTTP par la Gateway, les
+refus d'accès et les scénarios de reprise. La validation des identités
+interservices cryptographiques est prévue pour une itération ultérieure.

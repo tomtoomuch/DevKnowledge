@@ -67,7 +67,7 @@ function createSnapshotCollector({
     const kms = 'http://api-kms:8000';
     const [gatewayLive, frontendLive, kmsLive, kmsReady, gpuResult] = await Promise.all([
       probe(gateway + '/health'),
-      probe('http://frontend/'),
+      probe(gateway + '/health/frontend'),
       probe(kms + '/health'),
       probe(kms + '/health/ready'),
       gpuEnabled() ? gpu().catch(() => ({ status: 'unavailable', devices: [] })) : Promise.resolve(null),
@@ -84,7 +84,7 @@ function createSnapshotCollector({
       services: [
         service('api-gateway', gatewayOkay ? 'healthy' : 'unavailable',
           gatewayOkay ? 'La sonde HTTP de la Gateway répond.' : 'La Gateway ne répond pas à la sonde.'),
-        service('frontend', frontendLive.status === 200 ? 'healthy' : 'unavailable',
+        service('frontend', validHealth(frontendLive, 'frontend') ? 'healthy' : 'unavailable',
           frontendLive.status === 200 ? 'Nginx sert le frontend Angular.' : 'Le frontend est inaccessible.'),
         service('api-kms', !kmsOkay ? 'unavailable' : ready ? 'healthy' : 'degraded',
           !kmsOkay ? 'Le KMS ne répond pas à la sonde.' :
