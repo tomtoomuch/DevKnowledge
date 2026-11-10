@@ -75,6 +75,17 @@ def gateway_status(path):
     return int(compose("exec", "-T", "api-gateway", "node", "-e", code).stdout.strip())
 
 
+def metric_sample_count():
+    """Read-only verification of the Supervisor SQLite volume."""
+    code = (
+        "const {DatabaseSync}=require('node:sqlite');"
+        "const db=new DatabaseSync(process.env.METRICS_DB_PATH,{readOnly:true});"
+        "try { console.log(db.prepare('SELECT count(*) AS c FROM metric_samples').get().c); }"
+        "finally { db.close(); }"
+    )
+    return int(compose("exec", "-T", "collector", "node", "-e", code).stdout.strip())
+
+
 def frontend_status(path):
     # The frontend is DMZ-only: probe from Gateway, never from KMS.
     code = f"fetch('http://frontend:80{path}', {{signal: AbortSignal.timeout(15000)}}).then(r => console.log(r.status))"
@@ -216,6 +227,13 @@ def main():
                 for volume in config["volumes"].values()), "Volumes must belong to the test project")
     require(config["services"]["mongodb"]["volumes"][0]["type"] == "volume",
             "MongoDB data must use a disposable named volume")
+    metrics_volumes = base_config["services"]["collector"].get("volumes", [])
+    require(len(metrics_volumes) == 1 and
+            metrics_volumes[0].get("type") == "volume" and
+            metrics_volumes[0].get("source") == "supervisor-metrics" and
+            metrics_volumes[0].get("target") == "/var/lib/devknowledge-supervisor",
+            "Supervisor metrics must use its own named volume")
+    require("supervisor-metrics" in config["volumes"], "Metrics volume missing")
     passed("isolated Compose configuration; no published ports or development volumes")
     try:
         if args.offline:
@@ -240,6 +258,16 @@ def main():
         require(http_status("/health", "api-gateway", 3107) == 200, "Custom Gateway port failed")
         database_check(insert=True)
         passed("fresh bootstrap, least privileges, indexes, custom Gateway port 3107")
+        eventually(lambda: metric_sample_count() >= 1,
+                   "Supervisor SQLite should store periodic snapshots")
+        sqlite_samples = metric_sample_count()
+        compose("up", "-d", "--no-build", "--pull", "never", "--no-deps",
+                "--force-recreate", "collector", timeout=180)
+        eventually(lambda: health("collector") == "healthy",
+                   "Supervisor metrics collector recovers after recreation")
+        require(metric_sample_count() >= sqlite_samples,
+                "SQLite history did not survive collector recreation")
+        passed("SQLite metrics persisted on named volume after container recreation")
         print(kms_python((ROOT / "tests/gateway_contract.py").read_text(encoding="utf-8")), flush=True)
         passed("Gateway end-to-end CRUD and validation errors")
         # Keep one active knowledge alongside the soft-deleted CRUD fixture.
