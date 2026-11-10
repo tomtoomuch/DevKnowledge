@@ -8,7 +8,7 @@ from app.rncp.router import get_rncp_repository, router
 from app.rncp.repository import RncpRepository
 from app.services.knowledge_service import RequesterIdentity
 
-from test_rncp import DSN, COMP1, COMP2, ACTOR, KNOWLEDGE
+from test_rncp import DSN, COMP1, COMP2, ACTOR, KNOWLEDGE, database
 
 NEW_KNOWLEDGE = uuid.UUID("70000000-0000-0000-0000-000000000002")
 ABSENT_KNOWLEDGE = uuid.UUID("70000000-0000-0000-0000-000000000003")
