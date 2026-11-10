@@ -33,7 +33,13 @@ de privilèges `find` sur les collections d'identité nécessaires :
 `users`, `sessions`, `user_roles`, `roles`, `role_permissions`,
 `permissions`. **Ne pas réutiliser le compte root ni le compte KMS
 readWrite.** Préparer la sauvegarde MongoDB avant toute modification des
-habilitations.
+habilitations. Le script manuel `backend/mongodb/ops/provision-supervisor-reader.js`
+propose un rôle personnalisé avec le seul droit `find` sur ces six collections.
+Il n'est **pas exécuté automatiquement** par Compose ni monté dans le
+répertoire d'initialisation. L'opérateur peut l'exécuter explicitement avec
+`mongosh` après avoir fourni les variables d'environnement et authentifié
+une session d'administration MongoDB ; une nouvelle exécution vérifie les
+droits existants et ne change pas le mot de passe d'un compte déjà créé.
 
 Variables requises en mode shadow (sans versionner les secrets) :
 
