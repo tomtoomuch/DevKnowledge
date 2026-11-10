@@ -20,6 +20,10 @@ ce MongoDB autonome, ne pas exécuter d'autres outils d'écriture directe pendan
 l'opération. L'outil compare aussi l'état avant et après le dump et refuse de
 certifier une base modifiée entre ces deux lectures.
 
+Les collections de relations `relation_types` et `knowledge_relations`
+sont sauvegardées avec les connaissances : l'exportation partielle de
+`knowledge_items` seule ne permettrait pas de restaurer les liens.
+
 Le dossier contient `database.archive.gz` (BSON compressé, via `mongodump`) et
 `manifest.json` : date UTC, version MongoDB, SHA-256 de l'archive, empreinte et
 nombre de documents par collection, index et options de collection. Les

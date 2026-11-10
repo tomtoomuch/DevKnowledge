@@ -15,6 +15,7 @@ from app.repositories.knowledge_repository import MongoKnowledgeRepository
 from app.repositories.knowledge_type_repository import MongoKnowledgeTypeRepository
 from app.repositories.tag_repository import MongoTagRepository
 from app.repositories.technology_repository import MongoTechnologyRepository
+from app.repositories.relation_repository import MongoRelationRepository
 from app.auth.local import initialize_identity
 
 
@@ -51,6 +52,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 await MongoKnowledgeTypeRepository(app.state.mongodb_database).ensure_catalog()
                 await MongoTagRepository(app.state.mongodb_database).ensure_indexes()
                 await MongoTechnologyRepository(app.state.mongodb_database).ensure_indexes()
+                await MongoRelationRepository(app.state.mongodb_database).ensure_catalog()
                 await initialize_identity(app.state.mongodb_database)
                 logger.info("MongoDB connection and indexes ready")
                 break

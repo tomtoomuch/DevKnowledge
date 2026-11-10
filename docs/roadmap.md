@@ -26,6 +26,7 @@ tags: [devknowledge, roadmap, stabilisation]
 | **Itération 2 — Stabilisation** | **STAB-01 à 08 implémentés ; revue de sortie à mener** | Config/env, compte MongoDB, readiness, tests, CI, reproductibilité, accès Gateway |
 | Identité, rôles et droits | Prototype local + création/consultation de comptes Angular (itération 5), revue de sécurité à conduire | `users`, `roles`, `permissions`, `user_roles`, `role_permissions` ; arbitrage local/OIDC |
 | Classification, spécialisations et historique | **Spécialisations intégrées ; tags PR #9 et technologies/versions PR #10 en cours** | `knowledge_types` et huit modèles ; catalogues `tags`, `technologies`, `technology_versions` et associations atomiques proposés ; sources, relations entre connaissances et historique encore non réalisés |
+| Relations entre connaissances | **PR #11 en implémentation** | `relation_types`, `knowledge_relations`, orientation, unicité, éditions concurrentes, UI et tests sur MongoDB jetable |
 | Certification RNCP et preuves | Non commencée | Versions du RNCP 37827, compétences, critères, correspondances, preuves |
 | Recherche et assistant RAG local | Recherche textuelle générique implémentée dans l'itération 4 ; index sémantique/RAG non commencés | ChromaDB, chunking, embeddings, Ollama, citations, réponse « informations insuffisantes » |
 | MCP, évaluation IA et MLOps | Non commencée | Outils contrôlés, tests d'autorisation, suivi MLflow |
@@ -90,6 +91,18 @@ relations complexes et des opérations d'administration.
 sur #9). Voir [[iterations/iteration-7b-technologies]].
 
 **Après le lot B :** liens entre connaissances, sources partagées et historique versionné.
+
+## Itération 8 — Relations entre connaissances (PR #11)
+
+Les deux entités logiques du domaine E, `relation_types` et
+`knowledge_relations`, sont proposées dans la PR #11 :
+référentiel stable de cinq types, relations dirigées ou symétriques,
+unicité canonique, API CRUD de liens avec `If-Match`, RBAC et interface
+Angular dans les fiches. Voir [[iterations/iteration-8-knowledge-relations]].
+
+**Reste à traiter :** politique de nettoyage des relations vers des
+connaissances supprimées logiquement, édition/administration des types,
+sources/pièces jointes et versions de connaissances.
 
 ## Ordre recommandé après stabilisation
 

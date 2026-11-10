@@ -13,10 +13,14 @@ from app.auth.user_management import (
 from app.api.routes.knowledge_types import router as knowledge_types_router
 from app.api.routes.tags import router as tags_router
 from app.api.routes.technologies import router as technologies_router
+from app.api.routes.relations import router as relations_router
 from app.api.routes.monitoring import router as monitoring_router
 from app.db.mongodb import lifespan
 from app.auth.network_guard import restrict_to_internal_peers
 from app.repositories.tag_repository import UnknownTagError
+from app.repositories.relation_repository import (
+    RelationNotFound, RelationConflict, RelationReferenceError,
+)
 from app.repositories.technology_repository import (
     UnknownTechnologyError, UnknownTechnologyVersionError,
     DuplicateTechnologyAssociationError,
@@ -39,9 +43,23 @@ app.include_router(identity_router)
 app.include_router(knowledge_types_router)
 app.include_router(tags_router)
 app.include_router(technologies_router)
+app.include_router(relations_router)
 app.include_router(monitoring_router)
 
 
+@app.exception_handler(RelationNotFound)
+async def relation_not_found(request: Request, exc: RelationNotFound) -> JSONResponse:
+    return JSONResponse(status_code=404, content={"detail": "Relation or knowledge not found"})
+
+
+@app.exception_handler(RelationConflict)
+async def relation_conflict(request: Request, exc: RelationConflict) -> JSONResponse:
+    return JSONResponse(status_code=412, content={"detail": "Relation revision changed; reload"})
+
+
+@app.exception_handler(RelationReferenceError)
+async def relation_reference_error(request: Request, exc: RelationReferenceError) -> JSONResponse:
+    return JSONResponse(status_code=422, content={"detail": "Relation type or active endpoint missing"})
 @app.exception_handler(UserNotFound)
 async def user_not_found(request: Request, exc: UserNotFound) -> JSONResponse:
     return JSONResponse(status_code=404, content={"detail": "User not found"})

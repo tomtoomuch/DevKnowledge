@@ -39,6 +39,7 @@
 
 - [[iterations/iteration-7b-technologies]] — Technologies, versions et associations aux connaissances (PR #10, dépendante de #9).
 
+- [[iterations/iteration-8-knowledge-relations]] — Graphes typés de connaissances, prévention des doublons et révisions (PR #11).
 - [Gateway, authentification et ports locaux](operations/auth-gateway.md)
 
 - [Réseaux DMZ et interne / règles de communication](architecture/gateway-kms.md)
