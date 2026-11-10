@@ -114,6 +114,50 @@ en mode jeton obligatoire avant fusion.
    asymétrique et rotation, secrets par service et droits MongoDB
    limités aux seules collections de sa responsabilité.
 
+## Journalisation centralisée — capacité cible du Superviseur
+
+Le Superviseur assurera la **collecte centralisée par microservice**,
+l'indexation, la consultation et la rétention des événements, sans
+créer de second point d'entrée public.
+
+Deux catégories distinctes sont obligatoires :
+
+- **Observabilité** : erreurs d'exécution, durée des requêtes,
+  disponibilité, redémarrages et corrélation entre services.
+  Le stockage peut être asynchrone, avec file tampon bornée et
+  politique d'abandon explicite en cas de saturation.
+- **Audit de sécurité** : connexions, échecs, refus RBAC, changements
+  de comptes et de rôles, révocations et opérations administratives.
+  L'intégrité, la non-altération, la conservation et le comportement
+  en cas d'échec du stockage doivent être déterminés séparément.
+
+Chaque événement aura au minimum : `timestamp_utc`,
+`service_id`, `severity`, `event_code`, `trace_id`,
+`schema_version` et des attributs structurés **autorisés**.
+Les journaux ne contiendront jamais mots de passe, cookies, tokens
+ou en-têtes de sécurité en clair ; les identifiants utilisateurs ne
+devront être conservés que si justifiés par l'audit et la politique
+de rétention.
+
+```text
+Gateway / KMS / services IA -> ingestion interne authentifiée Superviseur
+                                 (identité + audience + logs.write)
+                                  |
+                                  +-- stockage/rétention centralisés
+                                  |
+Navigateur Angular -> Gateway -> API Superviseur de consultation RBAC
+                                  (logs.read / security_audit.read)
+```
+
+**Les métriques de santé et GPU utilisent un autre magasin : SQLite3**,
+introduit dans le lot `feature/supervisor-metrics-sqlite` (PR #14).
+L'interface d'ingestion et la persistance des journaux sont
+**planifiées, non encore implémentées** : le stockage des métriques
+ne doit pas être présenté comme une couverture complète des audits.
+
+Consulter [[decisions/ADR-005-strategie-stockage]] et
+[[operations/metrics-sqlite]] pour la séparation des domaines de données.
+
 ## Sécurité et risques documentés
 
 - Un **token interne** autorise un appel mais ne rend pas les
