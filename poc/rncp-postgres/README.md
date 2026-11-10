@@ -56,3 +56,27 @@ pas de migration depuis MongoDB ni de jointure SQL–Mongo ; pas de
 parcours Angular, pas de transaction répartie ni de stockage du LLM.
 Image de test construite avec accès réseau pour les dépendances :
 qualification du *build* entièrement hors ligne reportée.
+
+
+## Itération KMS/API (prévisualisation, non fusionnée)
+
+Les routes `/api/v1/rncp/*` sont **désactivées par défaut**.
+L'overlay explicite `compose.rncp.yaml` définit le conteneur PostgreSQL,
+le job de migration et l'image KMS de prévisualisation contenant psycopg.
+Il ne doit être utilisé que sur un **projet Compose de test distinct**
+avec identifiants nouveaux, volumes distincts et revue préalable.
+Ne pas le combiner avec le projet Compose `dev` et ne pas effacer
+ses volumes.
+
+Le Gateway n'autorise que quatre formes de routes RNCP, avec des
+permissions `knowledge.read` pour GET et `knowledge.create` pour POST ;
+le KMS applique les mêmes permissions. L'activation du Superviseur
+comme autorité d'identité est un chantier séparé : le mode session
+actuel doit être validé, et le mode jeton interne obligatoire ne sera
+activé qu'une fois toute la chaîne d'émission/vérification fonctionnelle.
+
+L'écriture d'un lien RNCP vérifie la présence d'une connaissance active
+dans MongoDB, mais le délai entre cette vérification et l'insertion
+PostgreSQL **n'est pas atomique interbases**. Une suppression MongoDB
+concurrente peut produire un lien orphelin ; avant la migration effective,
+ajouter un processus de réconciliation / outbox et tester les pannes.
