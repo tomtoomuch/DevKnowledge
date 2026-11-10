@@ -15,7 +15,13 @@ DECLARE @sql NVARCHAR(MAX) = N'RESTORE DATABASE devknowledge_poc_restored FROM D
 EXEC sp_executesql @sql;
 GO
 USE devknowledge_poc_restored;
-IF (SELECT COUNT(*) FROM dbo.knowledge_items WHERE revision = 2) <> 1
-  THROW 51022, 'Restored fixture mismatch', 1;
+IF (SELECT COUNT(*) FROM dbo.knowledge_items) <>
+   (SELECT COUNT(*) FROM devknowledge_poc.dbo.knowledge_items)
+  THROW 51022, 'Restored total count mismatch', 1;
+IF (SELECT COUNT(*) FROM dbo.knowledge_items WHERE revision = 2) <>
+   (SELECT COUNT(*) FROM devknowledge_poc.dbo.knowledge_items WHERE revision = 2)
+  THROW 51023, 'Restored revision counts mismatch', 1;
+IF (SELECT COUNT(*) FROM dbo.schema_migrations WHERE version_number = 2) <> 1
+  THROW 51024, 'Restored migration version missing', 1;
 PRINT 'BACKUP_RESTORE_PASS sqlserver';
 GO

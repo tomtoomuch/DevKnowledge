@@ -148,12 +148,16 @@ def main():
             pg("pg_restore", "-h", "127.0.0.1", "-U", "postgres",
                "-d", "devknowledge_poc_restored", "--exit-on-error",
                "/tmp/dk_sqlpoc.dump")
-            output, _ = pg("psql", "-h", "127.0.0.1", "-U", "postgres",
-                           "-d", "devknowledge_poc_restored", "-v", "ON_ERROR_STOP=1",
-                           "-t", "-A", "-c",
-                           '"SELECT COUNT(*) FROM knowledge_items WHERE revision = 2"')
-            if output.strip() != "1":
-                raise RuntimeError("Postgres restored fixture mismatch: " + output.strip())
+            query = '"SELECT COUNT(*), COUNT(*) FILTER (WHERE revision = 2) FROM knowledge_items"'
+            source, _ = pg("psql", "-h", "127.0.0.1", "-U", "postgres",
+                           "-d", "devknowledge_poc", "-v", "ON_ERROR_STOP=1",
+                           "-t", "-A", "-c", query)
+            restored, _ = pg("psql", "-h", "127.0.0.1", "-U", "postgres",
+                             "-d", "devknowledge_poc_restored", "-v", "ON_ERROR_STOP=1",
+                             "-t", "-A", "-c", query)
+            if source.strip() != restored.strip():
+                raise RuntimeError("Postgres restored counts/revisions do not match source")
+            extras["restored_counts"] = restored.strip()
             times["backup_restore_seconds"] = round(time.monotonic() - start, 3)
         success = True
     except Exception as exc:
