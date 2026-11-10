@@ -9,7 +9,7 @@ from app.api.routes.knowledges import expected_revision
 from app.auth.user_management import UserManagement
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pymongo.errors import DuplicateKeyError
 
 from app.auth.local import (
@@ -33,6 +33,13 @@ class UserInput(BaseModel):
     username: str = Field(min_length=3, max_length=40)
     password: str = Field(min_length=12, max_length=256)
     roles: list[Literal["ADMIN", "EDITOR", "READER"]] = Field(min_length=1, max_length=3)
+
+    @field_validator("password")
+    @classmethod
+    def require_nonblank_password(cls, value):
+        if not value.strip():
+            raise ValueError("Password cannot be blank")
+        return value
 
     @model_validator(mode="after")
     def unique_roles(self):
@@ -63,6 +70,13 @@ class UserUpdate(BaseModel):
 class UserPasswordReset(BaseModel):
     model_config = ConfigDict(extra="forbid")
     password: str = Field(min_length=12, max_length=256)
+
+    @field_validator("password")
+    @classmethod
+    def require_nonblank_password(cls, value):
+        if not value.strip():
+            raise ValueError("Password cannot be blank")
+        return value
 
 
 Revision = Annotated[int, Depends(expected_revision)]

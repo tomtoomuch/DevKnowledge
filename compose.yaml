@@ -107,6 +107,9 @@ services:
       MONGODB_APP_PASSWORD: ${MONGODB_APP_PASSWORD:?MONGODB_APP_PASSWORD_required}
     volumes:
       - mongodb:/data/db
+      # Avoid accumulating anonymous image-defined volumes on container recreation.
+      # For this standalone mongod, business data lives in /data/db.
+      - mongodb-configdb:/data/configdb
       # Scripts officiels d'initialisation : executes uniquement sur volume vierge.
       - ./backend/mongodb/init/01-create-app-user.js:/docker-entrypoint-initdb.d/01-create-app-user.js:ro
     healthcheck:
@@ -120,7 +123,11 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    stop_grace_period: 60s
     restart: unless-stopped
 
 volumes:
   mongodb:
+    driver: local
+  mongodb-configdb:
+    driver: local
