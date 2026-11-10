@@ -2,6 +2,8 @@ FROM node:26-bookworm-slim
 
 WORKDIR /app
 COPY --chown=node:node src ./src
+# A named Docker volume inherits the directory ownership on first creation.
+RUN mkdir -p /var/lib/devknowledge-supervisor && chown node:node /var/lib/devknowledge-supervisor
 
 USER node
 EXPOSE 9109
