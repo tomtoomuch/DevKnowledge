@@ -11,6 +11,7 @@ from app.api.routes.tags import router as tags_router
 from app.api.routes.technologies import router as technologies_router
 from app.api.routes.monitoring import router as monitoring_router
 from app.db.mongodb import lifespan
+from app.auth.network_guard import restrict_to_internal_peers
 from app.repositories.tag_repository import UnknownTagError
 from app.repositories.technology_repository import (
     UnknownTechnologyError, UnknownTechnologyVersionError,
@@ -28,6 +29,7 @@ app = FastAPI(
     version="0.2.0",
     lifespan=lifespan,
 )
+app.middleware("http")(restrict_to_internal_peers)
 app.include_router(router)
 app.include_router(identity_router)
 app.include_router(knowledge_types_router)

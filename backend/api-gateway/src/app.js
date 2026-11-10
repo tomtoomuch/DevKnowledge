@@ -1,12 +1,14 @@
 const express = require("express");
 const { createKmsProxy } = require("./kms-proxy");
 const { sessionCookie, permissionFor, validPrincipal, createSessionLookup } = require("./session-auth");
+const { checkFrontend } = require("./frontend-health");
 
 function createApp({
     kmsBaseUrl = process.env.KMS_BASE_URL || "http://127.0.0.1:8000",
     kmsTimeoutMs = Number(process.env.KMS_TIMEOUT_MS || 10000),
     sessionLookup = null,
     authEnabled = process.env.AUTH_MODE !== "disabled",
+    frontendProbe = checkFrontend,
 } = {}) {
     const app = express();
     app.disable("x-powered-by");
@@ -21,6 +23,15 @@ function createApp({
         res.status(200).json({ status: "ok", service: "api-gateway" });
     });
     app.get("/health/ready", relay);
+    // Collector reaches this route through the internal network; Gateway probes Nginx via DMZ.
+    app.get("/health/frontend", async (req, res) => {
+        res.setHeader("Cache-Control", "no-store");
+        if (await frontendProbe()) {
+            res.status(200).json({ status: "ok", service: "frontend" });
+        } else {
+            res.status(503).json({ status: "error", service: "frontend" });
+        }
+    });
 
     // Enforce same-origin browser writes even though session cookies are SameSite=Strict.
     function rejectCrossOrigin(req, res, next) {
