@@ -19,6 +19,7 @@ import { TechnologyRecord, TechnologyVersionRecord } from './models/technology.m
 import { AuthService, LocalIdentity } from './services/auth.service';
 import { UserAdminComponent } from './components/user-admin.component';
 import { MonitoringComponent } from './components/monitoring.component';
+import { KnowledgeRelationsComponent } from './components/knowledge-relations.component';
 
 type EditorMode = 'view' | 'create' | 'edit';
 const PAGE_SIZE = 20;
@@ -26,7 +27,7 @@ const PAGE_SIZE = 20;
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, UserAdminComponent, MonitoringComponent],
+  imports: [CommonModule, ReactiveFormsModule, UserAdminComponent, MonitoringComponent, KnowledgeRelationsComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -535,6 +536,11 @@ export class AppComponent implements OnInit {
     this.configureDetails('CODE_SNIPPET');
     this.editor.markAsPristine();
     this.mode.set('create');
+  }
+
+  openLinkedKnowledge(id: string): void {
+    if (!this.mayLeaveEditor()) return;
+    this.fetchDetail(id);
   }
 
   openKnowledge(item: Knowledge): void {
