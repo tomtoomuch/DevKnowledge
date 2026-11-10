@@ -179,7 +179,11 @@ test("a stalled response body is interrupted at the absolute deadline", async ()
         res.writeHead(200, { "content-type": "application/json" });
         res.write('{"partial":');
     };
-    const fastApp = createApp({ kmsBaseUrl: origin, kmsTimeoutMs: 50 });
+    const fastApp = createApp({ kmsBaseUrl: origin, kmsTimeoutMs: 50, sessionLookup: async () => ({
+        user_id: "test-id", username: "test", roles: ["ADMIN"],
+        permissions: ["knowledge.read", "knowledge.create", "knowledge.update",
+            "knowledge.delete", "users.manage"],
+    }) });
     await expect(request(fastApp).get("/api/v1/knowledges")).rejects.toThrow();
 });
 

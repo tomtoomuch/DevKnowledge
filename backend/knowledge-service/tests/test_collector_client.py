@@ -31,7 +31,7 @@ def sample():
 def test_valid_telemetry_is_sanitized():
     data = service.sanitize(sample())
     assert data["gpu"]["devices"][0]["temperature_c"] == 42
-    assert len(data["services"]) == 4
+    assert len(data["services"]) == 5
     assert data["services"][0]["name"] == "API Gateway"
 
 
