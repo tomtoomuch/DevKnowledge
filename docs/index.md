@@ -38,3 +38,5 @@
 - [[iterations/iteration-7-tags]] — Catalogue, affectation et filtrage des tags (PR #9 en validation).
 
 - [[iterations/iteration-7b-technologies]] — Technologies, versions et associations aux connaissances (PR #10, dépendante de #9).
+
+- [Gateway, authentification et ports locaux](operations/auth-gateway.md)
