@@ -2,6 +2,7 @@ const express = require("express");
 const { createKmsProxy } = require("./kms-proxy");
 const { sessionCookie, permissionFor, validPrincipal, createSessionLookup } = require("./session-auth");
 const { checkFrontend } = require("./frontend-health");
+const { createFrontendProxy } = require("./frontend-proxy");
 
 function createApp({
     kmsBaseUrl = process.env.KMS_BASE_URL || "http://127.0.0.1:8000",
@@ -9,10 +10,12 @@ function createApp({
     sessionLookup = null,
     authEnabled = process.env.AUTH_MODE !== "disabled",
     frontendProbe = checkFrontend,
+    frontendBaseUrl = process.env.FRONTEND_BASE_URL || "http://frontend:80",
 } = {}) {
     const app = express();
     app.disable("x-powered-by");
     const relay = createKmsProxy(kmsBaseUrl, kmsTimeoutMs);
+    const serveFrontend = createFrontendProxy(frontendBaseUrl, kmsTimeoutMs);
     const lookup = sessionLookup || createSessionLookup(kmsBaseUrl, kmsTimeoutMs);
     const publicScheme = process.env.GATEWAY_PUBLIC_SCHEME || "http";
     if (!["http", "https"].includes(publicScheme)) {
@@ -120,6 +123,18 @@ function createApp({
     // Only the collection and one identifier segment can reach the fixed upstream.
     app.all(/^\/api\/v1\/knowledges(?:\/[a-zA-Z0-9-]+)?\/?$/,
         rawJson, relay);
+    // Fail closed for unregistered API/health paths: never serve Angular for them.
+    app.use((req, res, next) => {
+        if (req.path === "/api" || req.path.startsWith("/api/") ||
+            req.path === "/health" || req.path.startsWith("/health/")) {
+            return res.status(404).json({ detail: "Route not found" });
+        }
+        if (req.method !== "GET" && req.method !== "HEAD") {
+            return res.status(404).json({ detail: "Route not found" });
+        }
+        return serveFrontend(req, res);
+    });
+
     app.use((error, req, res, next) => {
         if (res.headersSent) return next(error);
         const status = error.status === 413 ? 413 : error.status === 415 ? 415 : 400;

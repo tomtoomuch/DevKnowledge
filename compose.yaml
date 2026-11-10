@@ -1,16 +1,12 @@
 services:
   frontend:
-    environment:
-      GATEWAY_PORT: ${GATEWAY_PORT:-3000}
     image: devknowledge-frontend:latest
     build:
       context: ./frontend/ui-app
       dockerfile: Dockerfile
-    ports:
-      - "127.0.0.1:${FRONTEND_PORT:-4200}:80"
-    depends_on:
-      api-gateway:
-        condition: service_healthy
+    # No host port: only Express Gateway is the external entry point.
+    expose:
+      - "80"
     networks:
       - dmz
     restart: unless-stopped
@@ -28,6 +24,10 @@ services:
       GATEWAY_PUBLIC_SCHEME: ${GATEWAY_PUBLIC_SCHEME:-http}
       AUTH_MODE: required
       NODE_ENV: production
+      FRONTEND_BASE_URL: http://frontend:80
+    # This is the ONLY published port, serving both Angular and /api/v1.
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-4200}:${GATEWAY_PORT:-3000}"
     expose:
       - "${GATEWAY_PORT:-3000}"
     networks:
@@ -35,6 +35,8 @@ services:
       - internal
     depends_on:
       api-kms:
+        condition: service_healthy
+      frontend:
         condition: service_healthy
 
     healthcheck:

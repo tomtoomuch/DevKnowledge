@@ -192,12 +192,14 @@ def main():
 
     config = json.loads(compose("config", "--format", "json").stdout)
     base_config = json.loads(run(COMPOSE[:-2] + ["config", "--format", "json"]).stdout)
-    for name in ("api-gateway", "api-kms", "mongodb", "collector"):
+    for name in ("frontend", "api-kms", "mongodb", "collector"):
         require(not base_config["services"][name].get("ports"),
                 f"{name} must never publish a host port")
-    require(all(port.get("host_ip") == "127.0.0.1"
-                for port in base_config["services"]["frontend"].get("ports", [])),
-            "Frontend must bind only to local loopback")
+    gateway_ports = base_config["services"]["api-gateway"].get("ports", [])
+    require(len(gateway_ports) == 1 and
+            gateway_ports[0].get("host_ip") == "127.0.0.1" and
+            gateway_ports[0].get("target") == 3107,
+            "Only Gateway must publish one loopback port")
     require(set(base_config["networks"]) == {"dmz", "internal"},
             "Compose must define exactly DMZ and internal networks")
     require(base_config["networks"]["internal"].get("internal") is True,
@@ -226,12 +228,15 @@ def main():
             report["network"] = verify_offline_network(report["images"])
             passed("runtime network isolated; no external default route; outbound connection refused")
         require(http_status("/health/ready") == 200, "KMS not ready")
-        require(frontend_status("/") == 200, "Angular frontend not served through DMZ")
-        require(frontend_status("/api/v1/knowledges") == 200,
-                "Frontend must forward CRUD through Gateway")
+        require(gateway_status("/") == 200,
+                "Angular SPA must be served exclusively through Gateway")
+        require(gateway_status("/api/v1/knowledges") == 200,
+                "Gateway must route API calls to KMS")
         require(gateway_status("/health/frontend") == 200,
-                "Gateway must probe frontend through the DMZ")
-        passed("Angular frontend on DMZ and internal Gateway proxy")
+                "Gateway must probe private Nginx through DMZ")
+        require(frontend_status("/api/v1/knowledges") == 404,
+                "Private Nginx must not act as a second API gateway")
+        passed("Gateway is the only entry point for Angular assets and API")
         require(http_status("/health", "api-gateway", 3107) == 200, "Custom Gateway port failed")
         database_check(insert=True)
         passed("fresh bootstrap, least privileges, indexes, custom Gateway port 3107")

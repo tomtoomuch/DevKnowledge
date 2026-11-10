@@ -14,7 +14,7 @@ describe("GET /health", () => {
     });
 
     it("retourne 404 pour une route inexistante", async () => {
-        const response = await request(app).get("/route-inconnue");
+        const response = await request(app).get("/api/route-inconnue");
 
         expect(response.statusCode).toBe(404);
     });
