@@ -9,6 +9,18 @@ import psycopg
 from psycopg.rows import dict_row
 
 
+class MissingCompetency(Exception):
+    """Referenced RNCP competency does not exist."""
+
+
+class InvalidEvidenceType(Exception):
+    """Unknown evidence type code."""
+
+
+class DuplicateKnowledgeLink(Exception):
+    """Knowledge/competency association already exists."""
+
+
 class RncpRepository:
     def __init__(self, dsn: str):
         self._dsn = dsn
@@ -113,3 +125,67 @@ class RncpRepository:
                     }
                     for row in cur.fetchall()
                 ]
+
+    def create_evidence(self, competency_id: uuid.UUID, title: str,
+                        evidence_type_code: str, user_id: uuid.UUID,
+                        repository_url: str | None) -> dict:
+        """Persist evidence and competency association atomically."""
+        evidence_id = uuid.uuid4()
+        with psycopg.connect(self._dsn, row_factory=dict_row) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT 1 FROM rncp.certification_competencies WHERE competency_id = %s",
+                    (competency_id,),
+                )
+                if cur.fetchone() is None:
+                    raise MissingCompetency
+                cur.execute(
+                    "SELECT evidence_type_id FROM rncp.evidence_types WHERE code = %s",
+                    (evidence_type_code,),
+                )
+                kind = cur.fetchone()
+                if kind is None:
+                    raise InvalidEvidenceType
+                cur.execute(
+                    """INSERT INTO rncp.evidence_artifacts
+                       (evidence_id,title,evidence_type_id,repository_url,created_at,
+                        created_by_user_id,verification_status)
+                       VALUES (%s,%s,%s,%s,now(),%s,'PENDING')""",
+                    (evidence_id, title, kind["evidence_type_id"], repository_url, user_id),
+                )
+                cur.execute(
+                    """INSERT INTO rncp.competency_evidence
+                       (id,competency_id,evidence_id,evidence_role,review_status)
+                       VALUES (%s,%s,%s,'SUPPORT','PENDING')""",
+                    (uuid.uuid4(), competency_id, evidence_id),
+                )
+        return {"id": str(evidence_id), "title": title,
+                "competency_id": str(competency_id), "type": evidence_type_code,
+                "verification_status": "PENDING"}
+
+    def create_knowledge_link(self, competency_id: uuid.UUID, knowledge_id: uuid.UUID,
+                              user_id: uuid.UUID, confidence: float | None,
+                              rationale: str | None) -> dict:
+        """Link an existing external MongoDB knowledge UUID, atomically in SQL."""
+        link_id = uuid.uuid4()
+        with psycopg.connect(self._dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT 1 FROM rncp.certification_competencies WHERE competency_id = %s",
+                    (competency_id,),
+                )
+                if cur.fetchone() is None:
+                    raise MissingCompetency
+                cur.execute(
+                    """INSERT INTO rncp.knowledge_competency_links
+                       (link_id,knowledge_id,competency_id,confidence_score,
+                        mapping_rationale,created_at,created_by_user_id)
+                       VALUES (%s,%s,%s,%s,%s,now(),%s)
+                       ON CONFLICT (knowledge_id,competency_id) DO NOTHING
+                       RETURNING link_id""",
+                    (link_id, knowledge_id, competency_id, confidence, rationale, user_id),
+                )
+                if cur.fetchone() is None:
+                    raise DuplicateKnowledgeLink
+        return {"id": str(link_id), "competency_id": str(competency_id),
+                "knowledge_id": str(knowledge_id), "confidence_score": confidence}

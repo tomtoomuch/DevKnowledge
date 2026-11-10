@@ -123,6 +123,12 @@ function createApp({
     app.get(/^\/api\/v1\/knowledge-relations\/[a-zA-Z0-9-]+\/?$/, relay);
     app.patch(/^\/api\/v1\/knowledge-relations\/[a-zA-Z0-9-]+\/?$/, rawJson, relay);
     app.delete(/^\/api\/v1\/knowledge-relations\/[a-zA-Z0-9-]+\/?$/, relay);
+    // Opt-in RNCP API: strict path/method allowlist; Gateway RBAC precedes relay.
+    app.get(/^\/api\/v1\/rncp\/frameworks\/[A-Za-z0-9_-]{1,50}\/versions\/[A-Za-z0-9._-]{1,50}\/?$/, relay);
+    app.get(/^\/api\/v1\/rncp\/competencies\/[0-9a-fA-F-]{36}\/evidence\/?$/, relay);
+    app.post(/^\/api\/v1\/rncp\/competencies\/[0-9a-fA-F-]{36}\/evidence\/?$/, rawJson, relay);
+    app.post(/^\/api\/v1\/rncp\/competencies\/[0-9a-fA-F-]{36}\/knowledge-links\/?$/, rawJson, relay);
+
     // Monitoring is authenticated by KMS and always traverses the Gateway.
     // Monitoring authentication is enforced at the Gateway and again at KMS.
     app.get("/api/v1/monitoring/services", relay);

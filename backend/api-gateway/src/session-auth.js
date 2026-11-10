@@ -8,6 +8,9 @@ function sessionCookie(header) {
 }
 
 function permissionFor(path, method) {
+  if (/^\/rncp\//.test(path)) {
+    return method === "POST" ? "knowledge.create" : "knowledge.read";
+  }
   if (/^\/users(?:\/[0-9a-fA-F-]+(?:\/password)?)?\/?$/.test(path)) return "users.manage";
   if (/^\/(?:knowledges)(?:\/[a-zA-Z0-9-]+)?\/?$/.test(path)) {
     return { GET: "knowledge.read", POST: "knowledge.create", PATCH: "knowledge.update",
