@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy, Component, DestroyRef, EventEmitter, Input,
-  OnChanges, Output, inject, signal,
+  OnChanges, Output, computed, inject, signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -36,6 +36,7 @@ export class KnowledgeRelationsComponent implements OnChanges {
   readonly items = signal<KnowledgeRelation[]>([]);
   readonly total = signal(0);
   readonly page = signal(0);
+  readonly pageCount = computed(() => Math.max(1, Math.ceil(this.total() / PAGE_SIZE)));
   readonly loading = signal(false);
   readonly saving = signal(false);
   readonly error = signal('');

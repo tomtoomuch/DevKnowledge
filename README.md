@@ -93,6 +93,29 @@ Ces filtres sont distincts, combinables et appliqués avant pagination.
 
 Voir [spécification et limites du lot B](docs/iterations/iteration-7b-technologies.md).
 
+## Itération 8 — Relations entre connaissances (PR #11, en cours)
+
+Le référentiel métier `relation_types` comporte cinq types stables :
+`DEPENDS_ON`, `COMPLEMENTS`, `CONTRADICTS`, `SUPERSEDES` et `RELATED_TO`.
+La collection `knowledge_relations` relie deux fiches et permet la
+création, la consultation, la modification de notes et la suppression du lien
+indépendamment des connaissances liées.
+
+Une relation orientée conserve son sens (A dépend de B). Une relation non
+orientée utilise une paire canonique afin d'interdire les doublons inversés
+(A ↔ B et B ↔ A). La création exige deux connaissances actives distinctes
+et un type existant ; les doublons renvoient HTTP 409.
+Les modifications et suppressions de relations exigent `If-Match` et
+répondent 412 si la révision a changé.
+
+Routes via Express Gateway : `GET /api/v1/relation-types`,
+`GET/POST /api/v1/knowledge-relations` et
+`GET/PATCH/DELETE /api/v1/knowledge-relations/{uuid}`.
+L'interface Angular présente les relations dans chaque fiche et permet de
+créer, consulter, annoter ou délier une relation selon les droits locaux.
+
+Voir [itération 8 — contrat et recette](docs/iterations/iteration-8-knowledge-relations.md).
+
 ## Lancement local
 
 À la racine, avec une configuration `.env` locale existante et valide :

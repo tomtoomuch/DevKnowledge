@@ -50,7 +50,7 @@
     <div class="rel-pages">
       <button type="button" class="rel-button" (click)="previousPage()"
         [disabled]="loading() || page() === 0">Précédent</button>
-      <span>Page {{ page()+1 }} / {{ (total()+19)/20 | number:'1.0-0' }}</span>
+      <span>Page {{ page()+1 }} / {{ pageCount() }}</span>
       <button type="button" class="rel-button" (click)="nextPage()"
         [disabled]="loading() || (page()+1)*20 >= total()">Suivant</button>
     </div>
