@@ -92,6 +92,17 @@ services:
       GATEWAY_PORT: ${GATEWAY_PORT:-3000}
       GPU_MONITOR_ENABLED: "false"
       COLLECTOR_NETWORK_GUARD: required
+      # Optional read-only identity shadow mode; disabled until a dedicated
+      # MongoDB read-only account and two random service secrets are provisioned.
+      SUPERVISOR_IDENTITY_MODE: ${SUPERVISOR_IDENTITY_MODE:-disabled}
+      SUPERVISOR_GATEWAY_KEY: ${SUPERVISOR_GATEWAY_KEY:-}
+      SUPERVISOR_KMS_TOKEN_KEY: ${SUPERVISOR_KMS_TOKEN_KEY:-}
+      MONGODB_HOST: mongodb
+      MONGODB_PORT: ${MONGODB_PORT:-27017}
+      MONGODB_DATABASE: ${MONGODB_DATABASE:?MONGODB_DATABASE_required}
+      MONGODB_USERNAME: ${MONGODB_SUPERVISOR_USERNAME:-}
+      MONGODB_PASSWORD: ${MONGODB_SUPERVISOR_PASSWORD:-}
+      MONGODB_AUTH_SOURCE: ${MONGODB_AUTH_SOURCE:?MONGODB_AUTH_SOURCE_required}
       METRICS_DB_PATH: /var/lib/devknowledge-supervisor/metrics.sqlite3
       METRICS_SAMPLE_INTERVAL_MS: "60000"
     networks:
