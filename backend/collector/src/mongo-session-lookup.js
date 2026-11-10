@@ -46,7 +46,7 @@ function createMongoSessionLookup(db, now = () => new Date()) {
     });
     if (!user || user.deleted_at || typeof user._id !== "string" ||
         typeof user.username !== "string" ||
-        session.identity_revision !== (user.revision ?? 1)) return null;
+        (session.identity_revision ?? 1) !== (user.revision ?? 1)) return null;
 
     if (Array.isArray(user.role_codes)) {
       return normalizedPrincipal(user, user.role_codes);
