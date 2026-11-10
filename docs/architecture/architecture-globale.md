@@ -145,3 +145,24 @@ Le diagramme représente la cible fonctionnelle. Les composants seront déployé
 - Versions des composants et compatibilité matérielle.
     
 - Modèle local à utiliser selon les capacités de la machine.
+## Architecture déployée : réseaux DMZ et interne (novembre 2026)
+
+En complément de la cible future représentée ci-dessus, le Compose
+actuel utilise exactement deux réseaux :
+
+- `dmz` : frontend Angular/Nginx et API Gateway Express ;
+- `internal` (`internal: true`) : API Gateway Express, Knowledge Service,
+  MongoDB et Collector.
+
+La Gateway est le seul service présent sur les deux réseaux. Seul le
+frontend publie son port sur localhost. La Gateway reste responsable des
+contrôles d'accès avant relais, le KMS maintient le stockage interne de
+l'identité et le RBAC de défense en profondeur. Le Collector fournit des
+sondes de santé et la télémétrie GPU facultative, sans publier de port.
+
+Les gardes d'adresses IP internes de KMS et Collector sont provisoires :
+l'identification cryptographique des pairs (jetons interservices ou mTLS)
+sera définie dans une itération de sécurité ultérieure.
+
+Voir [la topologie réseau et les flux](gateway-kms.md) et
+[le monitoring](../operations/monitoring.md).

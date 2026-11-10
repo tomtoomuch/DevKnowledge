@@ -1,6 +1,0 @@
-# Optional local KMS access for OpenAPI/debugging. Never publish on all interfaces.
-# docker compose -f compose.yaml -f compose.debug.yaml up -d --build
-services:
-  api-kms:
-    ports:
-      - "127.0.0.1:8000:8000"

@@ -84,3 +84,21 @@ La cookie `dk_session` est HttpOnly, Path=/api/v1 et SameSite=Strict.
 
 Ne pas utiliser `docker compose down --volumes` sur la pile de développement
 réelle. Les données de `dev` et de l'instance isolée restent distinctes.
+
+## Cloisonnement réseau DMZ et interne
+
+Le Compose définit exactement deux réseaux **gérés par Compose** :
+`dmz`, réseau bridge d'accès entre le frontend et la Gateway, et
+`internal`, réseau bridge avec `internal: true` pour la Gateway,
+le KMS, MongoDB et le Collector. La Gateway a deux interfaces réseau.
+La DMZ est un réseau Docker *edge*, pas un réseau `external: true`
+préexistant ni un port publié de la Gateway. Seul le frontend publie
+son port sur `127.0.0.1`.
+
+Les sondes du frontend passent par la Gateway et la DMZ ; les appels du
+Collector au KMS sont limités aux deux endpoints de santé. KMS n'accepte
+les API privées que depuis la Gateway (gardes d'adresses IP internes,
+à remplacer par une authentification cryptographique entre services).
+Les appels rejetés retournent 404 sans divulguer les services internes.
+
+Voir [le contrat Gateway-KMS](../architecture/gateway-kms.md).
