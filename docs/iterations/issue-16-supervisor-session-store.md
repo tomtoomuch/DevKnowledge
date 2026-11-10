@@ -7,6 +7,17 @@ tags: [devknowledge, supervisor, authentication, mongodb, migration]
 
 # Connexion et révocation : contrat de persistance historique
 
+Cette étape prépare également un gestionnaire HTTP interne **non monté**
+`backend/collector/src/supervisor-session-handler.js` pour
+`POST /internal/v1/auth/login` et `POST /internal/v1/auth/logout`.
+Ce gestionnaire exige la clé `SUPERVISOR_GATEWAY_KEY`, valide strictement
+le schéma JSON et refuse tout appel sans autorisation ; le Gateway devra
+le relayer sans jamais transmettre les secrets au navigateur.
+Le token opaque généré par login n'est renvoyé qu'au Gateway, qui devra
+créer le cookie sécurisé `dk_session` ; logout révoque le token opaque.
+La défense en profondeur par origine réseau sera appliquée lors du montage.
+**Aucun endpoint n'est aujourd'hui exposé par le démarrage normal.**
+
 Cette étape prépare un magasin de sessions dans
 `backend/collector/src/identity-sessions.js` avec trois méthodes :
 `login({username,password})`, `logout(cookie)` et `lookupSession(cookie)`.
@@ -25,7 +36,7 @@ Le service utilise les conventions **exactes** du KMS existant :
 - Révocation via suppression de `sessions._id` ; un changement de révision
   rend immédiatement les sessions historiques invalides.
 
-Le magasin est **isolé**, sans route HTTP et sans activation par Compose.
+Le magasin est **isolé** ; le gestionnaire HTTP existe mais n'est pas relié au serveur ni activé par Compose.
 Le mode shadow reste read-only et continue à employer le
 `createMongoSessionLookup` de la PR #17. Les opérations de connexion/logout
 nécessiteront un compte MongoDB à droits d'écriture limités, une stratégie
