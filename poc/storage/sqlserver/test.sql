@@ -5,7 +5,7 @@ INSERT INTO dbo.rncp_referentials VALUES ('10000000-0000-0000-0000-000000000001'
 INSERT INTO dbo.rncp_blocks VALUES ('20000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', N'B1', N'Developper un service');
 INSERT INTO dbo.rncp_competencies VALUES ('30000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', N'C1', N'Concevoir une API');
 INSERT INTO dbo.knowledge_items VALUES ('40000000-0000-0000-0000-000000000001', N'Fiche fictive API', 1, N'{"language":"Python"}', NULL);
-INSERT INTO dbo.evidence_items VALUES ('50000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000001', N'Preuve de test', N'https://example.invalid/fixture');
+INSERT INTO dbo.evidence_items (id, knowledge_id, title, source_url) VALUES ('50000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000001', N'Preuve de test', N'https://example.invalid/fixture');
 INSERT INTO dbo.knowledge_competency_links VALUES ('40000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001');
 
 IF (SELECT COUNT(*) FROM dbo.knowledge_items k
