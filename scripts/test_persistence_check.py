@@ -3,7 +3,7 @@ import json
 import unittest
 from unittest.mock import patch
 
-from scripts.persistence_check import PersistenceError, inspect
+from persistence_check import PersistenceError, inspect
 
 
 CONFIG = {
@@ -19,7 +19,7 @@ CONFIG = {
 
 
 class PersistenceAuditTests(unittest.TestCase):
-    @patch("scripts.persistence_check.docker")
+    @patch("persistence_check.docker")
     def test_matches_project_scoped_volumes(self, runner):
         runner.side_effect = [
             json.dumps(CONFIG), "container-id", "myproject_mongodb\nother_mongodb",
@@ -35,7 +35,7 @@ class PersistenceAuditTests(unittest.TestCase):
         self.assertTrue(all("down" not in repr(call) and "up" not in repr(call)
                             and "volume rm" not in repr(call) for call in commands))
 
-    @patch("scripts.persistence_check.docker")
+    @patch("persistence_check.docker")
     def test_detects_wrong_mount_without_touching_it(self, runner):
         runner.side_effect = [
             json.dumps(CONFIG), "container-id", "other_mongodb",
@@ -45,7 +45,7 @@ class PersistenceAuditTests(unittest.TestCase):
         ]
         self.assertEqual(inspect()["status"], "mismatch")
 
-    @patch("scripts.persistence_check.docker")
+    @patch("persistence_check.docker")
     def test_missing_container_does_not_create_volumes(self, runner):
         runner.side_effect = [json.dumps(CONFIG), "", "orphaned_mongodb"]
         result = inspect()
@@ -53,7 +53,7 @@ class PersistenceAuditTests(unittest.TestCase):
         self.assertEqual(result["other_compose_mongodb_volumes"], ["orphaned_mongodb"])
         self.assertEqual(runner.call_count, 3)
 
-    @patch("scripts.persistence_check.docker")
+    @patch("persistence_check.docker")
     def test_requires_named_data_and_config_mounts(self, runner):
         broken = json.loads(json.dumps(CONFIG))
         broken["services"]["mongodb"]["volumes"][0]["type"] = "bind"
