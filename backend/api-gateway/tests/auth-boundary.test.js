@@ -72,3 +72,38 @@ test("Gateway allows the public login POST and handles logout without a session"
     await request(app).post("/api/v1/auth/logout").send({}).expect(200);
     expect(calls).toEqual(["/api/v1/auth/login", "/api/v1/auth/logout"]);
 });
+
+
+test("Gateway guards every user CRUD subroute and relays revision preconditions", async () => {
+    const cookie = "dk_session=" + "a".repeat(64);
+    const id = "a607237e-9050-4992-88b5-34c36b46d044";
+    const path = "/api/v1/users/" + id;
+    await request(app).get(path).set("Cookie", cookie).expect(200);
+    await request(app).patch(path).set("Cookie", cookie).set("If-Match", '"1"')
+        .send({roles: ["EDITOR"]}).expect(200);
+    await request(app).post(path + "/password").set("Cookie", cookie).set("If-Match", '"2"')
+        .send({password: "strong-password-2026"}).expect(200);
+    await request(app).delete(path).set("Cookie", cookie).set("If-Match", '"3"').expect(200);
+    expect(calls.filter(url => url === "/api/v1/auth/me")).toHaveLength(4);
+    expect(calls.filter(url => url.startsWith("/api/v1/users/"))).toEqual([
+        path, path, path + "/password", path,
+    ]);
+    await request(app).put(path).set("Cookie", cookie).send({}).expect(404);
+    expect(calls.filter(url => url === path)).toHaveLength(3);
+});
+
+test("Gateway blocks reader on all user CRUD operations", async () => {
+    result = (req, res) => res.writeHead(200, {"Content-Type":"application/json"})
+        .end(JSON.stringify({user_id:"reader",username:"reader",roles:["READER"],
+            permissions:["knowledge.read"]}));
+    const cookie = "dk_session=" + "b".repeat(64);
+    const path = "/api/v1/users/a607237e-9050-4992-88b5-34c36b46d044";
+    await request(app).get(path).set("Cookie", cookie).expect(403);
+    await request(app).patch(path).set("Cookie", cookie).set("If-Match", '"1"')
+        .send({roles:["ADMIN"]}).expect(403);
+    await request(app).post(path + "/password").set("Cookie", cookie).set("If-Match", '"1"')
+        .send({password:"strong-password-2026"}).expect(403);
+    await request(app).delete(path).set("Cookie", cookie).set("If-Match", '"1"')
+        .expect(403);
+    expect(calls).toEqual(Array(4).fill("/api/v1/auth/me"));
+});
