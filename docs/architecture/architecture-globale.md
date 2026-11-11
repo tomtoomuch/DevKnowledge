@@ -36,12 +36,12 @@ Son assistant IA doit s'appuyer sur le corpus autorisé de l'utilisateur, citer 
 | RAG Service       | Python / FastAPI  | Recherche documentaire et orchestration IA            |
 | MCP Server        | Python / Fast MCP | Exposition contrôlée d'outils et de ressources        |
 | Embedding Worker  | Python            | Calcul des embeddings et indexation                   |
-| Base métier       | MongoDB           | Persistance des connaissances et données applicatives |
+| Base métier cible | PostgreSQL        | Données métier relationnelles, connaissances et RNCP (migration à définir) |\n| Base actuelle et IA | MongoDB         | Stockage actuel des connaissances, futur magasin de métadonnées et LLM |\n| Métriques locales | SQLite 3         | Historique de santé et de GPU du Superviseur |
 | Index vectoriel   | ChromaDB          | Recherche sémantique                                  |
 | Runtime IA        | Ollama            | Inférence des modèles locaux                          |
 | MLOps             | MLflow            | Suivi et évaluation des expérimentations              |
 
-Ces technologies constituent la cible initiale. Leur version et leur configuration seront fixées au moment de l'implémentation.
+**Décision de stockage du 10 novembre 2026 (ADR-005) : PostgreSQL est retenu comme moteur définitif des futurs domaines métier relationnels.** MongoDB est conservé pour les métadonnées et le LLM. Les données métier actuellement dans MongoDB n'ont pas encore été migrées ; SQLite 3 est utilisé pour les métriques du Superviseur. ChromaDB et Ollama restent des objectifs ultérieurs.\n\nCes technologies constituent la cible initiale. Leur version et leur configuration seront fixées au moment de l'implémentation.
 
 ## 4. Architecture logique
 

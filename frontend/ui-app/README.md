@@ -187,6 +187,32 @@ recherche avancée. Les catalogues sont immuables : pas de renommage ni
 de suppression dans cette itération. La création d'une référence de catalogue
 est immédiate, même si l'édition de la fiche est ensuite abandonnée.
 
+## Recette des relations (itération 8)
+
+1. Créer deux fiches A et B, copier l'UUID de B depuis sa vue de détail.
+2. Dans A, choisir le type `DEPENDS_ON`, saisir l'UUID de B et enregistrer.
+   Vérifier que la fiche A montre un lien dirigé vers B, puis depuis B
+   retrouver la relation entrante.
+3. Ajouter une relation `RELATED_TO` entre A et B, puis tenter
+   d'ajouter la même relation entre B et A : résultat attendu HTTP 409.
+4. Vérifier qu'un lien `DEPENDS_ON` de B vers A peut exister
+   indépendamment de celui de A vers B.
+5. Ajouter une note, la modifier avec ETag puis reproduire un conflit 412
+   depuis une seconde session ayant conservé une ancienne révision.
+6. Délier une relation : les deux fiches restent accessibles.
+7. Rejeter une auto-relation (422), un type inexistant (422),
+   un UUID cible inexistant ou supprimé logiquement (422).
+8. READER : lecture seule. EDITOR : créer, annoter mais pas délier.
+   ADMIN : toutes les opérations autorisées. Les identifiants UUID sont
+   copiables depuis la vue de détail de chaque fiche.
+
+**Limites :** l'éditeur saisit un UUID comme cible (pas encore de
+recherche/autocomplétion de connaissances). La pagination se fait par
+lot de 20. Une relation créée avant la suppression logique d'un
+de ses nœuds reste physiquement stockée pour la traçabilité ;
+la liste de relations exige une fiche de départ active. Une politique
+de purge ou d'archivage des liens reste à définir.
+
 ## Recette manuelle
 
 1. Créer une connaissance, choisir l'un des huit types et enregistrer.

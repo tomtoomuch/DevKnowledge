@@ -215,6 +215,18 @@ def auth_required():
 
 
 async def requester_identity(request: Request):
+    if os.getenv("KMS_SERVICE_TOKEN_MODE") == "required":
+        # Browser cookies are never an identity authority in token-only mode.
+        from app.auth.service_tokens import InvalidServiceToken, verify_kms_token
+        try:
+            return verify_kms_token(
+                request.headers.get("authorization"),
+                os.getenv("SUPERVISOR_KMS_TOKEN_KEY"),
+            )
+        except InvalidServiceToken:
+            raise HTTPException(401, "Invalid service credential") from None
+        except RuntimeError:
+            raise HTTPException(503, "Service token verification unavailable") from None
     if not auth_required():
         return RequesterIdentity(permissions=PERMISSIONS)
     db = getattr(request.app.state, "mongodb_database", None)

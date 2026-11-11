@@ -312,3 +312,23 @@ test("monitoring is a read-only same-origin Gateway route with scoped authentica
     await request(app).post("/api/v1/monitoring/services").send({}).expect(404);
     expect(received).toHaveLength(1);
 });
+
+
+test("relays only permitted graph routes and preserves conditional revision headers", async () => {
+    respond = (req, res) => res.writeHead(200, {"content-type": "application/json"})
+        .end(JSON.stringify({ url: req.url, method: req.method, ifMatch: req.headers["if-match"] }));
+    await request(app).get("/api/v1/relation-types").expect(200);
+    await request(app).get("/api/v1/knowledge-relations?knowledge_id=abc").expect(200);
+    const body = { origin_knowledge_id: "a", target_knowledge_id: "b", relation_type_id: "c" };
+    await request(app).post("/api/v1/knowledge-relations").send(body).expect(200);
+    expect(JSON.parse(received[2].body)).toEqual(body);
+    await request(app).get("/api/v1/knowledge-relations/abc-123").expect(200);
+    await request(app).patch("/api/v1/knowledge-relations/abc-123")
+        .set("If-Match", '"2"').send({ relation_notes: "updated" }).expect(200);
+    expect(received[4].headers["if-match"]).toBe('"2"');
+    await request(app).delete("/api/v1/knowledge-relations/abc-123")
+        .set("If-Match", '"2"').expect(200);
+    await request(app).post("/api/v1/relation-types").send({ code: "FAKE" }).expect(404);
+    await request(app).put("/api/v1/knowledge-relations/abc-123").send({}).expect(404);
+    expect(received).toHaveLength(6);
+});

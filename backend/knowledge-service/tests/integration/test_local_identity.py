@@ -1,5 +1,6 @@
 """Actual MongoDB identity, RBAC and knowledge endpoints in a disposable test DB."""
 import asyncio
+import hashlib
 
 import pytest
 from fastapi import FastAPI
@@ -50,6 +51,13 @@ def test_local_identity_rbac_session_revocation_on_real_mongodb(isolated_databas
                 assert "HttpOnly" in logged.headers["set-cookie"]
                 token = logged.cookies.get("dk_session")
                 assert token is not None and len(token) == 64
+                # Store a one-way SHA-256 fingerprint, never the bearer secret.
+                expected_fingerprint = hashlib.sha256(token.encode()).hexdigest()
+                session_row = await database["sessions"].find_one({"_id": expected_fingerprint})
+                assert session_row is not None
+                assert session_row["_id"] != token
+                assert token not in str(session_row)
+                assert "token" not in session_row
                 me = await client.get("/api/v1/auth/me")
                 assert me.status_code == 200 and me.json()["username"] == "admin"
                 created = await client.post("/api/v1/users", json={

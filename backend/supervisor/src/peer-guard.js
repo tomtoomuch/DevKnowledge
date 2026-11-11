@@ -12,7 +12,8 @@ async function peerAllowed(req, lookup = dns.lookup) {
   if (process.env.COLLECTOR_NETWORK_GUARD !== "required") return true;
   const peer = normalizeAddress(req.socket.remoteAddress);
   if (req.url === "/health") return peer === "127.0.0.1" || peer === "::1";
-  if (req.url !== "/snapshot") return false;
+  const path = new URL(req.url, 'http://localhost').pathname;
+  if (!["/snapshot", "/metrics/history"].includes(path)) return false;
   if (!peer || peer === "127.0.0.1" || peer === "::1") return false;
   try {
     const addresses = await lookup("api-kms", { family: 4, all: true });
@@ -22,4 +23,17 @@ async function peerAllowed(req, lookup = dns.lookup) {
   }
 }
 
-module.exports = { peerAllowed, normalizeAddress };
+
+async function identityPeerAllowed(req, lookup = dns.lookup) {
+  if (process.env.COLLECTOR_NETWORK_GUARD !== "required") return true;
+  const peer = normalizeAddress(req.socket.remoteAddress);
+  if (!peer || peer === "127.0.0.1" || peer === "::1") return false;
+  try {
+    const addresses = await lookup("api-gateway", { family: 4, all: true });
+    return Array.isArray(addresses) && addresses.some(item => item.address === peer);
+  } catch {
+    return false;
+  }
+}
+
+module.exports = { peerAllowed, identityPeerAllowed, normalizeAddress };

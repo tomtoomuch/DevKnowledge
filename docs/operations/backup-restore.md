@@ -20,6 +20,10 @@ ce MongoDB autonome, ne pas exécuter d'autres outils d'écriture directe pendan
 l'opération. L'outil compare aussi l'état avant et après le dump et refuse de
 certifier une base modifiée entre ces deux lectures.
 
+Les collections de relations `relation_types` et `knowledge_relations`
+sont sauvegardées avec les connaissances : l'exportation partielle de
+`knowledge_items` seule ne permettrait pas de restaurer les liens.
+
 Le dossier contient `database.archive.gz` (BSON compressé, via `mongodump`) et
 `manifest.json` : date UTC, version MongoDB, SHA-256 de l'archive, empreinte et
 nombre de documents par collection, index et options de collection. Les
@@ -106,3 +110,13 @@ des nouvelles écritures effectuées après récupération.
 
 Références : [mongodump](https://www.mongodb.com/docs/database-tools/mongodump/),
 [mongorestore](https://www.mongodb.com/docs/database-tools/mongorestore/).
+
+## Magasin SQLite des métriques du Superviseur (PR #14)
+
+La sauvegarde BSON présentée ci-dessus concerne exclusivement MongoDB.
+Le volume dédié `supervisor-metrics` et sa base SQLite3 ne sont
+**pas inclus** dans `database.archive.gz`. La sauvegarde cohérente
+SQLite repose sur l'API de backup en ligne `node:sqlite.backup()` et
+le script `backend/collector/src/metrics-backup.js`, avec contrôle
+d'intégrité, refus d'écraser un fichier existant et copie de l'archive
+hors du volume. Voir [[operations/metrics-sqlite]].

@@ -26,7 +26,7 @@
 ## Décisions
 
 - [[decisions/ADR-001-architecture|ADR 001 : architecture]]
-- [[decisions/ADR-002-stockage|ADR 002 : stockage]]
+- [[decisions/ADR-002-stockage|ADR 002 : stockage historique MongoDB]]
 - [[decisions/ADR-003-identite-securite|ADR 003 : identité et sécurité — à valider]]
 
 - [[iterations/iteration-4-search]] — Recherche globale et favoris via Gateway et KMS.
@@ -39,9 +39,19 @@
 
 - [[iterations/iteration-7b-technologies]] — Technologies, versions et associations aux connaissances (PR #10, dépendante de #9).
 
+- [[iterations/iteration-8-knowledge-relations]] — Graphes typés de connaissances, prévention des doublons et révisions (PR #11).
 - [Gateway, authentification et ports locaux](operations/auth-gateway.md)
 
 - [Réseaux DMZ et interne / règles de communication](architecture/gateway-kms.md)
 
 - [[iterations/iteration-9-user-crud]] — CRUD complet des comptes locaux (PR #12).
 - [[operations/volume-persistence]] — Audit sans destruction du stockage MongoDB, identité Compose et persistance.
+
+- [[decisions/ADR-004-superviseur-identite-securite]] — Gateway unique, Superviseur autorité d’identité et tokens interservices.
+
+- [[decisions/ADR-005-strategie-stockage]] — **Décision acceptée** : PostgreSQL pour le métier, MongoDB pour les métadonnées et besoins LLM, SQLite pour les métriques.
+- [[operations/metrics-sqlite]] — Échantillonnage, stockage, lecture interne et sauvegarde des métriques du Superviseur.
+
+- [[iterations/postgres-rncp-fondation-2026-11-10]] — Premier lot PostgreSQL RNCP isolé : schéma, migrations, API de lecture et tests Docker ([PR #19](https://github.com/tomtoomuch/DevKnowledge/pull/19)).
+
+- [[iterations/postgres-rncp-api-2026-11-10]] — Routes RNCP protégées et écriture PostgreSQL prévisualisée derrière Gateway ; opt-in, tests Docker et limites interbases.

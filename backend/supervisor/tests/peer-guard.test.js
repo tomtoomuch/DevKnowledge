@@ -9,6 +9,10 @@ test('Collector refuses any non-KMS caller when the guard is enabled', async () 
   try {
     assert.equal(await peerAllowed({ url: '/snapshot', socket: { remoteAddress: '172.22.0.3' } }, lookup), true);
     assert.equal(await peerAllowed({ url: '/snapshot', socket: { remoteAddress: '172.22.0.7' } }, lookup), false);
+    assert.equal(await peerAllowed({ url: '/metrics/history?limit=10',
+      socket: { remoteAddress: '172.22.0.3' } }, lookup), true);
+    assert.equal(await peerAllowed({ url: '/metrics/history',
+      socket: { remoteAddress: '172.22.0.7' } }, lookup), false);
     assert.equal(await peerAllowed({ url: '/snapshot', socket: { remoteAddress: '127.0.0.1' } }, lookup), false);
     assert.equal(await peerAllowed({ url: '/snapshot', socket: { remoteAddress: '::ffff:172.22.0.3' } }, lookup), true);
     assert.equal(await peerAllowed({ url: '/health', socket: { remoteAddress: '127.0.0.1' } }, lookup), true);

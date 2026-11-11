@@ -188,6 +188,7 @@
           }
           <div class="detail-meta">
             <span>Révision <b>{{ item.revision }}</b></span>
+            <span>UUID <code>{{ item.knowledge_id }}</code></span>
             <span>Modifiée le <b>{{ dateLabel(item.updated_at) }}</b></span>
             @if (item.is_favorite) { <span class="favorite">★ Favori</span> }
             @if (item.language_code) { <span>Langue <b>{{ item.language_code }}</b></span> }
@@ -217,6 +218,13 @@
             </section>
           }
           <div class="content-card"><h3>Contenu</h3><pre class="content-text">{{ item.content }}</pre></div>
+          <app-knowledge-relations
+            [knowledgeId]="item.knowledge_id"
+            [canCreate]="can('knowledge.create')"
+            [canUpdate]="can('knowledge.update')"
+            [canDelete]="can('knowledge.delete')"
+            (openKnowledge)="openLinkedKnowledge($event)"
+          />
           @if (detailsToShow(item).length > 0) {
             <section class="specialization-view" aria-label="Détails spécialisés">
               <h3>Détails · {{ typeLabel(item.knowledge_type) }}</h3>

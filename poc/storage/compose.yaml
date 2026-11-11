@@ -1,0 +1,65 @@
+# Independently reproducible POC; never combine with the real DevKnowledge Compose.
+# All test services are restricted to their own isolated, disposable network.
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2025-latest
+    mem_limit: 3g
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: "Developer"
+      MSSQL_SA_PASSWORD: ${POC_MSSQL_PASSWORD:?generated_by_runner}
+    volumes:
+      - sqlserver_poc_data:/var/opt/mssql
+      - ./sqlserver:/sql:ro
+    networks: [poc_isolated]
+    healthcheck:
+      test: ["CMD-SHELL", "SQLCMDPASSWORD=\"$$MSSQL_SA_PASSWORD\" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -l 5 -b -Q 'SELECT 1' > /dev/null"]
+      interval: 10s
+      retries: 24
+      timeout: 10s
+      start_period: 35s
+
+  postgres:
+    image: postgres:17
+    mem_limit: 3g
+    environment:
+      POSTGRES_PASSWORD: ${POC_POSTGRES_PASSWORD:?generated_by_runner}
+      POSTGRES_DB: devknowledge_poc
+    volumes:
+      - postgres_poc_data:/var/lib/postgresql/data
+      - ./postgres:/sql:ro
+    networks: [poc_isolated]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d devknowledge_poc"]
+      interval: 5s
+      retries: 20
+      timeout: 5s
+      start_period: 15s
+
+  # Launched explicitly via docker compose run --no-deps, never by "up" of a DB.
+  api-bench:
+    profiles: ["benchmark"]
+    build:
+      context: ./bench
+      dockerfile: Dockerfile
+    environment:
+      POC_ENGINE: ${POC_ENGINE:?selected_by_runner}
+      POC_DB_PASSWORD: ${POC_DB_PASSWORD:?selected_by_runner}
+      POC_ROWS: ${POC_ROWS:-1500}
+      PYTHONDONTWRITEBYTECODE: "1"
+    networks: [poc_isolated]
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 1g
+
+volumes:
+  sqlserver_poc_data:
+  postgres_poc_data:
+
+networks:
+  poc_isolated:
+    internal: true
+    driver: bridge

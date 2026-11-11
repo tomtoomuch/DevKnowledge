@@ -1,0 +1,55 @@
+# Explicit opt-in overlay, to be used only on a validated isolated test project.
+# PostgreSQL is internal-only and never takes over MongoDB's existing data.
+services:
+  postgres-rncp:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: ${RNCP_PG_USER:?RNCP_PG_USER_required}
+      POSTGRES_PASSWORD: ${RNCP_PG_PASSWORD:?RNCP_PG_PASSWORD_required}
+      POSTGRES_DB: ${RNCP_PG_DATABASE:?RNCP_PG_DATABASE_required}
+    volumes:
+      - postgres-rncp:/var/lib/postgresql/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+      start_period: 10s
+    restart: unless-stopped
+
+  rncp-migrate:
+    image: api-kms-rncp-preview:local
+    build:
+      context: ./backend/knowledge-service
+      dockerfile: Dockerfile.rncp
+    command: ["python", "-m", "app.rncp.migrate_cli"]
+    environment:
+      RNCP_PG_HOST: postgres-rncp
+      RNCP_PG_USER: ${RNCP_PG_USER:?RNCP_PG_USER_required}
+      RNCP_PG_PASSWORD: ${RNCP_PG_PASSWORD:?RNCP_PG_PASSWORD_required}
+      RNCP_PG_DATABASE: ${RNCP_PG_DATABASE:?RNCP_PG_DATABASE_required}
+    depends_on:
+      postgres-rncp:
+        condition: service_healthy
+    networks: [internal]
+    restart: "no"
+
+  api-kms:
+    image: api-kms-rncp-preview:local
+    build:
+      context: ./backend/knowledge-service
+      dockerfile: Dockerfile.rncp
+    environment:
+      RNCP_API_ENABLED: required
+      RNCP_PG_HOST: postgres-rncp
+      RNCP_PG_USER: ${RNCP_PG_USER:?RNCP_PG_USER_required}
+      RNCP_PG_PASSWORD: ${RNCP_PG_PASSWORD:?RNCP_PG_PASSWORD_required}
+      RNCP_PG_DATABASE: ${RNCP_PG_DATABASE:?RNCP_PG_DATABASE_required}
+    depends_on:
+      rncp-migrate:
+        condition: service_completed_successfully
+
+volumes:
+  postgres-rncp:
+    driver: local

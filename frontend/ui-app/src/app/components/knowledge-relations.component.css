@@ -1,0 +1,25 @@
+.relations-panel{margin-top:18px;padding:18px;border:1px solid #344561;border-radius:12px;background:#101b30;color:#eaf1ff}
+.relations-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.relations-head h3{font-size:15px;margin:0 0 8px;color:#c4d6fc}
+.relations-head p,.rel-hint{font-size:12px;color:#aabbd8;line-height:1.55;margin:6px 0 14px}
+.rel-count{font-size:12px;padding:2px 7px;border-radius:12px;background:#30476e}
+.relation-row{border:1px solid #344561;border-radius:10px;margin:10px 0;padding:12px;background:#0b162a}
+.rel-summary{display:flex;flex-direction:column;gap:5px;min-width:0;font-size:13px}
+.rel-summary small{color:#a7b9d4}
+.rel-summary code{color:#aec9ff;overflow-wrap:anywhere;font-size:11px}
+.rel-summary p{margin:5px 0;white-space:pre-wrap}
+.rel-actions,.rel-pages{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.rel-button,.rel-primary{cursor:pointer;background:#1e3150;color:#e5efff;border:1px solid #46608c;border-radius:8px;padding:8px 12px;font-size:12px}
+.rel-primary{background:#315ccc;border-color:#6284e9;color:#fff;font-weight:650}
+.rel-danger{border-color:#a9515e;color:#ffb4bb}
+button:disabled{opacity:.45;cursor:not-allowed}
+.rel-error{color:#ffc2c2;font-size:13px;padding:9px;border:1px solid #984651;border-radius:7px}
+.rel-notice{color:#bbffd0;font-size:12px}
+.rel-create{margin-top:20px;border-top:1px solid #344561;padding-top:14px;display:flex;flex-direction:column;gap:10px}
+.rel-create h4{font-size:13px;margin:0}
+.rel-create label,.rel-edit label{font-size:12px;color:#bdceea;display:flex;flex-direction:column;gap:7px}
+.rel-create input:not([type="checkbox"]),.rel-create select,.rel-create textarea,.rel-edit textarea{width:100%;background:#0b1529;border:1px solid #3c5074;border-radius:7px;padding:10px;color:#eef5ff;font-size:13px}
+.rel-create .rel-check{flex-direction:row;align-items:center;gap:9px}
+.rel-edit{margin-top:11px;display:flex;flex-wrap:wrap;align-items:end;gap:8px}
+.rel-edit label{flex:1 1 100%}
+@media(max-width:600px){.relations-head{flex-direction:column}.rel-actions{flex-direction:column;align-items:stretch}}

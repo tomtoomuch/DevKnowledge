@@ -1,0 +1,84 @@
+<section class="relations-panel" aria-label="Relations entre connaissances">
+  <header class="relations-head">
+    <div>
+      <h3>Relations entre connaissances <span class="rel-count">{{ total() }}</span></h3>
+      <p>Réutilise une connaissance comme prérequis, complément ou référence connexe.</p>
+    </div>
+    <button type="button" class="rel-button" (click)="reload()" [disabled]="loading()">Actualiser</button>
+  </header>
+
+  @if (error()) { <p class="rel-error" role="alert">{{ error() }}</p> }
+  @if (notice()) { <p class="rel-notice" role="status">{{ notice() }}</p> }
+
+  @if (loading()) { <p class="rel-hint" role="status">Chargement des relations…</p> }
+  @if (!loading() && items().length === 0) {
+    <p class="rel-hint">Aucune relation enregistrée pour cette connaissance.</p>
+  }
+
+  @for (relation of items(); track relation.relation_id) {
+    <article class="relation-row">
+      <div class="rel-summary">
+        <strong>{{ typeLabel(relation.relation_type_id) }}</strong>
+        <small>{{ direction(relation) }}</small>
+        <code>{{ peerId(relation) }}</code>
+        @if (relation.relation_notes) { <p>{{ relation.relation_notes }}</p> }
+      </div>
+      <div class="rel-actions">
+        <button type="button" class="rel-button" (click)="openKnowledge.emit(peerId(relation))">Consulter la fiche</button>
+        @if (canUpdate) {
+          <button type="button" class="rel-button" (click)="beginEdit(relation)">Note</button>
+        }
+        @if (canDelete) {
+          <button type="button" class="rel-button rel-danger" (click)="remove(relation)"
+            [disabled]="saving()">Délier</button>
+        }
+      </div>
+      @if (editing() === relation.relation_id && canUpdate) {
+        <div class="rel-edit">
+          <label>Note de relation
+            <textarea [formControl]="editNotes" maxlength="4000" rows="2"></textarea>
+          </label>
+          <button type="button" class="rel-button" (click)="editing.set(null)">Annuler</button>
+          <button type="button" class="rel-primary" (click)="saveNotes(relation)"
+            [disabled]="saving() || editNotes.invalid">Enregistrer la note</button>
+        </div>
+      }
+    </article>
+  }
+
+  @if (total() > 20) {
+    <div class="rel-pages">
+      <button type="button" class="rel-button" (click)="previousPage()"
+        [disabled]="loading() || page() === 0">Précédent</button>
+      <span>Page {{ page()+1 }} / {{ pageCount() }}</span>
+      <button type="button" class="rel-button" (click)="nextPage()"
+        [disabled]="loading() || (page()+1)*20 >= total()">Suivant</button>
+    </div>
+  }
+
+  @if (canCreate) {
+    <form class="rel-create" [formGroup]="createForm" (ngSubmit)="create()">
+      <h4>Ajouter une relation</h4>
+      <p class="rel-hint">Copie l'identifiant UUID d'une autre connaissance. Le lien est enregistré indépendamment de la fiche.</p>
+      <label for="rel-target">Identifiant de l'autre connaissance *
+        <input id="rel-target" formControlName="target" placeholder="UUID de la fiche cible" />
+      </label>
+      <label for="rel-type">Type de relation *
+        <select id="rel-type" formControlName="typeId">
+          @for (type of types(); track type.relation_type_id) {
+            <option [value]="type.relation_type_id">{{ type.label }} {{ type.is_directed ? '→' : '↔' }}</option>
+          }
+        </select>
+      </label>
+      <label class="rel-check"><input type="checkbox" formControlName="reverse" />
+        Inverser le sens : la fiche cible pointe vers celle-ci
+      </label>
+      <label for="rel-notes">Note (facultative)
+        <textarea id="rel-notes" formControlName="notes" maxlength="4000" rows="2"></textarea>
+      </label>
+      <button type="submit" class="rel-primary" [disabled]="saving() || createForm.invalid">
+        {{ saving() ? 'Enregistrement…' : 'Créer la relation' }}
+      </button>
+    </form>
+  }
+</section>

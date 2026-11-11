@@ -5,7 +5,7 @@
 - **Date :** 2026-10-28
     
 
-## Contexte
+> **Évolution du 10 novembre 2026 :** cette ADR documente la stratégie historique et la persistance MongoDB actuellement déployée. L’[ADR-005](ADR-005-strategie-stockage.md) a désormais été **acceptée** : PostgreSQL est retenu pour les futurs domaines métier relationnels ; MongoDB demeure pour les métadonnées et les futurs stockages LLM. Aucune migration n'a encore eu lieu. Les règles local-first, sauvegarde et confidentialité de la présente ADR restent applicables.\n\n## Contexte
 
 DevKnowledge doit permettre de stocker, organiser et retrouver des connaissances techniques personnelles : notes de cours, extraits de code, commandes, procédures, documentations et solutions à des problèmes rencontrés.
 
