@@ -46,6 +46,16 @@ app.include_router(technologies_router)
 app.include_router(relations_router)
 app.include_router(monitoring_router)
 
+# The RNCP domain remains disabled by default. Enable only with the dedicated
+# PostgreSQL image, network peer guard and mandatory identity verification.
+import os
+if os.getenv("RNCP_API_ENABLED") == "required":
+    if os.getenv("AUTH_MODE") == "disabled" or os.getenv("KMS_NETWORK_GUARD") != "required":
+        raise RuntimeError("RNCP API requires auth and KMS internal network guard")
+    from app.rncp.router import router as rncp_router
+    app.include_router(rncp_router)
+
+
 
 @app.exception_handler(RelationNotFound)
 async def relation_not_found(request: Request, exc: RelationNotFound) -> JSONResponse:

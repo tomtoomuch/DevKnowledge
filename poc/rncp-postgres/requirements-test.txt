@@ -1,0 +1,6 @@
+# Isolated test-image dependencies; do not change locked KMS runtime requirements.
+fastapi==0.115.12
+httpx==0.28.1
+psycopg[binary]==3.2.12
+pytest==8.3.5
+pymongo==4.14.1

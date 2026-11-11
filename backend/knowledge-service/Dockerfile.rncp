@@ -1,0 +1,11 @@
+# Opt-in RNCP preview only; keeps the default KMS image and lockfile unchanged.
+FROM python:3.14-slim
+WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+COPY requirements.txt ./
+RUN pip install --no-cache-dir --require-hashes -r requirements.txt
+# A separate isolated extra dependency; pin wheel hashes before production rollout.
+RUN pip install --no-cache-dir "psycopg[binary]==3.2.12"
+COPY app ./app
+EXPOSE 8000
+CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--no-proxy-headers"]
