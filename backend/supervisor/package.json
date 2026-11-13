@@ -1,5 +1,5 @@
 {
-  "name": "devknowledge-collector",
+  "name": "devknowledge-supervisor",
   "version": "0.2.0",
   "private": true,
   "scripts": {
