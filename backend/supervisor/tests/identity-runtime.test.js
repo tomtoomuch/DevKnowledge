@@ -17,7 +17,7 @@ const settings = {
   MONGODB_HOST: "mongodb", MONGODB_PORT: "27017",
   MONGODB_DATABASE: "devknowledge", MONGODB_AUTH_SOURCE: "devknowledge",
 };
-const original = process.env.COLLECTOR_NETWORK_GUARD;
+const original = process.env.SUPERVISOR_NETWORK_GUARD;
 
 function fakeDriver({ failure = null, expired = false } = {}) {
   const calls = { closed: 0, connected: 0, dbName: null, options: null };
@@ -77,8 +77,8 @@ function authorize(url, serviceKey = key) {
 }
 
 test.after(() => {
-  if (original === undefined) delete process.env.COLLECTOR_NETWORK_GUARD;
-  else process.env.COLLECTOR_NETWORK_GUARD = original;
+  if (original === undefined) delete process.env.SUPERVISOR_NETWORK_GUARD;
+  else process.env.SUPERVISOR_NETWORK_GUARD = original;
 });
 
 test("disabled mode never constructs Mongo client or mounts identity handler", async () => {

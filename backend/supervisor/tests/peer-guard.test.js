@@ -2,9 +2,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { peerAllowed } = require('../src/peer-guard');
 
-test('Collector refuses any non-KMS caller when the guard is enabled', async () => {
-  const original = process.env.COLLECTOR_NETWORK_GUARD;
-  process.env.COLLECTOR_NETWORK_GUARD = 'required';
+test('Supervisor refuses any non-KMS caller when the guard is enabled', async () => {
+  const original = process.env.SUPERVISOR_NETWORK_GUARD;
+  process.env.SUPERVISOR_NETWORK_GUARD = 'required';
   const lookup = async () => [{ address: '172.22.0.3' }];
   try {
     assert.equal(await peerAllowed({ url: '/snapshot', socket: { remoteAddress: '172.22.0.3' } }, lookup), true);
@@ -19,18 +19,18 @@ test('Collector refuses any non-KMS caller when the guard is enabled', async () 
     assert.equal(await peerAllowed({ url: '/health', socket: { remoteAddress: '172.22.0.3' } }, lookup), false);
     assert.equal(await peerAllowed({ url: '/metrics', socket: { remoteAddress: '172.22.0.3' } }, lookup), false);
   } finally {
-    if (original === undefined) delete process.env.COLLECTOR_NETWORK_GUARD;
-    else process.env.COLLECTOR_NETWORK_GUARD = original;
+    if (original === undefined) delete process.env.SUPERVISOR_NETWORK_GUARD;
+    else process.env.SUPERVISOR_NETWORK_GUARD = original;
   }
 });
-test('Collector fails closed when Docker DNS is unavailable', async () => {
-  const original = process.env.COLLECTOR_NETWORK_GUARD;
-  process.env.COLLECTOR_NETWORK_GUARD = 'required';
+test('Supervisor fails closed when Docker DNS is unavailable', async () => {
+  const original = process.env.SUPERVISOR_NETWORK_GUARD;
+  process.env.SUPERVISOR_NETWORK_GUARD = 'required';
   try {
     assert.equal(await peerAllowed({ url: '/snapshot', socket: { remoteAddress: '172.22.0.3' } },
       async () => { throw Error('Internal DNS unavailable'); }), false);
   } finally {
-    if (original === undefined) delete process.env.COLLECTOR_NETWORK_GUARD;
-    else process.env.COLLECTOR_NETWORK_GUARD = original;
+    if (original === undefined) delete process.env.SUPERVISOR_NETWORK_GUARD;
+    else process.env.SUPERVISOR_NETWORK_GUARD = original;
   }
 });

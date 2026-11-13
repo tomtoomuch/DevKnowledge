@@ -1,7 +1,7 @@
-# Optional GPU overlay for the always-on collector (base Compose works without a GPU).
+# Optional GPU overlay for the always-on supervisor (base Compose works without a GPU).
 # docker compose --env-file .env -f compose.yaml -f compose.gpu.yaml up -d --build
 services:
-  collector:
+  supervisor:
     environment:
       GPU_MONITOR_ENABLED: "true"
       NVIDIA_VISIBLE_DEVICES: all

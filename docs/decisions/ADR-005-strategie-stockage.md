@@ -43,7 +43,7 @@ MongoDB ne sera pas supprimé au terme de la transition. Les index IA et collect
 
 ## Décision C — SQLite 3 pour les métriques du Superviseur
 
-Les métriques et instantanés de santé/GPU du service Collector devenu Superviseur sont stockés dans un **fichier SQLite3 local**, sans nouveau service de base de données ni port publié.
+Les métriques et instantanés de santé/GPU du service Supervisor devenu Superviseur sont stockés dans un **fichier SQLite3 local**, sans nouveau service de base de données ni port publié.
 
 - **Volume dédié :** `supervisor-metrics:/var/lib/devknowledge-supervisor` ; fichier `metrics.sqlite3`.
 - **WAL** et journaux sur le même volume, écrivain unique, `busy_timeout`, `synchronous=FULL`.

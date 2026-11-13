@@ -9,7 +9,7 @@ tags: [architecture, adr, identite, sécurité, rbacs, superviseur]
 
 ## Contexte et invariants
 
-Le microservice `collector` ne gérait jusqu'ici que des sondes de santé
+Le microservice `supervisor` ne gérait jusqu'ici que des sondes de santé
 et des métriques GPU. L'identité locale, les rôles, sessions et
 permissions étaient gérés par `api-kms`, qui conserve aussi les connaissances.
 
@@ -77,7 +77,7 @@ secret devient nécessaire, le traiter séparément avec
 **AES-256-GCM**, une gestion de clés et une politique de rotation.
 
 La phase de transition ajoute :
-- `backend/collector/src/service-tokens.js` : fonction
+- `backend/supervisor/src/service-tokens.js` : fonction
   d'émission **non exposée en HTTP** et nécessitant un
   `Principal` déjà vérifié par le Superviseur ; un token
   donne exactement **une** permission métier `knowledge.*`;
@@ -142,7 +142,7 @@ en mode jeton obligatoire avant fusion.
 
 ## Découpage de migration
 
-1. **Service Superviseur** : renommer Collector, préserver le monitoring,
+1. **Service Superviseur** : renommer Supervisor, préserver le monitoring,
    transférer le dépôt de comptes et de sessions, intégrer le contrôle RBAC.
 2. **Gateway** : faire de Superviseur la source des sessions, et relayer
    les opérations de compte exclusivement à ce service.

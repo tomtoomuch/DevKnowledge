@@ -1,6 +1,6 @@
 "use strict";
 
-// Fixed DMZ-side probe: the frontend is not present on Collector's internal network.
+// Fixed DMZ-side probe: the frontend is not present on Supervisor's internal network.
 async function checkFrontend(fetcher = fetch) {
     try {
         const response = await fetcher("http://frontend:80/health/frontend", {

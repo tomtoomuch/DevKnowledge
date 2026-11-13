@@ -1,4 +1,4 @@
-"""Monitoring authorization and unprivileged collector delegation."""
+"""Monitoring authorization and unprivileged supervisor delegation."""
 from unittest.mock import AsyncMock
 import pytest
 from fastapi import HTTPException
@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from app.auth.local import requester_identity
 from app.api.routes import monitoring as monitoring_route
 from app.main import app
-from app.services.collector_client import fallback
+from app.services.supervisor_client import fallback
 from app.services.knowledge_service import RequesterIdentity
 
 ENDPOINT = "/api/v1/monitoring/services"

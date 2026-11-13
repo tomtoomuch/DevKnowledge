@@ -1,10 +1,10 @@
-"""Validate the fixed, bounded and sanitized collector contract."""
+"""Validate the fixed, bounded and sanitized supervisor contract."""
 import asyncio
 import math
 from unittest.mock import MagicMock
 
 import pytest
-from app.services import collector_client as service
+from app.services import supervisor_client as service
 
 
 def test_fallback_never_fakes_green_services():
@@ -12,7 +12,7 @@ def test_fallback_never_fakes_green_services():
     assert {x["id"]: x["status"] for x in data["services"]} == {
         "api-gateway": "unknown", "frontend": "unknown",
         "api-kms": "unknown", "mongodb": "unknown",
-        "collector": "unavailable",
+        "supervisor": "unavailable",
     }
     assert data["gpu"]["status"] == "unknown"
 
@@ -49,12 +49,12 @@ def test_invalid_service_list_rejected():
     with pytest.raises(ValueError):
         service.sanitize(data)
     data = sample()
-    data["services"][0]["id"] = "collector"
+    data["services"][0]["id"] = "supervisor"
     with pytest.raises(ValueError):
         service.sanitize(data)
 
 
-def test_collector_has_fixed_url_and_bounded_body(monkeypatch):
+def test_supervisor_has_fixed_url_and_bounded_body(monkeypatch):
     content = __import__("json").dumps(sample()).encode()
     class Response:
         status = 200
@@ -63,7 +63,7 @@ def test_collector_has_fixed_url_and_bounded_body(monkeypatch):
             return content
     class Connection:
         def __init__(self, host, port, timeout):
-            assert (host, port, timeout) == ("collector", 9109, 4)
+            assert (host, port, timeout) == ("supervisor", 9109, 4)
         def request(self, method, path, headers):
             assert (method, path) == ("GET", "/snapshot")
         def getresponse(self):
@@ -74,7 +74,7 @@ def test_collector_has_fixed_url_and_bounded_body(monkeypatch):
     assert asyncio.run(service.read_snapshot())["gpu"]["status"] == "healthy"
 
 
-def test_collector_error_is_sanitized(monkeypatch):
+def test_supervisor_error_is_sanitized(monkeypatch):
     class Connection:
         def __init__(self, *args, **kwargs):
             pass

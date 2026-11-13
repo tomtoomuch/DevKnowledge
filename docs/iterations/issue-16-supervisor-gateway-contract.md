@@ -11,14 +11,14 @@ La migration complète de l'autorité d'identité décrite dans
 [[decisions/ADR-004-superviseur-identite-securite]] n'est **pas achevée**.
 
 Cette étape ajoute `backend/api-gateway/src/supervisor-client.js`,
-`backend/collector/src/supervisor-authorization.js` et leurs tests.
-Le module `backend/collector/src/mongo-session-lookup.js` fournit une introspection
+`backend/supervisor/src/supervisor-authorization.js` et leurs tests.
+Le module `backend/supervisor/src/mongo-session-lookup.js` fournit une introspection
 MongoDB indépendante de la connexion : empreinte SHA-256 de session,
 expiration, état du compte, révision d'identité et droits RBAC ; il gère
 également les rôles historiques par les collections `user_roles`, `roles`,
 `role_permissions` et `permissions`.
 
-Le serveur Collector accepte un gestionnaire d'identité injecté explicitement
+Le serveur Supervisor accepte un gestionnaire d'identité injecté explicitement
 via son quatrième argument `authorizationHandler`. **La configuration
 Compose actuelle ne l'injecte pas : la route reste donc absente par défaut.**
 Cela formalise un échange interne authentifié, sans modifier le flux actif :

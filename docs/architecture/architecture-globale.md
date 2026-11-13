@@ -152,17 +152,17 @@ actuel utilise exactement deux réseaux :
 
 - `dmz` : frontend Angular/Nginx et API Gateway Express ;
 - `internal` (`internal: true`) : API Gateway Express, Knowledge Service,
-  MongoDB et Collector.
+  MongoDB et Supervisor.
 
 La Gateway est le seul service présent sur les deux réseaux. **Seule la
 Gateway publie son port sur localhost** : toutes les communications
 extérieures, y compris les ressources Angular, passent par elle.
 La Gateway reste responsable des
 contrôles d'accès avant relais, le KMS maintient le stockage interne de
-l'identité et le RBAC de défense en profondeur. Le Collector fournit des
+l'identité et le RBAC de défense en profondeur. Le Supervisor fournit des
 sondes de santé et la télémétrie GPU facultative, sans publier de port.
 
-Les gardes d'adresses IP internes de KMS et Collector sont provisoires :
+Les gardes d'adresses IP internes de KMS et Supervisor sont provisoires :
 l'identification cryptographique des pairs (jetons interservices ou mTLS)
 sera définie dans une itération de sécurité ultérieure.
 

@@ -20,7 +20,7 @@ const UNCHECKED: MonitoredService[] = [
     status: 'unknown', detail: 'Aucun résultat de contrôle disponible.' },
   { id: 'mongodb', name: 'MongoDB', description: 'Base documentaire locale',
     status: 'unknown', detail: 'Aucun résultat de contrôle disponible.' },
-  { id: 'collector', name: 'Collector', description: 'Collecte centralisée des services et du GPU',
+  { id: 'supervisor', name: 'Supervisor', description: 'Collecte centralisée des services et du GPU',
     status: 'unknown', detail: 'Aucun résultat de contrôle disponible.' },
 ];
 

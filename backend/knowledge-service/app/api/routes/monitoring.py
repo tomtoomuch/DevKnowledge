@@ -1,10 +1,10 @@
-"""Authenticated monitoring façade. The collector owns every probe."""
+"""Authenticated monitoring façade. The supervisor owns every probe."""
 
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Response
 from app.auth.local import requester_identity, require
-from app.services.collector_client import read_snapshot
+from app.services.supervisor_client import read_snapshot
 from app.services.knowledge_service import RequesterIdentity
 
 router = APIRouter(prefix="/api/v1", tags=["Monitoring"])

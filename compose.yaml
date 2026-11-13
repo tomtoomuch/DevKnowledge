@@ -83,15 +83,15 @@ services:
       start_period: 10s
     restart: unless-stopped
 
-  collector:
-    image: devknowledge-collector:latest
+  supervisor:
+    image: devknowledge-supervisor:latest
     build:
-      context: ./backend/collector
+      context: ./backend/supervisor
       dockerfile: Dockerfile
     environment:
       GATEWAY_PORT: ${GATEWAY_PORT:-3000}
       GPU_MONITOR_ENABLED: "false"
-      COLLECTOR_NETWORK_GUARD: required
+      SUPERVISOR_NETWORK_GUARD: required
       # Optional read-only identity shadow mode; disabled until a dedicated
       # MongoDB read-only account and two random service secrets are provisioned.
       SUPERVISOR_IDENTITY_MODE: ${SUPERVISOR_IDENTITY_MODE:-disabled}
@@ -169,7 +169,7 @@ networks:
   # It is Compose-managed and NOT an existing/public Docker external network.
   dmz:
     driver: bridge
-  # KMS, MongoDB and Collector have no route to the external Internet.
+  # KMS, MongoDB and Supervisor have no route to the external Internet.
   internal:
     driver: bridge
     internal: true

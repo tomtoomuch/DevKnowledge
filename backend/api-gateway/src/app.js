@@ -26,7 +26,7 @@ function createApp({
         res.status(200).json({ status: "ok", service: "api-gateway" });
     });
     app.get("/health/ready", relay);
-    // Collector reaches this route through the internal network; Gateway probes Nginx via DMZ.
+    // Supervisor reaches this route through the internal network; Gateway probes Nginx via DMZ.
     app.get("/health/frontend", async (req, res) => {
         res.setHeader("Cache-Control", "no-store");
         if (await frontendProbe()) {

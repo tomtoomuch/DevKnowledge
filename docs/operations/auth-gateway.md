@@ -18,7 +18,7 @@ Navigateur / client --localhost:4200--> API Gateway Express
                                            +-----> KMS FastAPI (privé)
                                                       |
                                                       +-----> MongoDB
-                                                      +-----> Collector
+                                                      +-----> Supervisor
 ```
 
 Le Gateway reverse-proxy les ressources Angular depuis Nginx sur la DMZ ;
@@ -39,7 +39,7 @@ privée : la sécurité des connaissances reste sur les API.
 Le Compose normal impose `AUTH_MODE=required` dans Gateway et KMS ;
 seules les piles de test jetables utilisent un override désactivant
 l'authentification. En cas d'identité invalide 401/403 ; en cas de
-référentiel indisponible 503. Frontend, KMS, MongoDB et Collector
+référentiel indisponible 503. Frontend, KMS, MongoDB et Supervisor
 n'exposent pas de ports hôte.
 
 ## Premier administrateur dans une instance de test indépendante
@@ -101,13 +101,13 @@ réelle. Les données de `dev` et de l'instance isolée restent distinctes.
 Le Compose définit exactement deux réseaux **gérés par Compose** :
 `dmz`, réseau bridge d'accès entre le frontend et la Gateway, et
 `internal`, réseau bridge avec `internal: true` pour la Gateway,
-le KMS, MongoDB et le Collector. La Gateway a deux interfaces réseau.
+le KMS, MongoDB et le Supervisor. La Gateway a deux interfaces réseau.
 La DMZ est un réseau Docker *edge*, pas un réseau `external: true`
 préexistant. **Seule la Gateway publie un port hôte**, sur
 `127.0.0.1`. Nginx est privé sur la DMZ.
 
 Les sondes du frontend passent par la Gateway et la DMZ ; les appels du
-Collector au KMS sont limités aux deux endpoints de santé. KMS n'accepte
+Supervisor au KMS sont limités aux deux endpoints de santé. KMS n'accepte
 les API privées que depuis la Gateway (gardes d'adresses IP internes,
 à remplacer par une authentification cryptographique entre services).
 Les appels rejetés retournent 404 sans divulguer les services internes.

@@ -9,7 +9,7 @@ function normalizeAddress(value) {
 }
 
 async function peerAllowed(req, lookup = dns.lookup) {
-  if (process.env.COLLECTOR_NETWORK_GUARD !== "required") return true;
+  if (process.env.SUPERVISOR_NETWORK_GUARD !== "required") return true;
   const peer = normalizeAddress(req.socket.remoteAddress);
   if (req.url === "/health") return peer === "127.0.0.1" || peer === "::1";
   const path = new URL(req.url, 'http://localhost').pathname;
@@ -25,7 +25,7 @@ async function peerAllowed(req, lookup = dns.lookup) {
 
 
 async function identityPeerAllowed(req, lookup = dns.lookup) {
-  if (process.env.COLLECTOR_NETWORK_GUARD !== "required") return true;
+  if (process.env.SUPERVISOR_NETWORK_GUARD !== "required") return true;
   const peer = normalizeAddress(req.socket.remoteAddress);
   if (!peer || peer === "127.0.0.1" || peer === "::1") return false;
   try {

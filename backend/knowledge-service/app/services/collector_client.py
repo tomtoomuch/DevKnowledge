@@ -1,4 +1,4 @@
-"""Bounded internal connection to the collector; no GPU or health probes in KMS."""
+"""Bounded internal connection to the supervisor; no GPU or health probes in KMS."""
 
 import asyncio
 import json
@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from http.client import HTTPConnection, HTTPException as HTTPClientException
 
 logger = logging.getLogger(__name__)
-HOST, PORT, MAX_BYTES = "collector", 9109, 16384
+HOST, PORT, MAX_BYTES = "supervisor", 9109, 16384
 STATES = frozenset({"healthy", "degraded", "unavailable", "unknown"})
 GPU_STATES = frozenset({"healthy", "unavailable", "disabled", "unknown"})
 SERVICES = {
@@ -16,7 +16,7 @@ SERVICES = {
     "frontend": ("Frontend Angular", "Interface web servie par Nginx"),
     "api-kms": ("Knowledge Service", "API FastAPI et gestion des connaissances"),
     "mongodb": ("MongoDB", "Base documentaire locale"),
-    "collector": ("Collector", "Collecte centralisée des services et du GPU"),
+    "supervisor": ("Supervisor", "Collecte centralisée des services et du GPU"),
 }
 
 
@@ -35,7 +35,7 @@ def entry(key, status):
 def fallback():
     return {
         "checked_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
-        "services": [entry(key, "unavailable" if key == "collector" else "unknown")
+        "services": [entry(key, "unavailable" if key == "supervisor" else "unknown")
                      for key in SERVICES],
         "gpu": {"status": "unknown", "detail": "Collecte GPU non vérifiée.", "devices": []},
     }
@@ -74,8 +74,8 @@ def sanitize(raw):
         if key in states:
             raise ValueError("Duplicate probe")
         states[key] = service["status"]
-    if set(states) != set(SERVICES) or states["collector"] != "healthy":
-        raise ValueError("Incomplete collector snapshot")
+    if set(states) != set(SERVICES) or states["supervisor"] != "healthy":
+        raise ValueError("Incomplete supervisor snapshot")
     raw_gpu = raw.get("gpu")
     if not isinstance(raw_gpu, dict) or raw_gpu.get("status") not in GPU_STATES:
         raise ValueError("Invalid GPU status")
@@ -133,7 +133,7 @@ def fetch_snapshot():
             return fallback()
         return sanitize(json.loads(body))
     except (OSError, TimeoutError, ValueError, TypeError, HTTPClientException):
-        logger.info("Collector unavailable or returned an invalid snapshot")
+        logger.info("Supervisor unavailable or returned an invalid snapshot")
         return fallback()
     finally:
         connection.close()

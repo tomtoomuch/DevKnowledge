@@ -34,8 +34,8 @@ async def allowed_peer(request: Request):
     path = request.url.path
     if path in ("/health", "/health/ready") and peer_matches(client, {"127.0.0.1", "::1"}):
         return True
-    # All API routes are Gateway-exclusive. Collector may access health probes.
-    names = ("api-gateway", "collector") if path in ("/health", "/health/ready") else ("api-gateway",)
+    # All API routes are Gateway-exclusive. Supervisor may access health probes.
+    names = ("api-gateway", "supervisor") if path in ("/health", "/health/ready") else ("api-gateway",)
     addresses = set()
     try:
         loop = asyncio.get_running_loop()

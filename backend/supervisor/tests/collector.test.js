@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { collectGpuMetrics, parseNvidiaSmi, QUERY, FORMAT } = require('../src/gpu');
 const { createServer } = require('../src/server');
-const { createSnapshotCollector, gatewayPort } = require('../src/snapshot');
+const { createSnapshotSupervisor, gatewayPort } = require('../src/snapshot');
 
 test('parses multiple NVIDIA GPUs and nullable sensors', () => {
   const items = parseNvidiaSmi(
@@ -65,7 +65,7 @@ function simulated({ gateway = 200, live = 200, ready = 200, gpuEnabled = false 
     { index: 0, name: 'RTX', utilization_pct: 75, memory_used_mib: 3,
       memory_total_mib: 8, temperature_c: 45 },
   ] });
-  const collect = createSnapshotCollector({ probe, gpu, gpuEnabled: () => gpuEnabled, port: () => 3107 });
+  const collect = createSnapshotSupervisor({ probe, gpu, gpuEnabled: () => gpuEnabled, port: () => 3107 });
   return { collect, requested };
 }
 
@@ -75,7 +75,7 @@ test('centralizes service probes and optional GPU in one snapshot', async () => 
   assert.ok(snapshot.checked_at.endsWith('Z'));
   assert.deepEqual(Object.fromEntries(snapshot.services.map(s => [s.id, s.status])), {
     'api-gateway': 'healthy', frontend: 'healthy', 'api-kms': 'healthy',
-    mongodb: 'healthy', collector: 'healthy',
+    mongodb: 'healthy', supervisor: 'healthy',
   });
   assert.equal(snapshot.gpu.status, 'healthy');
   assert.equal(snapshot.gpu.devices[0].utilization_pct, 75);
@@ -102,13 +102,13 @@ test('a failed Gateway probe cannot be reported healthy', async () => {
   assert.equal(snapshot.services.find(s => s.id === 'api-gateway').status, 'unavailable');
 });
 
-test('collector exposes only read-only internal health and snapshot routes', async () => {
+test('supervisor exposes only read-only internal health and snapshot routes', async () => {
   const server = createServer(async () => simulated({ gpuEnabled: true }).collect());
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const base = 'http://127.0.0.1:' + server.address().port;
   try {
     const health = await fetch(base + '/health');
-    assert.deepEqual(await health.json(), { status: 'ok', service: 'collector' });
+    assert.deepEqual(await health.json(), { status: 'ok', service: 'supervisor' });
     const response = await fetch(base + '/snapshot');
     assert.equal(response.status, 200);
     assert.equal(response.headers.get('cache-control'), 'no-store');

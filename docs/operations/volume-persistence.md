@@ -23,7 +23,7 @@ logique. Elle ajoute explicitement le volume local
 anonymes créés par l'image officielle lors des recréations. Sur cette
 instance MongoDB autonome, la base métier reste dans `/data/db`.
 Le délai d'arrêt MongoDB est augmenté à 60 secondes pour privilégier un
-arrêt propre. Le frontend, Gateway, KMS et collector ne détiennent pas de
+arrêt propre. Le frontend, Gateway, KMS et supervisor ne détiennent pas de
 bases persistantes propres dans ce lot ; aucun montage hôte supplémentaire
 n'est nécessaire.
 

@@ -30,10 +30,10 @@ def test_guard_denies_unexpected_peer_before_private_routes(monkeypatch):
         client.close()
 
 
-def test_kms_peer_gateway_api_and_collector_health(monkeypatch):
+def test_kms_peer_gateway_api_and_supervisor_health(monkeypatch):
     monkeypatch.setenv("KMS_NETWORK_GUARD", "required")
     async def fake_resolve(self, name, port, family, type):
-        addresses = {"api-gateway": "172.20.0.2", "collector": "172.20.0.4"}
+        addresses = {"api-gateway": "172.20.0.2", "supervisor": "172.20.0.4"}
         return [(2, 1, 6, "", (addresses[name], 0))]
     monkeypatch.setattr("asyncio.BaseEventLoop.getaddrinfo", fake_resolve, raising=True)
     assert asyncio.run(network_guard.allowed_peer(fake_request("/api/v1/knowledges", "172.20.0.2")))

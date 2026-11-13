@@ -83,7 +83,7 @@ def metric_sample_count():
         "try { console.log(db.prepare('SELECT count(*) AS c FROM metric_samples').get().c); }"
         "finally { db.close(); }"
     )
-    return int(compose("exec", "-T", "collector", "node", "-e", code).stdout.strip())
+    return int(compose("exec", "-T", "supervisor", "node", "-e", code).stdout.strip())
 
 
 def frontend_status(path):
@@ -123,7 +123,7 @@ def local_images(config):
 def expected_networks(service):
     return {"frontend": {"dmz"}, "api-gateway": {"dmz", "internal"},
             "api-kms": {"internal"}, "mongodb": {"internal"},
-            "collector": {"internal"}}[service]
+            "supervisor": {"internal"}}[service]
 
 
 def verify_offline_network(images):
@@ -203,7 +203,7 @@ def main():
 
     config = json.loads(compose("config", "--format", "json").stdout)
     base_config = json.loads(run(COMPOSE[:-2] + ["config", "--format", "json"]).stdout)
-    for name in ("frontend", "api-kms", "mongodb", "collector"):
+    for name in ("frontend", "api-kms", "mongodb", "supervisor"):
         require(not base_config["services"][name].get("ports"),
                 f"{name} must never publish a host port")
     gateway_ports = base_config["services"]["api-gateway"].get("ports", [])
@@ -227,7 +227,7 @@ def main():
                 for volume in config["volumes"].values()), "Volumes must belong to the test project")
     require(config["services"]["mongodb"]["volumes"][0]["type"] == "volume",
             "MongoDB data must use a disposable named volume")
-    metrics_volumes = base_config["services"]["collector"].get("volumes", [])
+    metrics_volumes = base_config["services"]["supervisor"].get("volumes", [])
     require(len(metrics_volumes) == 1 and
             metrics_volumes[0].get("type") == "volume" and
             metrics_volumes[0].get("source") == "supervisor-metrics" and
@@ -262,11 +262,11 @@ def main():
                    "Supervisor SQLite should store periodic snapshots")
         sqlite_samples = metric_sample_count()
         compose("up", "-d", "--no-build", "--pull", "never", "--no-deps",
-                "--force-recreate", "collector", timeout=180)
-        eventually(lambda: health("collector") == "healthy",
-                   "Supervisor metrics collector recovers after recreation")
+                "--force-recreate", "supervisor", timeout=180)
+        eventually(lambda: health("supervisor") == "healthy",
+                   "Supervisor metrics supervisor recovers after recreation")
         require(metric_sample_count() >= sqlite_samples,
-                "SQLite history did not survive collector recreation")
+                "SQLite history did not survive supervisor recreation")
         passed("SQLite metrics persisted on named volume after container recreation")
         print(kms_python((ROOT / "tests/gateway_contract.py").read_text(encoding="utf-8")), flush=True)
         passed("Gateway end-to-end CRUD and validation errors")

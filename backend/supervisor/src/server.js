@@ -1,11 +1,11 @@
 'use strict';
 
 const http = require('node:http');
-const { createSnapshotCollector } = require('./snapshot');
+const { createSnapshotSupervisor } = require('./snapshot');
 const { peerAllowed } = require('./peer-guard');
 const { openMetricsStore, startMetricSampling, samplingInterval } = require('./metrics-store');
 
-function createServer(collectSnapshot = createSnapshotCollector(), authorizePeer = peerAllowed,
+function createServer(collectSnapshot = createSnapshotSupervisor(), authorizePeer = peerAllowed,
                       metricsStore = null, authorizationHandler = null) {
   return http.createServer(async (req, res) => {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -15,7 +15,7 @@ function createServer(collectSnapshot = createSnapshotCollector(), authorizePeer
     const path = parsed.pathname;
     // The identity endpoint is only mounted if an authenticated session store
     // and a signing-key-backed handler are explicitly injected. Production's
-    // current Collector startup does not mount it.
+    // current Supervisor startup does not mount it.
     if (path === '/internal/v1/sessions/authorize' && authorizationHandler) {
       return authorizationHandler(req, res);
     }
@@ -28,7 +28,7 @@ function createServer(collectSnapshot = createSnapshotCollector(), authorizePeer
       return;
     }
     if (path === '/health') {
-      res.writeHead(200).end(JSON.stringify({ status: 'ok', service: 'collector' }));
+      res.writeHead(200).end(JSON.stringify({ status: 'ok', service: 'supervisor' }));
       return;
     }
     try {
@@ -50,15 +50,15 @@ function createServer(collectSnapshot = createSnapshotCollector(), authorizePeer
       const snapshot = await collectSnapshot();
       res.writeHead(200).end(JSON.stringify(snapshot));
     } catch {
-      // A collector failure must not expose hostnames or other internal details.
-      res.writeHead(503).end(JSON.stringify({ detail: 'Monitoring collector unavailable' }));
+      // A supervisor failure must not expose hostnames or other internal details.
+      res.writeHead(503).end(JSON.stringify({ detail: 'Monitoring supervisor unavailable' }));
     }
   });
 }
 
 async function startSupervisor(config = process.env) {
   // A genuine identity authority is opt-in until Gateway/KMS have completed
-  // their token-only integration. The default Collector behavior is preserved.
+  // their token-only integration. The default Supervisor behavior is preserved.
   const { startIdentityAuthority } = require('./identity-runtime');
   const { identityPeerAllowed } = require('./peer-guard');
   const mode = config.SUPERVISOR_IDENTITY_MODE || 'disabled';
@@ -69,7 +69,7 @@ async function startSupervisor(config = process.env) {
   let metricsStore;
   let scheduler;
   try {
-    const collect = createSnapshotCollector();
+    const collect = createSnapshotSupervisor();
     metricsStore = openMetricsStore(config.METRICS_DB_PATH);
     scheduler = startMetricSampling(collect, metricsStore, {
       intervalMs: samplingInterval(config.METRICS_SAMPLE_INTERVAL_MS),

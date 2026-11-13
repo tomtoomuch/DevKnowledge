@@ -8,7 +8,7 @@ tags: [superviseur, sqlite, datalake, metriques, sauvegarde]
 # Magasin analytique local SQLite3 des métriques
 
 Cette première implémentation utilise encore le **nom de service
-Docker et le répertoire source `collector`**, pour préserver
+Docker et le répertoire source `supervisor`**, pour préserver
 la compatibilité tant que la PR #13 n'a pas migré l'identité et
 renommé le microservice. Le magasin est destiné au **Superviseur**.
 
@@ -59,14 +59,14 @@ est `read_only: true`. Il **n'expose aucun port SQL**.
 
 ## Lecture et contrôle d'accès
 
-`GET http://collector:9109/metrics/history?limit=20` est interne
+`GET http://supervisor:9109/metrics/history?limit=20` est interne
 au réseau Docker : il retourne au plus 100 snapshots, du plus récent
 au plus ancien. Il n'est **pas publié au Gateway** dans cette PR et
 conserve provisoirement le contrôle de provenance KMS utilisé par
 `/snapshot`. Il devra être remplacé par une authentification de
 service vérifiable cryptographiquement au cours d'ADR-004.
 
-**Il est interdit de connecter Angular directement au Collector /
+**Il est interdit de connecter Angular directement au Supervisor /
 Superviseur**. Le futur tableau de bord passera par Gateway,
 une API du Superviseur avec RBAC et les tokens d'identité nécessaires.
 
@@ -82,11 +82,11 @@ Depuis la racine Git Bash, sur une instance utilisant le bon projet
 Compose, choisir un **nom de sortie inédit** :
 
 ```bash
-docker compose --env-file .env exec -T collector node src/metrics-backup.js \
+docker compose --env-file .env exec -T supervisor node src/metrics-backup.js \
   /var/lib/devknowledge-supervisor/exports/metrics-2026-11-10.sqlite3
 mkdir -p backups/supervisor
 docker compose --env-file .env cp \
-  collector:/var/lib/devknowledge-supervisor/exports/metrics-2026-11-10.sqlite3 \
+  supervisor:/var/lib/devknowledge-supervisor/exports/metrics-2026-11-10.sqlite3 \
   backups/supervisor/metrics-2026-11-10.sqlite3
 ```
 

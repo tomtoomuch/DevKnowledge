@@ -8,7 +8,7 @@ Le KMS propose le CRUD générique `/api/v1/knowledges` (validation, pagination,
 
 **PATCH et DELETE exigent désormais `If-Match` avec la révision lue** (428 sans précondition, 412 si elle est dépassée). Les GET individuels renvoient l’ETag correspondant.
 
-**Le Gateway Express est l'unique point d'entrée de toutes les requêtes extérieures, y compris les pages Angular et les ressources statiques.** L'URL locale `http://127.0.0.1:4200` publie le port du **Gateway**, pas celui du frontend Nginx. Le Gateway sert le frontend via son relais interne sur `dmz` et fait transiter `/api/v1/*` vers KMS sur `internal`. Il authentifie et autorise les appels métier. Angular/Nginx, KMS, MongoDB et Collector ne publient aucun port. Le projet n'est pas destiné à être exposé à Internet.
+**Le Gateway Express est l'unique point d'entrée de toutes les requêtes extérieures, y compris les pages Angular et les ressources statiques.** L'URL locale `http://127.0.0.1:4200` publie le port du **Gateway**, pas celui du frontend Nginx. Le Gateway sert le frontend via son relais interne sur `dmz` et fait transiter `/api/v1/*` vers KMS sur `internal`. Il authentifie et autorise les appels métier. Angular/Nginx, KMS, MongoDB et Supervisor ne publient aucun port. Le projet n'est pas destiné à être exposé à Internet.
 
 - [Validation du 9 novembre 2026 et limites restantes](docs/iterations/validation-stabilisation-2026-11-09.md)
 - [CI GitHub Actions](https://github.com/tomtoomuch/DevKnowledge/actions/workflows/ci.yml)
@@ -133,12 +133,12 @@ docker compose -f compose.yaml ps
 Le dépôt est composé de quatre images applicatives, chacune avec son
 `Dockerfile` : `frontend/ui-app/Dockerfile`, `backend/api-gateway/Dockerfile`,
 `backend/knowledge-service/Dockerfile` et
-`backend/collector/Dockerfile`. **Il n'existe pas de
+`backend/supervisor/Dockerfile`. **Il n'existe pas de
 Dockerfile à la racine : utiliser Docker Compose, et non
 `docker build .`.** Le script de vérification examine les chemins
 effectivement calculés par Compose avant toute construction.
 
-Seul **le Gateway** publie le port hôte `127.0.0.1:4200` (réacheminé vers son port interne `3000`). Frontend/Nginx, KMS, MongoDB et Collector restent strictement internes à Docker. Le KMS ne publie pas Swagger directement ; effectuer les diagnostics via `docker compose exec api-kms`. Voir [la séparation DMZ/interne](docs/architecture/gateway-kms.md).
+Seul **le Gateway** publie le port hôte `127.0.0.1:4200` (réacheminé vers son port interne `3000`). Frontend/Nginx, KMS, MongoDB et Supervisor restent strictement internes à Docker. Le KMS ne publie pas Swagger directement ; effectuer les diagnostics via `docker compose exec api-kms`. Voir [la séparation DMZ/interne](docs/architecture/gateway-kms.md).
 
 **Installation neuve :** `.env.example` et `compose.yaml` sont alignés ; le compte MongoDB applicatif limité est initialisé sur un volume vierge. **Le démarrage réel et le redémarrage ont été validés sur un projet isolé.** Ne pas écraser un `.env` existant : le bootstrap ne se rejoue pas sur un volume déjà initialisé. Voir le [guide de provisionnement et test isolé](docs/operations/mongodb-bootstrap.md). Ne jamais supprimer les volumes de développement par inadvertance.
 
@@ -216,14 +216,14 @@ n'est exposé. Voir [l'itération 5](docs/iterations/iteration-5-identite-locale
 
 ## Monitoring et isolation réseau
 
-La branche `chat` comprend le service **Collector** avec sondes frontend,
+La branche `chat` comprend le service **Supervisor** avec sondes frontend,
 Gateway, KMS et MongoDB (via la readiness KMS), la collecte GPU NVIDIA
 facultative, ainsi que des composants de présentation Angular indépendants.
 
 ```text
 Navigateur --> Gateway Express --dmz--> Frontend/Nginx (pages et assets)
                        |
-                       +--internal--> KMS/MongoDB/Collector (API)
+                       +--internal--> KMS/MongoDB/Supervisor (API)
 ```
 
 Le réseau `dmz` est un bridge Docker géré par Compose ; le réseau
@@ -258,7 +258,7 @@ Voir [CRUD et recette](docs/iterations/iteration-9-user-crud.md),
 
 ## Stockage des métriques (PR #14)
 
-Le service Collector, destiné à devenir Superviseur, écrit désormais
+Le service Supervisor, destiné à devenir Superviseur, écrit désormais
 les snapshots techniques dans SQLite3 via le volume nommé
 `supervisor-metrics`, entièrement distinct du volume MongoDB métier.
 La collecte est périodique et l'historique est consultable uniquement

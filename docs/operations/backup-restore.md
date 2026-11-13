@@ -117,6 +117,6 @@ La sauvegarde BSON présentée ci-dessus concerne exclusivement MongoDB.
 Le volume dédié `supervisor-metrics` et sa base SQLite3 ne sont
 **pas inclus** dans `database.archive.gz`. La sauvegarde cohérente
 SQLite repose sur l'API de backup en ligne `node:sqlite.backup()` et
-le script `backend/collector/src/metrics-backup.js`, avec contrôle
+le script `backend/supervisor/src/metrics-backup.js`, avec contrôle
 d'intégrité, refus d'écraser un fichier existant et copie de l'archive
 hors du volume. Voir [[operations/metrics-sqlite]].

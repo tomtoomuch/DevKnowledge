@@ -7,7 +7,7 @@ const descriptions = Object.freeze({
   'frontend': ['Frontend Angular', 'Interface web servie par Nginx'],
   'api-kms': ['Knowledge Service', 'API FastAPI et gestion des connaissances'],
   'mongodb': ['MongoDB', 'Base documentaire locale'],
-  'collector': ['Collector', 'Collecte centralisée des sondes et du GPU'],
+  'supervisor': ['Supervisor', 'Collecte centralisée des sondes et du GPU'],
 });
 
 function service(id, status, detail) {
@@ -56,7 +56,7 @@ function gpuTelemetry(result) {
   return { status: 'healthy', detail: 'Mesures GPU disponibles.', devices: result.devices };
 }
 
-function createSnapshotCollector({
+function createSnapshotSupervisor({
   probe = probeJson,
   gpu = collectGpuMetrics,
   gpuEnabled = () => process.env.GPU_MONITOR_ENABLED === 'true',
@@ -94,7 +94,7 @@ function createSnapshotCollector({
           ready ? 'Le ping MongoDB a réussi via la readiness du KMS.' :
             mongoUnavailable ? 'La readiness du KMS signale une panne MongoDB.' :
               'Aucune mesure MongoDB fiable n’est disponible.'),
-        service('collector', 'healthy', 'Le service de collecte a produit cet instantané.'),
+        service('supervisor', 'healthy', 'Le service de collecte a produit cet instantané.'),
       ],
       gpu: gpuEnabled() ? gpuTelemetry(gpuResult) :
         { status: 'disabled', detail: 'Collecte GPU facultative non configurée.', devices: [] },
@@ -102,4 +102,4 @@ function createSnapshotCollector({
   };
 }
 
-module.exports = { createSnapshotCollector, probeJson, gatewayPort, gpuTelemetry };
+module.exports = { createSnapshotSupervisor, probeJson, gatewayPort, gpuTelemetry };

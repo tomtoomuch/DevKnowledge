@@ -8,14 +8,14 @@ describe('Monitoring presentation components', () => {
     await TestBed.configureTestingModule({ imports: [MonitoringServiceCardsComponent] }).compileComponents();
     const fixture = TestBed.createComponent(MonitoringServiceCardsComponent);
     fixture.componentRef.setInput('services', [
-      { id: 'collector', name: 'Collector', description: 'Collecte',
+      { id: 'supervisor', name: 'Supervisor', description: 'Collecte',
         status: 'healthy', detail: 'Disponible' },
       { id: 'mongodb', name: 'MongoDB', description: 'Stockage',
         status: 'unavailable', detail: 'Pas de ping' },
     ]);
     fixture.detectChanges();
     const text = fixture.nativeElement.textContent as string;
-    expect(text).toContain('Collector');
+    expect(text).toContain('Supervisor');
     expect(text).toContain('Opérationnel');
     expect(text).toContain('Indisponible');
     expect(text).toContain('Pas de ping');

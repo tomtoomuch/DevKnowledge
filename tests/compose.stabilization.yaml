@@ -27,10 +27,10 @@ services:
     healthcheck:
       interval: 2s
       start_period: 2s
-  collector:
-    image: devknowledge-stabilization-collector:local
+  supervisor:
+    image: devknowledge-stabilization-supervisor:local
     environment:
-      COLLECTOR_NETWORK_GUARD: disabled
+      SUPERVISOR_NETWORK_GUARD: disabled
     restart: "no"
   mongodb:
     restart: "no"

@@ -15,7 +15,7 @@ Navigateur --HTTP localhost:4200/4201--> Gateway Express
                          v                                      v
                    Angular/Nginx                             KMS FastAPI
                   (HTML, JS, CSS)                              |
-                   aucun port                          MongoDB + Collector
+                   aucun port                          MongoDB + Supervisor
                     publié                         (aucun port publié)
 ```
 
@@ -33,10 +33,10 @@ L'interface Angular utilise uniquement des URL relatives
 port publié sur l'hôte. La Gateway est seule à posséder les deux
 interfaces réseau `dmz` et `internal`.
 
-Le KMS et le Collector ont leurs gardes provisoires de pairs réseau :
+Le KMS et le Supervisor ont leurs gardes provisoires de pairs réseau :
 sur `/api/v1`, KMS n'accepte que la Gateway ; ses sondes
-`/health` et `/health/ready` acceptent également le Collector,
-ainsi que l'adresse loopback pour le healthcheck local. Le Collector
+`/health` et `/health/ready` acceptent également le Supervisor,
+ainsi que l'adresse loopback pour le healthcheck local. Le Supervisor
 n'accepte `/snapshot` que depuis le KMS ; son `/health` est réservé
 à son propre healthcheck loopback. Les appels inattendus reçoivent 404.
 MongoDB n'expose pas de route HTTP ; son accès requiert les identifiants
@@ -95,7 +95,7 @@ docker compose --env-file .env ps
 
 Dans `ps`, **seule la Gateway** présente un port hôte lié à
 `127.0.0.1` (4200 vers 3000 par défaut).
-Frontend, KMS, MongoDB et Collector n'ont aucun port publié.
+Frontend, KMS, MongoDB et Supervisor n'ont aucun port publié.
 Pour inspecter un service de manière autorisée, employer
 `docker compose exec` sur son conteneur ; ne pas publier directement
 ses ports. L'ancienne superposition `compose.debug.yaml` de

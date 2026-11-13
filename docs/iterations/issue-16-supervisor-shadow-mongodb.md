@@ -8,7 +8,7 @@ tags: [devknowledge, supervisor, security, mongodb, rbac]
 # Introspection MongoDB dans le Superviseur (mode shadow)
 
 Cette itération ajoute une **connexion MongoDB autonome et optionnelle** au
-processus `collector` (futur Superviseur), sans toucher au propriétaire actuel
+processus `supervisor` (futur Superviseur), sans toucher au propriétaire actuel
 des comptes (KMS) ni à la configuration des routes Gateway.
 
 - `SUPERVISOR_IDENTITY_MODE=disabled` (défaut) : identique au comportement
