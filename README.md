@@ -133,7 +133,7 @@ docker compose -f compose.yaml ps
 Le dépôt est composé de quatre images applicatives, chacune avec son
 `Dockerfile` : `frontend/ui-app/Dockerfile`, `backend/api-gateway/Dockerfile`,
 `backend/knowledge-service/Dockerfile` et
-`backend/collector/Dockerfile`. **Il n'existe pas de
+`backend/supervisor/Dockerfile`. **Il n'existe pas de
 Dockerfile à la racine : utiliser Docker Compose, et non
 `docker build .`.** Le script de vérification examine les chemins
 effectivement calculés par Compose avant toute construction.
