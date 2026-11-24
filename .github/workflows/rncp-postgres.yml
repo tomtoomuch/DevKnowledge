@@ -1,9 +1,18 @@
-name: PostgreSQL RNCP foundation (isolated)
+name: PostgreSQL RNCP qualification (isolated)
 
 on:
   pull_request:
     paths:
-      - 'backend/knowledge-service/app/rncp/**'
+      - 'backend/knowledge-service/**'
+      - 'backend/api-gateway/**'
+      - 'backend/supervisor/**'
+      - 'frontend/**'
+      - 'compose*.yaml'
+      - 'tests/rncp/**'
+      - 'tests/compose.identity.yaml'
+      - 'tests/stabilization.env'
+      - 'scripts/check_rncp_stack.py'
+      - 'scripts/mongodb_backup.py'
       - 'poc/rncp-postgres/**'
       - '.github/workflows/rncp-postgres.yml'
   workflow_dispatch:
@@ -14,25 +23,22 @@ permissions:
 jobs:
   rncp-postgres:
     runs-on: ubuntu-22.04
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.14'
       - name: Run true PostgreSQL 17/FastAPI integration on fake RNCP data
         run: python3 poc/rncp-postgres/run.py
       - name: Validate opt-in Compose overlay (no PostgreSQL host exposure)
         env:
-          MONGODB_DATABASE: devknowledge_test
-          MONGODB_APP_USERNAME: test_app
-          MONGODB_APP_PASSWORD: isolated_ci_dummy
-          MONGODB_AUTH_SOURCE: devknowledge_test
-          MONGO_INITDB_ROOT_USERNAME: root_ci
-          MONGO_INITDB_ROOT_PASSWORD: isolated_ci_dummy
           RNCP_PG_USER: rncp_ci
           RNCP_PG_PASSWORD: isolated_ci_dummy
           RNCP_PG_DATABASE: rncp_ci
         run: |
-          docker compose -f compose.yaml -f compose.rncp.yaml config --quiet
-          docker compose -f compose.yaml -f compose.rncp.yaml config --format json > /tmp/rncp-merged-compose.json
+          docker compose --env-file tests/stabilization.env -f compose.yaml -f compose.rncp.yaml config --quiet
+          docker compose --env-file tests/stabilization.env -f compose.yaml -f compose.rncp.yaml config --format json > /tmp/rncp-merged-compose.json
           python3 - <<'PY'
           import json
           with open("/tmp/rncp-merged-compose.json", encoding="utf-8") as f:
@@ -44,10 +50,16 @@ jobs:
           assert data["services"]["api-kms"]["environment"]["RNCP_API_ENABLED"] == "required"
           assert data["networks"]["internal"]["internal"] is True
           PY
+      - name: Full stack with Supervisor, real MongoDB and multi-database restore
+        run: python3 scripts/check_rncp_stack.py
+      - name: Offline replay with prepared images
+        run: python3 scripts/check_rncp_stack.py --offline
       - name: Publish verification report
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: rncp-postgres-verification
-          path: test-results/rncp-postgres
+          path: |
+            test-results/rncp-postgres
+            test-results/devknowledge-rncp-stack-*
           retention-days: 14

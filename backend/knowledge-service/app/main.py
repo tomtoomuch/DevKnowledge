@@ -1,4 +1,5 @@
 import logging
+import asyncio
 import os
 import re
 
@@ -151,6 +152,16 @@ async def mongodb_ready_check(request: Request) -> JSONResponse:
             "status": "error", "service": "api-kms", "dependency": "mongodb",
             "reason": "Connection failed",
         })
+    if os.getenv('RNCP_API_ENABLED') == 'required':
+        try:
+            from app.rncp.health import check_storage
+            await asyncio.to_thread(check_storage)
+        except Exception as exc:
+            logger.warning('PostgreSQL readiness failure (%s)', type(exc).__name__)
+            return JSONResponse(status_code=503, content={
+                'status': 'error', 'service': 'api-kms', 'dependency': 'postgresql',
+                'reason': 'Connection failed',
+            })
     return JSONResponse(status_code=200, content={
         "status": "ok", "service": "api-kms", "dependency": "mongodb",
     })

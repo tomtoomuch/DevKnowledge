@@ -1,0 +1,11 @@
+# Last overlay: disposable images and volumes; no host ports, both networks internal.
+services:
+  api-kms:
+    image: devknowledge-rncp-kms-test:local
+  rncp-migrate:
+    image: devknowledge-rncp-kms-test:local
+  postgres-rncp:
+    restart: "no"
+    healthcheck:
+      interval: 2s
+      start_period: 2s

@@ -49,3 +49,30 @@ def test_ready_failure_does_not_disclose_driver_details(monkeypatch, caplog):
     assert "secret" not in response.text
     assert "secret" not in caplog.text
     assert "ConnectionFailure" in caplog.text
+
+
+def test_optional_rncp_readiness_checks_postgresql_and_hides_secrets(monkeypatch, caplog):
+    import sys
+    from unittest.mock import Mock
+    command = AsyncMock()
+    monkeypatch.setattr(app.state, 'mongodb_client', SimpleNamespace(admin=SimpleNamespace(command=command)), raising=False)
+    probe = Mock(side_effect=RuntimeError('postgresql://secret-user:secret-password@internal'))
+    monkeypatch.setitem(sys.modules, 'app.rncp.health', SimpleNamespace(check_storage=probe))
+    monkeypatch.setenv('RNCP_API_ENABLED', 'required')
+    response = client.get('/health/ready')
+    assert response.status_code == 503
+    assert response.json()['dependency'] == 'postgresql'
+    assert 'secret' not in response.text + caplog.text
+    assert client.get('/health').status_code == 200
+    probe.assert_called_once()
+
+
+def test_standard_kms_does_not_probe_postgresql(monkeypatch):
+    import sys
+    from unittest.mock import Mock
+    monkeypatch.delenv('RNCP_API_ENABLED', raising=False)
+    monkeypatch.setattr(app.state, 'mongodb_client', SimpleNamespace(admin=SimpleNamespace(command=AsyncMock())), raising=False)
+    probe = Mock(side_effect=AssertionError('Optional PostgreSQL must not be touched'))
+    monkeypatch.setitem(sys.modules, 'app.rncp.health', SimpleNamespace(check_storage=probe))
+    assert client.get('/health/ready').status_code == 200
+    probe.assert_not_called()

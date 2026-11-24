@@ -4,6 +4,8 @@
 
 **État actualisé le 24 novembre 2026** : [PR #19](https://github.com/tomtoomuch/DevKnowledge/pull/19) intégrée dans `chat` au commit `8820680` du 11 novembre. Le mode RNCP reste optionnel et désactivé dans le Compose standard.
 
+La qualification suivante [[rncp-stack-2026-11-24]] couvre désormais le circuit complet avec le Superviseur, MongoDB réel, les pannes et la restauration coordonnée. Les limites et preuves ci-dessous décrivent la livraison historique ; le risque interbases est confirmé et suivi dans DOC-43.
+
 Cette itération étend la fondation PostgreSQL (10 tables métier RNCP du MLD v0.2) avec des routes API spécifiques, à **activation explicite**, utilisant le contrat de session/permissions du KMS et la liste blanche du Gateway. Le KMS standard et le Compose standard **ne changent pas de source de vérité métier**.
 
 ### Routes autorisées

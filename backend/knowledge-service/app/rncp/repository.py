@@ -1,8 +1,4 @@
-"""Read-only RNCP queries against PostgreSQL.
-
-The KMS production router does not yet import this module. All public requests
-must eventually pass the Gateway and the configured internal authentication.
-"""
+"""RNCP reads and transactional writes behind the optional authenticated KMS API."""
 import uuid
 
 import psycopg
