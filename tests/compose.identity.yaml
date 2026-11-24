@@ -1,0 +1,37 @@
+# Qualification of the NORMAL authentication flow on a unique disposable project.
+services:
+  frontend:
+    image: devknowledge-identity-frontend:local
+    restart: "no"
+    healthcheck:
+      interval: 2s
+      start_period: 2s
+  api-gateway:
+    image: devknowledge-identity-gateway:local
+    ports: !reset []
+    restart: "no"
+    healthcheck:
+      interval: 2s
+      start_period: 2s
+  api-kms:
+    image: devknowledge-identity-kms:local
+    restart: "no"
+    healthcheck:
+      interval: 2s
+      start_period: 2s
+  supervisor:
+    image: devknowledge-identity-supervisor:local
+    restart: "no"
+    healthcheck:
+      interval: 2s
+      start_period: 2s
+  mongodb:
+    restart: "no"
+    healthcheck:
+      interval: 2s
+      start_period: 2s
+networks:
+  dmz:
+    internal: true
+  internal:
+    internal: true

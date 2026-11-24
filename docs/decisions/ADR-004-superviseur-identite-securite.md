@@ -1,7 +1,7 @@
 ---
 title: "ADR-004 — Superviseur : autorité d’identité, RBAC et confiance interservices"
 date: "2026-11-10"
-status: "Proposé — migration sur feature/supervisor-identity"
+status: "Circuit implémenté et qualifié localement — bascule existante à réaliser"
 tags: [architecture, adr, identite, sécurité, rbacs, superviseur]
 ---
 
@@ -78,16 +78,14 @@ secret devient nécessaire, le traiter séparément avec
 
 La phase de transition ajoute :
 - `backend/supervisor/src/service-tokens.js` : fonction
-  d'émission **non exposée en HTTP** et nécessitant un
+  d'émission interne après introspection et nécessitant un
   `Principal` déjà vérifié par le Superviseur ; un token
   donne exactement **une** permission métier `knowledge.*`;
 - `app/auth/service_tokens.py` dans le KMS : vérification de
   l'algorithme HS256, du secret, de la signature, de `iss`,
   `aud=api-kms`, `sub` UUID, `scope`, `iat`, `exp`
   (durée maximale de 60 secondes) et `jti` ;
-- `KMS_SERVICE_TOKEN_MODE=required` : **mode préparé, non
-  activé** dans Compose avant le basculement des sessions
-  et du routage depuis le Gateway. Dans ce mode, les cookies
+- `KMS_SERVICE_TOKEN_MODE=required` : mode imposé dans le Compose normal actualisé, avec routage Gateway/Superviseur actif et routes d’identité KMS retirées. Dans ce mode, les cookies
   navigateur et les en-têtes non signés ne constituent plus
   une preuve d'identité.
 
@@ -100,12 +98,7 @@ distribution sécurisée de cette clé et sa rotation restent une
 étape de déploiement avant l'activation du mode obligatoire.
 Les tests utilisent une clé fixe **uniquement pour la recette**.
 
-L'implémentation présente des primitives de signature et de vérification,
-**pas encore un circuit d'authentification complet**. Le Superviseur
-doit d'abord reprendre le stockage des sessions, vérifier le RBAC,
-authentifier le Gateway comme service, puis émettre les tokens après
-introspection. Le KMS ne doit pas passer en mode obligatoire avant cette
-migration complète.
+Le circuit complet est implémenté et qualifié localement au 24 novembre 2026. L'installation existante reste inchangée. La [procédure de migration](../operations/identity-migration.md) décrit le provisionnement, les sauvegardes/restaurations vérifiées, le retour arrière et la rotation coordonnée.
 
 **Limite explicitement acceptée pour la phase locale de transition :**
 le vérificateur KMS possède la même clé HMAC que l'émetteur Superviseur,

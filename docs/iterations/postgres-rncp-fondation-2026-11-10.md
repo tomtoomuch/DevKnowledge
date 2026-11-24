@@ -4,7 +4,9 @@
 
 **PR :** [#19](https://github.com/tomtoomuch/DevKnowledge/pull/19) ; **Linear :** [DOC-39](https://linear.app/documentation-perso/issue/DOC-39).
 
-## Périmètre effectivement codé
+> État historique de la première fondation. La PR #19 est intégrée dans `chat` depuis le 11 novembre (`8820680`) et comprend désormais une API activable explicitement : voir [itération API RNCP](postgres-rncp-api-2026-11-10.md). Les limites de cette première étape ne décrivent pas toutes le code final.
+
+## Périmètre initialement codé
 
 - Sous `backend/knowledge-service/app/rncp/` : migrateur PostgreSQL et adaptateur de **lecture** des versions de référentiel, compétences, critères et preuves. Il **n'est pas importé dans `app.main`** ; aucun endpoint supplémentaire n'est exposé sur la pile applicative actuelle.
 - Sous `poc/rncp-postgres/` : Compose isolé PostgreSQL 17, image Python de tests, scripts versionnés 001/002 et données fictives `RNCP-TEST`.

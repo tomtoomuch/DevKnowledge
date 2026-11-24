@@ -83,7 +83,7 @@ test("rejects invalid permission, session and malformed body", async () => {
 
 test("denies revoked sessions, missing RBAC rights and fails closed on DB outage", async () => {
   await withHandler(async () => null, async url => {
-    assert.equal((await request(url)).status, 403);
+    assert.equal((await request(url)).status, 401);
   });
   await withHandler(async () => ({ ...principal, permissions: [] }), async url => {
     assert.equal((await request(url)).status, 403);

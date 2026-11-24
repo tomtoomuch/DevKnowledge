@@ -2,9 +2,15 @@
 
 Assistant personnel de gestion des connaissances, conçu pour fonctionner localement : Gateway Express, KMS FastAPI et MongoDB 8, orchestrés avec Docker Compose.
 
-## État du projet (9 novembre 2026)
+## État du projet (24 novembre 2026)
 
-Le KMS propose le CRUD générique `/api/v1/knowledges` (validation, pagination, filtres, suppression logique). **Bootstrap MongoDB, Gateway, readiness et exécution hors ligne après préparation sont vérifiés en CI.** Le frontend Angular inclut la bibliothèque et, dans l'itération 5 proposée, une authentification locale/RBAC avec une administration de comptes limitée à la consultation et la création. Les huit spécialisations métier (sous-documents `details`) sont fusionnées dans `chat` via la PR #8. Le premier lot de classification par **tags** est proposé dans la PR #9 ; les technologies, les sources, les liens entre connaissances et le RAG restent à développer.
+La branche `chat` comprend le CRUD des connaissances, les huit spécialisations métier, la recherche textuelle et les favoris, les tags, les technologies/versions, les relations entre connaissances et le CRUD des comptes locaux avec RBAC. Angular fournit les écrans correspondants. La Gateway reste l'unique point d'entrée. Dans le code local actualisé, le Superviseur porte désormais l'identité et le KMS reçoit uniquement des jetons internes pour les opérations métier.
+
+**La CI du commit `a26ba97` a réussi le 13 novembre 2026**, avec les six jobs frontend, Gateway, Superviseur, KMS Windows/Linux et Docker (bootstrap, intégration, panne/reprise et exécution hors ligne après préparation). [Preuve CI](https://github.com/tomtoomuch/DevKnowledge/actions/runs/43402738352). Cette preuve concerne cette révision ; elle ne qualifie pas les modifications locales ultérieures.
+
+La migration de l'[issue #16](https://github.com/tomtoomuch/DevKnowledge/issues/16) est implémentée et qualifiée localement : login/logout, comptes/RBAC, sessions historiques, jetons Gateway → KMS, comptes MongoDB distincts, sauvegarde/restauration et reprise hors ligne. Le candidat est suivi dans [DOC-41](https://linear.app/documentation-perso/issue/DOC-41) pour revue et validation CI ; l'installation existante n'a pas été basculée. Voir [la procédure de migration](docs/operations/identity-migration.md).
+
+L'[ADR-005](docs/decisions/ADR-005-strategie-stockage.md) retient PostgreSQL pour le métier relationnel, MongoDB pour les métadonnées et futurs usages IA, SQLite pour les métriques. La fondation RNCP et son API optionnelle sont intégrées dans `chat` via la PR #19, avec dix tables métier et activation explicite. Les données existantes restent dans MongoDB. Sources/pièces jointes, historique versionné, RAG et MCP restent à développer.
 
 **PATCH et DELETE exigent désormais `If-Match` avec la révision lue** (428 sans précondition, 412 si elle est dépassée). Les GET individuels renvoient l’ETag correspondant.
 
@@ -37,7 +43,7 @@ tout accès à `/api/` pour éviter un second chemin applicatif.
 La liste, la recherche textuelle et les filtres type/statut/favoris
 s'exécutent côté serveur, avant pagination. La
 consultation, la création, la modification conditionnelle avec ETag/If-Match
-et la suppression logique sont prises en charge. L'interface persiste les champs génériques et les détails spécialisés des huit types. La PR #9 ajoute la création, le rattachement et le filtrage des tags.
+et la suppression logique sont prises en charge. L'interface persiste les champs génériques et les détails spécialisés des huit types. Les tags, technologies/versions et relations sont intégrés dans `chat`.
 
 Lire le [guide frontend](frontend/ui-app/README.md) avant la première utilisation.
 
@@ -61,7 +67,7 @@ La collection `knowledge_types` est initialisée au démarrage avec les métadon
 
 Voir [itération 6 — implémentation et limites](docs/iterations/iteration-6-specializations.md).
 
-## Itération 7 — classification par tags (PR #9, en cours)
+## Itération 7 — classification par tags (PR #9, intégrée)
 
 - `POST /api/v1/tags` : créer un tag réutilisable (libellé unique après normalisation Unicode et comparaison insensible à la casse).
 - `GET /api/v1/tags` : consulter les tags avec pagination ; `GET /api/v1/tags/{uuid}` : consulter un tag.
@@ -73,7 +79,7 @@ La collection physique `tags` est distincte ; la relation logique `knowledge_tag
 
 Voir [itération 7 — tags et limites](docs/iterations/iteration-7-tags.md).
 
-## Itération 7B — Technologies et versions (PR #10, dépendante de #9)
+## Itération 7B — Technologies et versions (PR #10, intégrée)
 
 Le lot B implémente `technologies` et `technology_versions` comme collections
 MongoDB de référence immuables, avec UUID, unicité des noms et versions par
@@ -95,7 +101,7 @@ Ces filtres sont distincts, combinables et appliqués avant pagination.
 
 Voir [spécification et limites du lot B](docs/iterations/iteration-7b-technologies.md).
 
-## Itération 8 — Relations entre connaissances (PR #11, en cours)
+## Itération 8 — Relations entre connaissances (PR #11, intégrée)
 
 Le référentiel métier `relation_types` comporte cinq types stables :
 `DEPENDS_ON`, `COMPLEMENTS`, `CONTRADICTS`, `SUPERSEDES` et `RELATED_TO`.
@@ -120,7 +126,7 @@ Voir [itération 8 — contrat et recette](docs/iterations/iteration-8-knowledge
 
 ## Lancement local
 
-À la racine, avec une configuration `.env` locale existante et valide :
+À la racine, avec une configuration `.env` valide pour le nouveau circuit : **sur une installation existante, appliquer d'abord la [procédure de provisionnement et de bascule](docs/operations/identity-migration.md)**. Les nouvelles variables sont obligatoires ; ne pas réutiliser le compte de lecture shadow.
 
 ```bash
 # Vérifie que les Dockerfiles et leurs contextes existent réellement.
@@ -144,7 +150,7 @@ Seul **le Gateway** publie le port hôte `127.0.0.1:4200` (réacheminé vers son
 
 ## Tests
 
-Le relais Gateway possède une suite dédiée ; la CI exécute aussi les 123 tests unitaires KMS, les 128 tests KMS avec MongoDB et les scénarios de bootstrap, CRUD via Gateway et panne/reprise. Depuis un environnement Python virtuel pour les commandes KMS :
+La CI exécute les suites frontend, Gateway, Superviseur, KMS sous Windows/Linux et avec MongoDB jetable, ainsi que les scénarios de bootstrap, CRUD via Gateway, panne/reprise et fonctionnement hors ligne préparé. Les nombres de tests dépendent de la révision ; consulter les rapports de l'exécution concernée. Depuis un environnement Python virtuel pour les commandes KMS :
 
 ```bash
 # Gateway
@@ -188,14 +194,13 @@ du socle préparé ; un build complet hors ligne reste à qualifier.
 ## Itération 5 — identité locale et autorisations RBAC
 
 Après démarrage avec Docker Compose, créer le premier administrateur dans
-le conteneur KMS (une seule fois, sans mot de passe dans les arguments) :
+le Superviseur (une seule fois, sans mot de passe dans les arguments) :
 
 ```bash
-docker compose exec api-kms python -m app.auth.bootstrap_admin --username admin
+python scripts/bootstrap_supervisor.py --username admin
 ```
 
-L'interface Angular présente ensuite un écran de connexion locale. La Gateway et le KMS
-vérifient les permissions à chaque requête ; les rôles intégrés sont ADMIN,
+L'interface Angular présente ensuite un écran de connexion locale. La Gateway consulte le Superviseur ; le KMS vérifie le jeton et sa portée à chaque requête métier ; les rôles intégrés sont ADMIN,
 EDITOR et READER. Les mots de passe ne sont pas enregistrés en clair ; les
 sessions sont révocables et leur jeton opaque n'est pas stocké en clair.
 Voir [la documentation de l'identité](docs/iterations/iteration-5-identite-locale.md).
@@ -207,12 +212,12 @@ du projet ; les ports restent liés à 127.0.0.1 et la revue de sécurité est
 
 ### Comptes locaux (itération 5)
 
-Créer le premier administrateur via la CLI du conteneur KMS, puis utiliser
+Créer le premier administrateur via `scripts/bootstrap_supervisor.py`, puis utiliser
 l'écran de connexion Angular. Le rôle ADMIN dispose maintenant d'une vue
-**Utilisateurs** pour consulter les rôles et créer un compte local ;
+**Utilisateurs** pour consulter, créer, modifier et supprimer logiquement les comptes, gérer leurs rôles/statuts et réinitialiser leurs mots de passe ;
 EDITOR et READER ne voient pas cette vue, et le serveur refuse leurs requêtes.
 Aucun mécanisme d'inscription publique ou de récupération de mot de passe
-n'est exposé. Voir [l'itération 5](docs/iterations/iteration-5-identite-locale.md).
+n'est exposé. Voir [l'itération 9](docs/iterations/iteration-9-user-crud.md).
 
 ## Monitoring et isolation réseau
 
@@ -230,7 +235,7 @@ Le réseau `dmz` est un bridge Docker géré par Compose ; le réseau
 `internal` est isolé (`internal: true`). Seul le Gateway publie un
 port lié à localhost. Les APIs des microservices rejettent les pairs
 non autorisés grâce à des contrôles d'adresses IP internes, solution
-provisoire en attendant l'authentification cryptographique interservices.
+complémentaire à la clé Gateway/Superviseur et aux jetons signés Gateway/KMS.
 
 Voir [monitoring](docs/operations/monitoring.md) et
 [authentification et ports](docs/operations/auth-gateway.md).
@@ -258,12 +263,16 @@ Voir [CRUD et recette](docs/iterations/iteration-9-user-crud.md),
 
 ## Stockage des métriques (PR #14)
 
-Le service Supervisor, destiné à devenir Superviseur, écrit désormais
+Le service Superviseur (`backend/supervisor`) écrit désormais
 les snapshots techniques dans SQLite3 via le volume nommé
 `supervisor-metrics`, entièrement distinct du volume MongoDB métier.
 La collecte est périodique et l'historique est consultable uniquement
 sur le réseau interne. La journalisation centralisée par service demeure
-un lot distinct de cette base de métriques. L'étude de SQL Server et
-PostgreSQL pour le MLD relationnel est décrite dans
-[ADR-005](docs/decisions/ADR-005-strategie-stockage.md) : **aucune
-migration des données métier n'est déclenchée dans ce lot**.
+un lot distinct de cette base de métriques. PostgreSQL est retenu pour le métier relationnel par
+[ADR-005](docs/decisions/ADR-005-strategie-stockage.md) ; la migration globale des données reste à réaliser.
+
+## PostgreSQL et RNCP (PR #19, intégrée dans `chat`)
+
+Les dix tables métier RNCP, les migrations versionnées et quatre routes protégées sont présentes. L'overlay `compose.rncp.yaml` et `RNCP_API_ENABLED=required` constituent une activation explicite sur un projet isolé. Le Compose standard garde MongoDB comme stockage métier actif. Les jeux de test sont fictifs, sans contenu officiel RNCP 37827.
+
+La cohérence MongoDB/PostgreSQL, la sauvegarde multi-moteurs, le parcours Angular et le flux complet Gateway/Superviseur restent à qualifier. Voir [API RNCP et limites](docs/iterations/postgres-rncp-api-2026-11-10.md) et [feuille de route](docs/roadmap.md).

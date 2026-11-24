@@ -6,7 +6,7 @@ const { peerAllowed } = require('./peer-guard');
 const { openMetricsStore, startMetricSampling, samplingInterval } = require('./metrics-store');
 
 function createServer(collectSnapshot = createSnapshotSupervisor(), authorizePeer = peerAllowed,
-                      metricsStore = null, authorizationHandler = null) {
+                      metricsStore = null, authorizationHandler = null, identityHandler = null) {
   return http.createServer(async (req, res) => {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store');
@@ -18,6 +18,9 @@ function createServer(collectSnapshot = createSnapshotSupervisor(), authorizePee
     // current Supervisor startup does not mount it.
     if (path === '/internal/v1/sessions/authorize' && authorizationHandler) {
       return authorizationHandler(req, res);
+    }
+    if (identityHandler && (path.startsWith('/internal/v1/auth/') || /^\/internal\/v1\/users(?:\/|$)/.test(path))) {
+      return identityHandler(req, res);
     }
     if (req.method !== 'GET' || !['/health', '/snapshot', '/metrics/history'].includes(path)) {
       res.writeHead(404).end(JSON.stringify({ detail: 'Not found' }));
@@ -57,12 +60,12 @@ function createServer(collectSnapshot = createSnapshotSupervisor(), authorizePee
 }
 
 async function startSupervisor(config = process.env) {
-  // A genuine identity authority is opt-in until Gateway/KMS have completed
-  // their token-only integration. The default Supervisor behavior is preserved.
+  // Library callers may disable identity; the normal Compose configuration
+  // explicitly activates ownership alongside Gateway and token-only KMS.
   const { startIdentityAuthority } = require('./identity-runtime');
   const { identityPeerAllowed } = require('./peer-guard');
   const mode = config.SUPERVISOR_IDENTITY_MODE || 'disabled';
-  const MongoClient = mode === 'shadow' ? require('mongodb').MongoClient : null;
+  const MongoClient = ['shadow', 'active'].includes(mode) ? require('mongodb').MongoClient : null;
   const identity = await startIdentityAuthority({
     mode, config, MongoClient, peerGuard: identityPeerAllowed,
   });
@@ -76,7 +79,7 @@ async function startSupervisor(config = process.env) {
       retentionDays: 90,
       onFailure: (kind) => console.error('Supervisor metrics sampling failure (' + kind + ')'),
     });
-    const server = createServer(collect, peerAllowed, metricsStore, identity.authorizationHandler);
+    const server = createServer(collect, peerAllowed, metricsStore, identity.authorizationHandler, identity.identityHandler);
     await new Promise((resolve, reject) => {
       server.once('error', reject);
       server.listen(9109, '0.0.0.0', resolve);

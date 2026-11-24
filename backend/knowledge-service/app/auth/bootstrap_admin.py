@@ -11,6 +11,8 @@ from app.auth.local import bootstrap_admin, initialize_identity, username_key
 
 
 async def setup(username, password):
+    if os.getenv("KMS_SERVICE_TOKEN_MODE") == "required":
+        raise RuntimeError("Identity belongs to Supervisor; use scripts/bootstrap_supervisor.py")
     name = os.getenv("MONGODB_DATABASE", "devknowledge")
     client = AsyncMongoClient(
         host=os.getenv("MONGODB_HOST", "localhost"), port=int(os.getenv("MONGODB_PORT", "27017")),

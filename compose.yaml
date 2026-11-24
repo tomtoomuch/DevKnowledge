@@ -23,6 +23,10 @@ services:
       KMS_TIMEOUT_MS: ${KMS_TIMEOUT_MS:-10000}
       GATEWAY_PUBLIC_SCHEME: ${GATEWAY_PUBLIC_SCHEME:-http}
       AUTH_MODE: required
+      GATEWAY_IDENTITY_AUTHORITY: supervisor
+      SUPERVISOR_BASE_URL: http://supervisor:9109
+      SUPERVISOR_GATEWAY_KEY: ${SUPERVISOR_GATEWAY_KEY:?SUPERVISOR_GATEWAY_KEY_required}
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-false}
       NODE_ENV: production
       FRONTEND_BASE_URL: http://frontend:80
     # This is the ONLY published port, serving both Angular and /api/v1.
@@ -37,6 +41,8 @@ services:
       api-kms:
         condition: service_healthy
       frontend:
+        condition: service_healthy
+      supervisor:
         condition: service_healthy
 
     healthcheck:
@@ -60,11 +66,13 @@ services:
       MONGODB_HOST: mongodb
       MONGODB_PORT: ${MONGODB_PORT:-27017}
       MONGODB_DATABASE: ${MONGODB_DATABASE:?MONGODB_DATABASE_required}
-      MONGODB_USERNAME: ${MONGODB_APP_USERNAME:?MONGODB_APP_USERNAME_required}
-      MONGODB_PASSWORD: ${MONGODB_APP_PASSWORD:?MONGODB_APP_PASSWORD_required}
+      MONGODB_USERNAME: ${MONGODB_KMS_USERNAME:?MONGODB_KMS_USERNAME_required}
+      MONGODB_PASSWORD: ${MONGODB_KMS_PASSWORD:?MONGODB_KMS_PASSWORD_required}
       MONGODB_AUTH_SOURCE: ${MONGODB_AUTH_SOURCE:?MONGODB_AUTH_SOURCE_required}
       AUTH_MODE: required
       KMS_NETWORK_GUARD: required
+      KMS_SERVICE_TOKEN_MODE: required
+      SUPERVISOR_KMS_TOKEN_KEY: ${SUPERVISOR_KMS_TOKEN_KEY:?SUPERVISOR_KMS_TOKEN_KEY_required}
       AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-false}
     networks:
       - internal
@@ -92,19 +100,22 @@ services:
       GATEWAY_PORT: ${GATEWAY_PORT:-3000}
       GPU_MONITOR_ENABLED: "false"
       SUPERVISOR_NETWORK_GUARD: required
-      # Optional read-only identity shadow mode; disabled until a dedicated
-      # MongoDB read-only account and two random service secrets are provisioned.
-      SUPERVISOR_IDENTITY_MODE: ${SUPERVISOR_IDENTITY_MODE:-disabled}
-      SUPERVISOR_GATEWAY_KEY: ${SUPERVISOR_GATEWAY_KEY:-}
-      SUPERVISOR_KMS_TOKEN_KEY: ${SUPERVISOR_KMS_TOKEN_KEY:-}
+      # The normal stack has a single identity authority. Existing installations
+      # must provision the new restricted accounts before restarting this stack.
+      SUPERVISOR_IDENTITY_MODE: active
+      SUPERVISOR_GATEWAY_KEY: ${SUPERVISOR_GATEWAY_KEY:?SUPERVISOR_GATEWAY_KEY_required}
+      SUPERVISOR_KMS_TOKEN_KEY: ${SUPERVISOR_KMS_TOKEN_KEY:?SUPERVISOR_KMS_TOKEN_KEY_required}
       MONGODB_HOST: mongodb
       MONGODB_PORT: ${MONGODB_PORT:-27017}
       MONGODB_DATABASE: ${MONGODB_DATABASE:?MONGODB_DATABASE_required}
-      MONGODB_USERNAME: ${MONGODB_SUPERVISOR_USERNAME:-}
-      MONGODB_PASSWORD: ${MONGODB_SUPERVISOR_PASSWORD:-}
+      MONGODB_USERNAME: ${MONGODB_SUPERVISOR_USERNAME:?MONGODB_SUPERVISOR_USERNAME_required}
+      MONGODB_PASSWORD: ${MONGODB_SUPERVISOR_PASSWORD:?MONGODB_SUPERVISOR_PASSWORD_required}
       MONGODB_AUTH_SOURCE: ${MONGODB_AUTH_SOURCE:?MONGODB_AUTH_SOURCE_required}
       METRICS_DB_PATH: /var/lib/devknowledge-supervisor/metrics.sqlite3
       METRICS_SAMPLE_INTERVAL_MS: "60000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
     networks:
       - internal
     # Writable data volume despite an otherwise read-only container filesystem.
@@ -134,6 +145,10 @@ services:
       MONGODB_DATABASE: ${MONGODB_DATABASE:?MONGODB_DATABASE_required}
       MONGODB_APP_USERNAME: ${MONGODB_APP_USERNAME:?MONGODB_APP_USERNAME_required}
       MONGODB_APP_PASSWORD: ${MONGODB_APP_PASSWORD:?MONGODB_APP_PASSWORD_required}
+      MONGODB_KMS_USERNAME: ${MONGODB_KMS_USERNAME:?MONGODB_KMS_USERNAME_required}
+      MONGODB_KMS_PASSWORD: ${MONGODB_KMS_PASSWORD:?MONGODB_KMS_PASSWORD_required}
+      MONGODB_SUPERVISOR_USERNAME: ${MONGODB_SUPERVISOR_USERNAME:?MONGODB_SUPERVISOR_USERNAME_required}
+      MONGODB_SUPERVISOR_PASSWORD: ${MONGODB_SUPERVISOR_PASSWORD:?MONGODB_SUPERVISOR_PASSWORD_required}
     networks:
       - internal
     volumes:
@@ -142,6 +157,7 @@ services:
       - mongodb-configdb:/data/configdb
       # Scripts officiels d'initialisation : executes uniquement sur volume vierge.
       - ./backend/mongodb/init/01-create-app-user.js:/docker-entrypoint-initdb.d/01-create-app-user.js:ro
+      - ./backend/mongodb/ops/provision-identity-owners.js:/docker-entrypoint-initdb.d/02-identity-owners.js:ro
     healthcheck:
       test:
         - CMD

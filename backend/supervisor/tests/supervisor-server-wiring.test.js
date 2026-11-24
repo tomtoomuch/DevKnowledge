@@ -26,6 +26,21 @@ test("Supervisor endpoint is absent unless a verified identity handler is explic
   });
 });
 
+test("login/logout remain unmounted even when shadow authorization is injected", async () => {
+  const handler = createAuthorizationHandler({ gatewayKey: key, kmsKey, lookupSession: async () => null });
+  for (const authorization of [null, handler]) {
+    await withServer(authorization, async url => {
+      for (const endpoint of ["login", "logout"]) {
+        const response = await fetch(url + "/internal/v1/auth/" + endpoint, {
+          method: "POST", headers: { "content-type": "application/json", "x-service-key": key },
+          body: "{}",
+        });
+        assert.equal(response.status, 404);
+      }
+    });
+  }
+});
+
 test("An explicitly wired internal handler authenticates the Gateway before issuing a KMS token", async () => {
   const handler = createAuthorizationHandler({
     gatewayKey: key, kmsKey,

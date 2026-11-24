@@ -53,7 +53,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 await MongoTagRepository(app.state.mongodb_database).ensure_indexes()
                 await MongoTechnologyRepository(app.state.mongodb_database).ensure_indexes()
                 await MongoRelationRepository(app.state.mongodb_database).ensure_catalog()
-                await initialize_identity(app.state.mongodb_database)
+                if os.getenv("KMS_SERVICE_TOKEN_MODE") != "required":
+                    await initialize_identity(app.state.mongodb_database)
                 logger.info("MongoDB connection and indexes ready")
                 break
             except PyMongoError as exc:

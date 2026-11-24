@@ -1,0 +1,35 @@
+# Test-only database, no published ports or persistent development volumes.
+services:
+  mongodb-test:
+    image: mongo:8.0
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: supervisor_test_only
+      MONGO_INITDB_ROOT_PASSWORD: supervisor_test_only
+    tmpfs:
+      - /data/db
+      - /data/configdb
+    healthcheck:
+      test: [CMD, mongosh, --quiet, --eval, "db.adminCommand('ping').ok"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  supervisor-tests:
+    image: devknowledge-supervisor-tests:local
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    environment:
+      SUPERVISOR_TEST_MONGODB_URI: mongodb://supervisor_test_only:supervisor_test_only@mongodb-test:27017/?authSource=admin
+      NODE_PATH: /app/node_modules
+    volumes:
+      - ../src:/workspace/src:ro
+      - .:/workspace/tests:ro
+    command: [node, --test, /workspace/tests/integration/identity-sessions.test.js, /workspace/tests/integration/identity-users.test.js]
+    depends_on:
+      mongodb-test:
+        condition: service_healthy
+
+networks:
+  default:
+    internal: true

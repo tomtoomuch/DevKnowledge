@@ -78,6 +78,17 @@ class BackupTests(unittest.TestCase):
                 backup.backup([], destination)
             self.assertFalse((destination / "manifest.json").exists())
 
+    def test_identity_supervisor_is_stopped_and_restarted_as_a_database_writer(self):
+        config = {"services": {"mongodb": {"image": "mongo:8.0", "environment": {"MONGODB_DATABASE": "test"}}}}
+        with patch.object(backup, "configuration", return_value=config), \
+             patch.object(backup, "run", return_value=subprocess.CompletedProcess([], 0, b"mongodb\nsupervisor\n", b"")) as run, \
+             patch.object(backup, "snapshot", return_value={"database": "test"}), \
+             patch.object(backup, "shell", side_effect=RuntimeError("dump failed")):
+            with self.assertRaisesRegex(RuntimeError, "dump failed"):
+                backup.backup(["compose"], self.directory / "identity-backup")
+            self.assertIn(["compose", "stop", "supervisor"], [call.args[0] for call in run.call_args_list])
+            self.assertEqual(run.call_args.args[0], ["compose", "start", "supervisor"])
+
 
 if __name__ == "__main__":
     unittest.main()
