@@ -13,7 +13,7 @@ OUT = HERE.parents[1] / "test-results" / "rncp-postgres"
 
 
 def run(args, env, timeout=360):
-    result = subprocess.run(args, capture_output=True, text=True,
+    result = subprocess.run(args, capture_output=True, text=True, encoding='utf-8', errors='replace',
                             timeout=timeout, env=env, check=False)
     if result.returncode:
         message = (result.stdout + "\n" + result.stderr)

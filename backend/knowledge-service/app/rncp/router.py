@@ -4,7 +4,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pymongo.errors import PyMongoError
 import psycopg
 
@@ -24,6 +24,14 @@ class EvidenceCreate(BaseModel):
     title: str = Field(min_length=1, max_length=255)
     evidence_type_code: str = Field(min_length=2, max_length=50, pattern=r"^[A-Z][A-Z0-9_]*$")
     repository_url: str | None = Field(None, max_length=2000)
+
+    @field_validator('title')
+    @classmethod
+    def nonblank_title(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError('Evidence title must not be blank')
+        return value
 
 
 class KnowledgeLinkCreate(BaseModel):

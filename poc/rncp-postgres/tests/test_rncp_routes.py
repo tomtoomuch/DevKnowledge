@@ -65,6 +65,9 @@ def test_rncp_requires_user_id_for_writes(database):
 
 def test_evidence_is_written_atomically_and_read_back(database):
     with TestClient(app_for()) as client:
+        assert client.post(f"/api/v1/rncp/competencies/{COMP2}/evidence", json={
+            "title": " \t\n ", "evidence_type_code": "UNIT_TEST",
+        }).status_code == 422
         response = client.post(f"/api/v1/rncp/competencies/{COMP2}/evidence", json={
             "title": "New fictional evidence", "evidence_type_code": "UNIT_TEST",
         })

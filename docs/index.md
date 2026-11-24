@@ -2,6 +2,7 @@
 
 ## État actuel et prochaines étapes
 
+- [[iterations/rncp-stack-2026-11-24|Qualification PostgreSQL/RNCP avec le Superviseur et restauration des trois bases]]
 - [[operations/identity-migration|Migration identité achevée dans le code local : qualification et procédure de bascule]]
 - [[iterations/identity-migration-2026-11-24|Qualification de la migration identité — 24 novembre 2026]]
 

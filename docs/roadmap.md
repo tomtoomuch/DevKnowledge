@@ -1,7 +1,7 @@
 ---
 title: "DevKnowledge — Feuille de route"
 updated: "2026-11-24"
-status: "Consolidation et migration identité"
+status: "Qualification PostgreSQL/RNCP après migration identité"
 tags: [devknowledge, roadmap, stabilisation]
 ---
 
@@ -32,13 +32,13 @@ Cette photographie décrit le code intégré dans `chat` au commit `a26ba97` du 
 | Relations | Cinq types, relations dirigées/symétriques, unicité, API/UI et révisions (PR #11) | Politique de traitement des liens vers les fiches supprimées et administration des types |
 | Identité locale | Sessions opaques, RBAC et CRUD complet des comptes, désormais portés par Superviseur dans le code local | Revue/fusion de la PR #22 ; récupération locale du mot de passe disponible |
 | Superviseur | Métriques SQLite, login/logout, CRUD comptes, routage Gateway, jetons obligatoires et droits MongoDB limités qualifiés localement | Rotation à clés multiples, signature asymétrique et audits centralisés |
-| PostgreSQL/RNCP | Dix tables métier, migrations et API optionnelle protégée (PR #19) | Cohérence MongoDB/SQL, sauvegarde multi-moteurs, intégration complète et UI ; contenu officiel RNCP |
+| PostgreSQL/RNCP | Dix tables métier, migrations et API optionnelle protégée (PR #19) ; qualification complète candidate dans DOC-42 | Cohérence MongoDB/SQL (DOC-43), droits PostgreSQL, UI et contenu officiel RNCP (DOC-25) |
 | IA/RAG | Recherche textuelle littérale existante | Chunking, embeddings, index sémantique, Ollama, citations et évaluation |
 | MCP/MLOps | Non implémentés | Outils autorisés, évaluations et suivi MLflow |
 
 Le MLD v0.2 contient **56 tables logiques candidates** ; ce nombre n'est pas celui des tables physiques déployées. Les détails spécialisés et associations de classification actuels sont embarqués dans les documents MongoDB pour garantir les écritures atomiques.
 
-## Jalon actif : migration identité et consolidation
+## Migration identité : revue ouverte, installation locale activée
 
 L'[issue #16](https://github.com/tomtoomuch/DevKnowledge/issues/16) est implémentée dans le checkout local : le Compose normal impose l'autorité Superviseur et les jetons obligatoires côté KMS. Les routes d'identité KMS sont retirées dans ce mode ; aucune session navigateur n'est relayée au KMS. Les identifiants et sessions historiques restent compatibles.
 
@@ -50,9 +50,9 @@ L'ADR-003 reste le contrat de données historique. L'ADR-004 décrit désormais 
 
 1. Maintenir README, index et présente feuille de route en accord avec le code et le suivi [Linear DOC](https://linear.app/documentation-perso/team/DOC/all).
 2. Faire relire et intégrer la PR #22 de migration identité ; CI et activation locale réalisées, preuves conservées.
-3. Qualifier PostgreSQL/RNCP de bout en bout sur une pile isolée avec l'identité du Superviseur : axe de développement choisi le 24 novembre. Conserver le module optionnel dans l'installation existante.
+3. Faire relire la qualification PostgreSQL/RNCP DOC-42 : circuit Superviseur/JWT, pannes et restauration MongoDB/PostgreSQL/SQLite sur données fictives. Voir [[iterations/rncp-stack-2026-11-24]].
 4. Préparer une promotion revue de `chat` vers `dev`, sur une révision précise avec CI complète et recette ; aucune fusion automatique vers `dev` ou `main`.
-5. Qualifier RNCP/PostgreSQL de bout en bout sur une pile isolée, notamment les références interbases, les interruptions et les sauvegardes cohérentes. Le Compose standard reste inchangé pendant cette préparation.
+5. Traiter DOC-43 avant activation réelle : une suppression MongoDB concurrente peut laisser un lien SQL orphelin. L'audit détecte cette incohérence sans la réparer. Compléter ensuite le référentiel officiel et l'interface RNCP dans DOC-25.
 6. Compléter sources et historique, puis construire RAG et MCP avec contrôle d'accès et évaluation.
 
 ## Exploitation et limites
