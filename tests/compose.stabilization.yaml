@@ -12,6 +12,7 @@ services:
     image: devknowledge-stabilization-gateway:local
     environment:
       AUTH_MODE: disabled
+      GATEWAY_IDENTITY_AUTHORITY: legacy
     ports: !reset []
     restart: "no"
     healthcheck:
@@ -22,6 +23,9 @@ services:
     environment:
       AUTH_MODE: disabled
       KMS_NETWORK_GUARD: disabled
+      KMS_SERVICE_TOKEN_MODE: legacy
+      MONGODB_USERNAME: ${MONGODB_APP_USERNAME}
+      MONGODB_PASSWORD: ${MONGODB_APP_PASSWORD}
     ports: !reset []
     restart: "no"
     healthcheck:
@@ -31,6 +35,7 @@ services:
     image: devknowledge-stabilization-supervisor:local
     environment:
       SUPERVISOR_NETWORK_GUARD: disabled
+      SUPERVISOR_IDENTITY_MODE: disabled
     restart: "no"
   mongodb:
     restart: "no"

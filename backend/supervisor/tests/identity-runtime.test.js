@@ -133,7 +133,7 @@ test("network guard and revoked session fail closed", async () => {
     peerGuard: async () => true,
   });
   await withServer(runtime.authorizationHandler, async url => {
-    assert.equal((await authorize(url)).status, 403);
+    assert.equal((await authorize(url)).status, 401);
   });
   await runtime.close();
   const second = await startIdentityAuthority({

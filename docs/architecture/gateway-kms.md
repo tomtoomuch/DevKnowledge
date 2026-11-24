@@ -1,4 +1,4 @@
-# Communication obligatoire : Angular → Gateway → KMS
+# Communication obligatoire : Angular → Gateway → Superviseur / KMS
 
 ## Contrat des flux — Gateway point d'entrée unique
 
@@ -10,20 +10,24 @@ est l'unique port publié localement, sous
 ```text
 Navigateur --HTTP localhost:4200/4201--> Gateway Express
                                              |
-                         +-------------------+------------------+
-                         | dmz                                  | internal
-                         v                                      v
-                   Angular/Nginx                             KMS FastAPI
-                  (HTML, JS, CSS)                              |
-                   aucun port                          MongoDB + Supervisor
-                    publié                         (aucun port publié)
+                    +------------------------+-----------------------+
+                    | dmz                    | internal              | internal
+                    v                        v                       v
+              Angular/Nginx             Superviseur               KMS FastAPI
+              (HTML, JS, CSS)        (identité, sessions,       (métier, vérification
+                                     émission des JWT)          des JWT internes)
+                                             |                       |
+                                             +------ MongoDB --------+
+                                              comptes distincts
+
+Seule la Gateway publie un port hôte.
 ```
 
 Les ressources du frontend passent par un reverse-proxy **GET/HEAD**
 dans Express vers `http://frontend:80` sur `dmz`. Aucun cookie
 de session ni jeton utilisateur n'est transmis à Nginx. Les URL
 `/api/v1/*` sont prises en charge par la Gateway elle-même puis
-relayées au KMS sur `internal` après authentification et contrôle RBAC.
+relayées au Superviseur pour l'identité et les comptes, ou au KMS avec un jeton interne pour le métier, sur `internal` après authentification et contrôle RBAC.
 Les chemins inconnus sous `/api/` ou `/health/` retournent 404
 sans tomber dans la page Angular.
 
@@ -46,20 +50,15 @@ Ces contrôles d'origine utilisent les adresses IP obtenues par le DNS
 interne Docker. Uvicorn ignore les en-têtes proxy entrants pour déterminer
 l'adresse du pair : ils ne prouvent **pas** l'identité cryptographique
 du service appelant et ne protègent pas contre un conteneur compromis
-ayant des privilèges réseau élevés. Le déploiement futur introduira un
-mécanisme d'authentification service-à-service avec renouvellement
-des secrets et vérification de chaque appel. Les gardes échouent de
+ayant des privilèges réseau élevés. Le circuit d'identité utilise également une clé partagée Gateway/Superviseur et des jetons HS256 émis par le Superviseur pour le KMS. Les gardes échouent de
 façon sécurisée si la résolution DNS interne échoue.
 
 ## Authentification et autorisation
 
 La Gateway porte la responsabilité du contrôle d'accès HTTP externe :
 vérification du cookie de session opaque `dk_session`, interrogation
-du référentiel d'identité interne du KMS et vérification des permissions
-avant tout relais API. Les identifiants et sessions persistent encore
-dans le KMS/MongoDB ; le KMS effectue à son tour le contrôle RBAC
-comme défense en profondeur. La création du premier administrateur
-se fait uniquement par CLI, jamais par une route publique.
+du référentiel d'identité du Superviseur et vérification des permissions
+avant tout relais métier. Les identifiants et sessions persistent dans MongoDB sous l'autorité du Superviseur. Le KMS vérifie la signature, l'audience, l'expiration et la permission du jeton interne. Les routes d'identité KMS sont absentes en mode obligatoire. La création du premier administrateur se fait par `scripts/bootstrap_supervisor.py`, jamais par une route publique. Voir [la migration identité](../operations/identity-migration.md).
 
 Voir [le guide Authentification et ports](../operations/auth-gateway.md).
 
@@ -73,9 +72,7 @@ et les contrôles d'accès requis. La Gateway ne relaie pas les routes
 arbitraires du KMS et refuse de servir l'application Angular
 pour les routes API inexistantes.
 
-Seuls les en-têtes autorisés transitent ; le cookie de session `dk_session`
-est le seul cookie transmis, jamais les autres cookies, le jeton bearer
-ou des identités déclarées par le navigateur. Taille du corps plafonnée
+Seuls les en-têtes autorisés transitent ; le cookie de session `dk_session` est envoyé uniquement au Superviseur. Le KMS reçoit le jeton interne émis pour la requête, jamais le cookie, le bearer navigateur ou des identités déclarées par le navigateur. Taille du corps métier plafonnée
 à 1 Mio ; délais, réponses de panne et validation suivent le contrat
 du relais Node existant. Les requêtes de connexion sont ralenties et
 les écritures cross-origin refusées.
@@ -101,6 +98,7 @@ Pour inspecter un service de manière autorisée, employer
 ses ports. L'ancienne superposition `compose.debug.yaml` de
 publication du KMS a été retirée.
 
-La CI vérifie la topologie, la propagation HTTP par la Gateway, les
-refus d'accès et les scénarios de reprise. La validation des identités
-interservices cryptographiques est prévue pour une itération ultérieure.
+La CI est configurée pour vérifier la topologie, la propagation HTTP par la
+Gateway, les refus d'accès, les jetons interservices et les scénarios de reprise.
+La signature asymétrique et la rotation à clés multiples restent un lot de
+durcissement distinct de la migration qualifiée localement.

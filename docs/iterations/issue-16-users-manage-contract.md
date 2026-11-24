@@ -7,6 +7,9 @@ tags: [devknowledge, security, supervisor, rbac]
 
 # Autoriser les opérations administratives sans token KMS
 
+> Étape historique, complétée le 24 novembre 2026 : le circuit actif (CRUD comptes, sessions, Gateway et jetons KMS) est désormais implémenté et qualifié localement. Les mentions de routes non montées ou de modes désactivés ci-dessous décrivent cette étape préparatoire. Voir [l’état courant et la procédure](../operations/identity-migration.md). L’installation existante n’a pas été basculée.
+
+
 Après le lot de lecture MongoDB (#18), le Superviseur peut répondre à
 `POST /internal/v1/sessions/authorize` pour une session ayant la permission
 `users.manage`.

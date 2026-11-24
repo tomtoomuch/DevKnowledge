@@ -81,12 +81,13 @@ function createAuthorizationHandler({ gatewayKey, kmsKey, lookupSession }) {
     }
     if (!input || typeof input !== "object" || Array.isArray(input) ||
         Object.keys(input).sort().join(",") !== "permission,session_cookie" ||
-        !COOKIE.test(input.session_cookie || "") || !PERMISSIONS.has(input.permission)) {
+        typeof input.session_cookie !== "string" || !COOKIE.test(input.session_cookie) || !PERMISSIONS.has(input.permission)) {
       return res.writeHead(422).end(JSON.stringify({ detail: "Invalid authorization request" }));
     }
 
     try {
       const principal = await lookupSession(input.session_cookie);
+      if (!principal) return res.writeHead(401).end(JSON.stringify({ detail: "Authentication required" }));
       if (!principal || !UUID.test(principal.user_id || "") ||
           !Array.isArray(principal.permissions) ||
           !principal.permissions.includes(input.permission)) {

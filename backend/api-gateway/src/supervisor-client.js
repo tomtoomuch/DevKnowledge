@@ -9,14 +9,14 @@ const TOKEN = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
 const SECRET = /^[0-9a-f]{64}$/i;
 
 /**
- * Contract for the future Supervisor identity authority.
+ * Client for the Supervisor identity authority.
  *
  * The Gateway never trusts browser-supplied identity headers. The Supervisor
  * must introspect the opaque session and produce a KMS-scoped token only when
  * the principal has the requested permission. This client fails closed.
  *
- * This module is intentionally NOT wired into the production routing until
- * Supervisor's authenticated endpoint and integration tests are available.
+ * The normal Compose configuration uses this client for each protected
+ * business request; legacy mode remains explicit for regression tests.
  */
 function createSupervisorClient(baseUrl, sharedSecret, timeoutMs = 4000, fetchImpl = fetch) {
   const origin = new URL(baseUrl);
@@ -47,7 +47,8 @@ function createSupervisorClient(baseUrl, sharedSecret, timeoutMs = 4000, fetchIm
       redirect: "manual",
       signal: AbortSignal.timeout(timeoutMs),
     });
-    if (response.status === 401 || response.status === 403) return null;
+    if (response.status === 401) return null;
+    if (response.status === 403) throw Object.assign(new Error("Insufficient permissions"), { status: 403 });
     if (response.status !== 200) throw new Error("Supervisor authorization unavailable");
     const payload = await response.text();
     if (payload.length > 8192) throw new Error("Supervisor response too large");

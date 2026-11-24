@@ -99,7 +99,7 @@ jobs:
     # 22.04 currently uses 6.8; revisit before its April 2027 retirement.
     # See SERVER-136848; unit tests still exercise ubuntu-latest.
     runs-on: ubuntu-22.04
-    timeout-minutes: 20
+    timeout-minutes: 35
     defaults:
       run:
         shell: bash
@@ -116,11 +116,15 @@ jobs:
           docker compose --env-file tests/stabilization.env -f compose.yaml -f compose.gpu.yaml --profile gpu config --quiet
           docker compose -p devknowledge-bootstrap-test -f backend/mongodb/tests/compose.bootstrap.yaml config --quiet
           docker compose -p devknowledge-kms-crud-test -f backend/knowledge-service/tests/compose.integration.yaml config --quiet
+          docker compose -p devknowledge-supervisor-session-test -f backend/supervisor/tests/compose.integration.yaml config --quiet
       - name: Verify Dockerfile paths for all Compose stacks
         run: |
           python scripts/check_dockerfiles.py --compose compose.yaml --env-file tests/stabilization.env
           python scripts/check_dockerfiles.py --compose backend/mongodb/tests/compose.bootstrap.yaml
           python scripts/check_dockerfiles.py --compose backend/knowledge-service/tests/compose.integration.yaml
+          python scripts/check_dockerfiles.py --compose backend/supervisor/tests/compose.integration.yaml
+      - name: Supervisor sessions with disposable MongoDB
+        run: docker compose -p devknowledge-supervisor-session-test -f backend/supervisor/tests/compose.integration.yaml up --build --abort-on-container-exit --exit-code-from supervisor-tests supervisor-tests 2>&1 | tee test-results/supervisor-sessions.log
       - name: Fresh MongoDB bootstrap
         run: docker compose -p devknowledge-bootstrap-test -f backend/mongodb/tests/compose.bootstrap.yaml up --build --abort-on-container-exit --exit-code-from bootstrap-check bootstrap-check 2>&1 | tee test-results/bootstrap.log
       - name: Full KMS suite with disposable MongoDB
@@ -129,13 +133,19 @@ jobs:
         run: python scripts/check_stabilization.py 2>&1 | tee test-results/stabilization.log
       - name: Offline runtime with prepared images, no builds or pulls
         run: python scripts/check_stabilization.py --offline 2>&1 | tee test-results/stabilization-offline.log
+      - name: Supervisor identity migration, historical sessions and isolated restore
+        run: python scripts/check_identity_migration.py 2>&1 | tee test-results/identity-migration.log
+      - name: Supervisor identity offline replay with prepared images
+        run: python scripts/check_identity_migration.py --offline 2>&1 | tee test-results/identity-migration-offline.log
       - name: Collect diagnostics and clean up disposable projects
         if: always()
         run: |
           docker compose -p devknowledge-bootstrap-test -f backend/mongodb/tests/compose.bootstrap.yaml logs --no-color > test-results/bootstrap-services.log
           docker compose -p devknowledge-kms-crud-test -f backend/knowledge-service/tests/compose.integration.yaml logs --no-color > test-results/kms-services.log
+          docker compose -p devknowledge-supervisor-session-test -f backend/supervisor/tests/compose.integration.yaml logs --no-color > test-results/supervisor-session-services.log
           docker compose -p devknowledge-bootstrap-test -f backend/mongodb/tests/compose.bootstrap.yaml down --volumes
           docker compose -p devknowledge-kms-crud-test -f backend/knowledge-service/tests/compose.integration.yaml down --volumes
+          docker compose -p devknowledge-supervisor-session-test -f backend/supervisor/tests/compose.integration.yaml down --volumes
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:

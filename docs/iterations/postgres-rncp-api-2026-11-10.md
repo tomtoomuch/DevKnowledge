@@ -2,7 +2,7 @@
 
 ## État de livraison
 
-**Branche** : `feature/postgres-rncp-foundation` — [PR #19](https://github.com/tomtoomuch/DevKnowledge/pull/19), non fusionnée, en brouillon.
+**État actualisé le 24 novembre 2026** : [PR #19](https://github.com/tomtoomuch/DevKnowledge/pull/19) intégrée dans `chat` au commit `8820680` du 11 novembre. Le mode RNCP reste optionnel et désactivé dans le Compose standard.
 
 Cette itération étend la fondation PostgreSQL (10 tables métier RNCP du MLD v0.2) avec des routes API spécifiques, à **activation explicite**, utilisant le contrat de session/permissions du KMS et la liste blanche du Gateway. Le KMS standard et le Compose standard **ne changent pas de source de vérité métier**.
 

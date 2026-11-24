@@ -4,7 +4,7 @@ const https = require("node:https");
 const REQUEST_HEADERS = ["accept", "content-type", "accept-language", "if-match"];
 const RESPONSE_HEADERS = ["content-type", "content-language", "allow", "retry-after", "etag", "cache-control"];
 
-function createKmsProxy(baseUrl, timeoutMs) {
+function createKmsProxy(baseUrl, timeoutMs, { tokenOnly = false } = {}) {
     let origin;
     try {
         origin = new URL(baseUrl);
@@ -30,10 +30,11 @@ function createKmsProxy(baseUrl, timeoutMs) {
         // Forward only the opaque session cookie; never forward other browser cookies.
         const cookieParts = (req.headers.cookie || "").split(";").map(s => s.trim())
             .filter(part => part.startsWith("dk_session="));
-        if (cookieParts.length === 1 && /^dk_session=[0-9a-f]{64}$/.test(cookieParts[0]) &&
+        if (!tokenOnly && cookieParts.length === 1 && /^dk_session=[0-9a-f]{64}$/.test(cookieParts[0]) &&
             !connectionHeaders.has("cookie")) {
             headers.cookie = cookieParts[0];
         }
+        if (tokenOnly && req.kmsToken) headers.authorization = "Bearer " + req.kmsToken;
         const body = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
         headers["content-length"] = body.length;
         const separator = req.originalUrl.indexOf("?");
@@ -73,7 +74,7 @@ function createKmsProxy(baseUrl, timeoutMs) {
                 if (response.headers[name] !== undefined && !responseConnectionHeaders.has(name)) res.setHeader(name, response.headers[name]);
             }
             // Only authentication endpoints may set the tightly scoped session cookie.
-            if (/^\/api\/v1\/auth\/(?:login|logout)\/?$/.test(path) &&
+            if (!tokenOnly && /^\/api\/v1\/auth\/(?:login|logout)\/?$/.test(path) &&
                 !responseConnectionHeaders.has("set-cookie")) {
                 const cookies = response.headers["set-cookie"] || [];
                 const sessionCookie = cookies.find(value => value.startsWith("dk_session="));

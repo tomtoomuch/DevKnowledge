@@ -1,115 +1,57 @@
-# Authentification et ports — Gateway obligatoire
+# Authentification et ports locaux
 
-## Topologie du navigateur — invariant obligatoire
+## Point d'entrée
 
-**TOUTES les communications depuis l'extérieur, frontend compris,
-traversent d'abord l'API Gateway Express.** C'est le seul service
-avec un port Docker publié : par défaut
-`127.0.0.1:${FRONTEND_PORT:-4200}` redirige vers son port interne
-`GATEWAY_PORT=3000`. Le port 4201 d'une instance de test peut pointer
-vers le Gateway d'un autre projet Compose ; il ne publie pas Nginx.
+Le navigateur utilise uniquement la Gateway Express, normalement sur `http://127.0.0.1:4200`. La Gateway sert Angular/Nginx sur le réseau DMZ, puis relaie les URL `/api/v1/auth/*` et `/api/v1/users*` vers le Superviseur. Les connaissances, catalogues, relations et le monitoring passent vers le KMS avec un jeton interne.
 
-```text
-Navigateur / client --localhost:4200--> API Gateway Express
-                                           | dmz (GET/HEAD pages, CSS, JS)
-                                           +-----> Frontend Angular/Nginx (privé)
-                                           |
-                                           | internal (/api/v1/* uniquement)
-                                           +-----> KMS FastAPI (privé)
-                                                      |
-                                                      +-----> MongoDB
-                                                      +-----> Supervisor
-```
+Nginx refuse `/api/` et ne reçoit ni cookies, ni jetons, ni en-têtes d'identité. Frontend, KMS, MongoDB et Superviseur ne publient aucun port hôte. Les chemins API inconnus ne doivent jamais servir la page Angular.
 
-Le Gateway reverse-proxy les ressources Angular depuis Nginx sur la DMZ ;
-Nginx ne publie aucun port hôte et **refuse `/api/`**. Toutes les
-requêtes métier restent sur `/api/v1/*` et passent par le contrôle
-d'authentification et de permissions du Gateway. Les chemins API inconnus
-ne doivent jamais être redirigés vers le `index.html` Angular.
-Les méthodes autres que GET/HEAD ne sont pas admises par le relais frontend.
+Le Superviseur est l'autorité des comptes, mots de passe, sessions et rôles. Il vérifie le cookie `dk_session` à chaque demande protégée et émet un jeton KMS d'audience et de portée limitées. Le KMS vérifie à nouveau ce jeton. Le circuit normal ne transmet jamais le cookie navigateur au KMS et n'utilise aucun repli d'identité historique.
 
-Le Gateway conserve les contrôles d'Origin, limitation de connexion,
-cookie `dk_session`, RBAC et délégation des vérifications au KMS.
-KMS reste le magasin interne des comptes, rôles, mots de passe hachés
-et sessions MongoDB ; il applique lui aussi les permissions.
-Le relais de ressources **ne transmet jamais les cookies, Authorization
-ni les en-têtes d'identité utilisateur à Nginx**, même pour une page
-privée : la sécurité des connaissances reste sur les API.
+La Gateway conserve les contrôles d'Origin, SameSite, limitation des tentatives de connexion et refus des en-têtes d'identité forgés. Le Compose normal impose l'authentification et le circuit Superviseur ; les tests historiques anonymes utilisent un override explicite distinct.
 
-Le Compose normal impose `AUTH_MODE=required` dans Gateway et KMS ;
-seules les piles de test jetables utilisent un override désactivant
-l'authentification. En cas d'identité invalide 401/403 ; en cas de
-référentiel indisponible 503. Frontend, KMS, MongoDB et Supervisor
-n'exposent pas de ports hôte.
+## Installation et premier compte
 
-## Premier administrateur dans une instance de test indépendante
+Pour une instance existante, suivre d'abord [la migration et ses sauvegardes](identity-migration.md). Les nouveaux comptes de base et secrets doivent être provisionnés avant redémarrage ; ne pas remplacer ou supprimer les volumes.
 
-**Un volume MongoDB neuf ne contient pas tes comptes de `dev`.** Si tu
-utilises `-p devknowledge-gpu-test`, il faut créer une fois un compte
-administrateur dans **cette instance**, sans réinitialiser le volume.
-
-Depuis le worktree `DevKnowledge-chat` :
+Pour une installation neuve, depuis la racine :
 
 ```bash
-docker compose -p devknowledge-gpu-test --env-file ../DevKnowledge/.env \
-  -f compose.yaml -f compose.gpu.yaml exec api-kms \
-  python -m app.auth.bootstrap_admin --username admin
+python scripts/bootstrap_supervisor.py --username admin
 ```
 
-Choisir un mot de passe de 12 à 256 caractères, puis le confirmer dans
-l'invite masquée. Ne jamais partager ce mot de passe ni l'inscrire dans
-`.env`, Git ou la commande shell. Sous Git Bash/mintty, si Docker refuse
-le TTY interactif, préfixer exactement la commande par `winpty`.
+Pour un autre projet Compose, préciser `--project <nom-existant>` et éventuellement `--env-file <fichier>`. La saisie du mot de passe est masquée et sa transmission utilise stdin, jamais les arguments du processus. Un second bootstrap est refusé dès qu'un compte existe. Ne pas effacer les comptes, le marqueur `auth_bootstrap` ou le volume pour contourner ce refus.
 
-S'il existe déjà un compte, le bootstrap **refuse** de s'exécuter.
-Il ne faut pas supprimer les utilisateurs, le verrou
-`auth_bootstrap` ou le volume MongoDB pour contourner ce refus.
+Le navigateur conserve le cookie `dk_session` avec `HttpOnly`, `Path=/api/v1`, `SameSite=Strict` et une durée de huit heures. `AUTH_COOKIE_SECURE=true` ajoute Secure pour un accès HTTPS. Les URL Angular et le format public des comptes restent compatibles avec le circuit précédent.
 
-Après création, ouvrir `http://127.0.0.1:4201`, se connecter, puis ouvrir
-Monitoring. Le navigateur envoie les requêtes relatives
-`/api/v1/auth/login`, `/api/v1/auth/me` et
-`/api/v1/monitoring/services` **directement vers la Gateway**, qui
-relaie uniquement les appels autorisés au KMS.
-La cookie `dk_session` est HttpOnly, Path=/api/v1 et SameSite=Strict.
+## Réinitialiser un mot de passe local existant
 
-## Diagnostic des erreurs
+Depuis un terminal interactif sur l'hôte Docker :
 
-- **401 sur POST /api/v1/auth/login** : utilisateur absent ou mauvais mot
-  de passe ; sur un volume neuf, vérifier l'initialisation ci-dessus.
-- **403** : Origin/cookie cross-site rejeté par Gateway ou rôle insuffisant ;
-  utiliser la même origine `localhost:4201` pour toute la session.
-- **429** : trop de tentatives ; attendre la fin de la limitation.
-- **502/503/504** : problème de Gateway/KMS/dépendance interne ; inspecter
-  les conteneurs et les logs sans publier les ports internes.
-- **401 sur GET /api/v1/auth/me** : absence de cookie valide, session expirée
-  ou compte désactivé. La Gateway refuse l'accès avant les ressources privées.
+```powershell
+python scripts/reset_local_password.py --username admin --project devknowledge --env-file .env
+```
 
-**Attention aux cookies entre environnements parallèles :** les cookies HTTP
-ne sont pas isolés par numéro de port. Deux applications ouvertes sur
-`http://localhost:4200` et `http://localhost:4201` partagent le même
-cookie `dk_session` : une connexion peut invalider celle de l'autre.
-Pour la recette locale, choisir des noms d'hôtes distincts : par exemple
-`http://localhost:4200` pour `dev` et `http://127.0.0.1:4201`
-pour `devknowledge-gpu-test`. Ne pas mélanger les deux noms d'hôte
-au sein d'une même session.
+Saisir deux fois le nouveau mot de passe (12 à 256 caractères). La saisie est masquée et le secret est transmis uniquement par stdin. Le compte doit déjà exister et être actif ; son UUID, ses rôles et son statut sont conservés. Sa révision augmente et ses sessions précédentes sont révoquées. Cette commande d'exploitation locale nécessite l'accès Docker au Superviseur actif, sans connexion préalable à l'application ni accès root MongoDB. Elle réutilise le verrou et le contrôle de révision des opérations normales ; aucun endpoint de récupération public n'est ajouté. Elle fonctionne avec le conteneur déjà migré, sans reconstruction d'image.
 
-Ne pas utiliser `docker compose down --volumes` sur la pile de développement
-réelle. Les données de `dev` et de l'instance isolée restent distinctes.
+Le script ne crée pas de compte, ne réactive pas un compte désactivé et ne modifie aucun identifiant MongoDB ou secret du `.env`.
 
-## Cloisonnement réseau DMZ et interne
+## Diagnostic
 
-Le Compose définit exactement deux réseaux **gérés par Compose** :
-`dmz`, réseau bridge d'accès entre le frontend et la Gateway, et
-`internal`, réseau bridge avec `internal: true` pour la Gateway,
-le KMS, MongoDB et le Supervisor. La Gateway a deux interfaces réseau.
-La DMZ est un réseau Docker *edge*, pas un réseau `external: true`
-préexistant. **Seule la Gateway publie un port hôte**, sur
-`127.0.0.1`. Nginx est privé sur la DMZ.
+- 401 : session absente, expirée ou révoquée, compte désactivé, ou mauvais identifiants.
+- 403 : droit insuffisant ou écriture cross-origin refusée.
+- 409 : doublon, protection du dernier ADMIN/de l'administrateur courant, ou verrou administratif occupé. Voir la récupération du verrou dans le guide de migration.
+- 412/428 : révision de compte dépassée ou précondition `If-Match` absente.
+- 429 : trop de tentatives de connexion ; attendre la fenêtre indiquée.
+- 503 sur l'identité : Superviseur ou MongoDB indisponible ; aucune bascule vers le KMS historique.
+- 502/504 sur le métier : relais KMS indisponible ou délai dépassé.
 
-Les sondes du frontend passent par la Gateway et la DMZ ; les appels du
-Supervisor au KMS sont limités aux deux endpoints de santé. KMS n'accepte
-les API privées que depuis la Gateway (gardes d'adresses IP internes,
-à remplacer par une authentification cryptographique entre services).
-Les appels rejetés retournent 404 sans divulguer les services internes.
+Inspecter les services avec `docker compose ps` et leurs logs, sans publier les ports internes ni journaliser cookies, mots de passe ou clés.
 
-Voir [le contrat Gateway-KMS](../architecture/gateway-kms.md).
+Les cookies HTTP ne sont pas isolés par numéro de port. Pour deux projets parallèles, utiliser des noms d'hôtes distincts (`localhost` et `127.0.0.1`, par exemple) et conserver la même origine pendant chaque session.
+
+## Réseaux et santé
+
+La Gateway possède les interfaces `dmz` et `internal`. Le réseau interne est isolé et les gardes IP/DNS refusent les pairs inattendus. La clé de service Gateway/Superviseur et les jetons signés complètent ces gardes. Le Superviseur n'accepte l'identité que depuis Gateway, le KMS n'accepte ses API que depuis Gateway ; les sondes de santé ont leurs règles propres.
+
+`/health/ready` de la Gateway vérifie le KMS, `/health/frontend` vérifie Nginx ; la vue de monitoring agrège l'état des services. Le démarrage Compose attend aussi que le Superviseur soit sain. [Contrat détaillé](../architecture/gateway-kms.md).

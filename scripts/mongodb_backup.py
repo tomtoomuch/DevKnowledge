@@ -104,7 +104,7 @@ def backup(compose, directory, *, env=None):
     running = run(compose + ["ps", "--status", "running", "--services"], env=env).stdout.decode().split()
     if "mongodb" not in running:
         raise RuntimeError("MongoDB must already be running")
-    writers = [name for name in ("api-gateway", "api-kms") if name in running]
+    writers = [name for name in ("api-gateway", "api-kms", "supervisor") if name in running]
     prefix = compose + ["exec", "-T", "mongodb"]
     try:
         if writers:
@@ -159,6 +159,12 @@ def restore(compose, directory, *, env=None, keep_volume=False):
     for key in ("MONGO_INITDB_ROOT_USERNAME", "MONGO_INITDB_ROOT_PASSWORD",
                 "MONGODB_DATABASE", "MONGODB_APP_USERNAME", "MONGODB_APP_PASSWORD"):
         target_env[key] = str(settings[key])
+    owner_keys = ("MONGODB_KMS_USERNAME", "MONGODB_KMS_PASSWORD",
+                  "MONGODB_SUPERVISOR_USERNAME", "MONGODB_SUPERVISOR_PASSWORD")
+    active_identity = config["services"].get("supervisor", {}).get("environment", {}).get("SUPERVISOR_IDENTITY_MODE") == "active"
+    if active_identity:
+        for key in owner_keys:
+            target_env[key] = str(settings[key])
     target_env["DK_APP_AUTH_SOURCE"] = config["services"]["api-kms"]["environment"]["MONGODB_AUTH_SOURCE"]
     prefix = ["docker", "exec", "-i", container]
     verified = False
@@ -171,6 +177,9 @@ def restore(compose, directory, *, env=None, keep_volume=False):
         for key in ("MONGO_INITDB_ROOT_USERNAME", "MONGO_INITDB_ROOT_PASSWORD", "MONGODB_DATABASE",
                     "MONGODB_APP_USERNAME", "MONGODB_APP_PASSWORD", "DK_APP_AUTH_SOURCE"):
             command += ["-e", key]
+        if active_identity:
+            for key in owner_keys:
+                command += ["-e", key]
         command += [config["services"]["mongodb"]["image"]]
         run(command, env=target_env)
         container_created = True
@@ -204,6 +213,23 @@ const appConnection = new Mongo('mongodb://127.0.0.1:27017');
 if (!appConnection.getDB(process.env.DK_APP_AUTH_SOURCE).auth(process.env.MONGODB_APP_USERNAME, process.env.MONGODB_APP_PASSWORD))
     throw new Error('Restored application account failed');
 appConnection.getDB(database.getName()).getCollectionNames();
+""", env=target_env)
+        if active_identity:
+            provision = (ROOT / "backend/mongodb/ops/provision-identity-owners.js").read_text(encoding="utf-8")
+            shell(prefix, AUTH + "globalThis.db = database;\n" + provision, env=target_env)
+            shell(prefix, AUTH + """
+for (const [user, password, collection, denied] of [
+    [process.env.MONGODB_KMS_USERNAME, process.env.MONGODB_KMS_PASSWORD, 'knowledge_items', 'users'],
+    [process.env.MONGODB_SUPERVISOR_USERNAME, process.env.MONGODB_SUPERVISOR_PASSWORD, 'users', 'knowledge_items']
+]) {
+    const c = new Mongo('mongodb://127.0.0.1:27017');
+    const d = c.getDB(process.env.MONGODB_DATABASE);
+    if (!d.auth(user, password)) throw new Error('Restricted restored account authentication failed');
+    d.getCollection(collection).findOne();
+    let refused = false;
+    try { d.getCollection(denied).findOne(); } catch (e) { refused = e.code === 13; }
+    if (!refused) throw new Error('Restored account is overprivileged');
+}
 """, env=target_env)
         verified = True
         return {"verified": True, "database": database,

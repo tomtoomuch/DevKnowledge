@@ -7,6 +7,9 @@ tags: [devknowledge, supervisor, security, mongodb, rbac]
 
 # Introspection MongoDB dans le Superviseur (mode shadow)
 
+> Étape historique, complétée le 24 novembre 2026 : le circuit actif (CRUD comptes, sessions, Gateway et jetons KMS) est désormais implémenté et qualifié localement. Les mentions de routes non montées ou de modes désactivés ci-dessous décrivent cette étape préparatoire. Voir [l’état courant et la procédure](../operations/identity-migration.md). L’installation existante n’a pas été basculée.
+
+
 Cette itération ajoute une **connexion MongoDB autonome et optionnelle** au
 processus `supervisor` (futur Superviseur), sans toucher au propriétaire actuel
 des comptes (KMS) ni à la configuration des routes Gateway.

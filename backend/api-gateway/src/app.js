@@ -3,6 +3,8 @@ const { createKmsProxy } = require("./kms-proxy");
 const { sessionCookie, permissionFor, validPrincipal, createSessionLookup } = require("./session-auth");
 const { checkFrontend } = require("./frontend-health");
 const { createFrontendProxy } = require("./frontend-proxy");
+const { createSupervisorClient } = require("./supervisor-client");
+const { createIdentityProxy } = require("./identity-proxy");
 
 function createApp({
     kmsBaseUrl = process.env.KMS_BASE_URL || "http://127.0.0.1:8000",
@@ -11,10 +13,19 @@ function createApp({
     authEnabled = process.env.AUTH_MODE !== "disabled",
     frontendProbe = checkFrontend,
     frontendBaseUrl = process.env.FRONTEND_BASE_URL || "http://frontend:80",
+    identityAuthority = process.env.GATEWAY_IDENTITY_AUTHORITY || "legacy",
+    supervisorBaseUrl = process.env.SUPERVISOR_BASE_URL || "http://supervisor:9109",
+    supervisorKey = process.env.SUPERVISOR_GATEWAY_KEY,
+    cookieSecure = process.env.AUTH_COOKIE_SECURE === "true",
 } = {}) {
     const app = express();
     app.disable("x-powered-by");
-    const relay = createKmsProxy(kmsBaseUrl, kmsTimeoutMs);
+    if (!["legacy", "supervisor"].includes(identityAuthority)) throw new Error("Invalid identity authority");
+    const migrated = identityAuthority === "supervisor";
+    if (migrated && !authEnabled) throw new Error("Supervisor routing requires authentication");
+    const relay = createKmsProxy(kmsBaseUrl, kmsTimeoutMs, { tokenOnly: migrated });
+    const identityRelay = migrated ? createIdentityProxy(supervisorBaseUrl, supervisorKey, Math.min(kmsTimeoutMs, 4000), cookieSecure) : relay;
+    const authorize = migrated ? createSupervisorClient(supervisorBaseUrl, supervisorKey, Math.min(kmsTimeoutMs, 4000)) : null;
     const serveFrontend = createFrontendProxy(frontendBaseUrl, kmsTimeoutMs);
     const lookup = sessionLookup || createSessionLookup(kmsBaseUrl, kmsTimeoutMs);
     const publicScheme = process.env.GATEWAY_PUBLIC_SCHEME || "http";
@@ -65,16 +76,18 @@ function createApp({
         if (req.method === "POST" && /^\/auth\/(?:login|logout)\/?$/.test(req.path)) {
             return next();
         }
+        if (migrated && (req.path.replace(/\/$/, "") === "/auth/me" || /^\/users(?:\/|$)/.test(req.path))) return next();
         const cookie = sessionCookie(req.headers.cookie);
         if (!cookie && !sessionLookup) {
             return res.status(401).json({ detail: "Authentication required" });
         }
         try {
-            const principal = await lookup(cookie);
+            const permission = permissionFor(req.path, req.method);
+            const authorization = migrated ? await authorize(cookie, permission) : null;
+            const principal = migrated ? authorization?.principal : await lookup(cookie);
             if (!validPrincipal(principal)) {
                 return res.status(401).json({ detail: "Authentication required" });
             }
-            const permission = permissionFor(req.path, req.method);
             if (!principal.permissions.includes(permission)) {
                 return res.status(403).json({ detail: "Insufficient permissions" });
             }
@@ -82,8 +95,10 @@ function createApp({
                 return res.status(200).json(principal);
             }
             req.principal = principal;
+            if (migrated) req.kmsToken = authorization.kmsToken;
             return next();
-        } catch {
+        } catch (error) {
+            if (error.status === 403) return res.status(403).json({ detail: "Insufficient permissions" });
             return res.status(503).json({ detail: "Session verification unavailable" });
         }
     });
@@ -102,14 +117,15 @@ function createApp({
         next();
     }
     const rawJson = express.raw({ type: () => true, limit: "1mb", inflate: false });
-    app.post("/api/v1/auth/login", throttleLogin, rawJson, relay);
-    app.post(/^\/api\/v1\/auth\/logout\/?$/, rawJson, relay);
-    app.get(/^\/api\/v1\/users\/?$/, relay);
-    app.post(/^\/api\/v1\/users\/?$/, rawJson, relay);
-    app.get(/^\/api\/v1\/users\/[0-9a-fA-F-]+\/?$/, relay);
-    app.patch(/^\/api\/v1\/users\/[0-9a-fA-F-]+\/?$/, rawJson, relay);
-    app.delete(/^\/api\/v1\/users\/[0-9a-fA-F-]+\/?$/, relay);
-    app.post(/^\/api\/v1\/users\/[0-9a-fA-F-]+\/password\/?$/, rawJson, relay);
+    app.post("/api/v1/auth/login", throttleLogin, rawJson, identityRelay);
+    app.post(/^\/api\/v1\/auth\/logout\/?$/, rawJson, identityRelay);
+    if (migrated) app.get(/^\/api\/v1\/auth\/me\/?$/, identityRelay);
+    app.get(/^\/api\/v1\/users\/?$/, identityRelay);
+    app.post(/^\/api\/v1\/users\/?$/, rawJson, identityRelay);
+    app.get(/^\/api\/v1\/users\/[0-9a-fA-F-]+\/?$/, identityRelay);
+    app.patch(/^\/api\/v1\/users\/[0-9a-fA-F-]+\/?$/, rawJson, identityRelay);
+    app.delete(/^\/api\/v1\/users\/[0-9a-fA-F-]+\/?$/, identityRelay);
+    app.post(/^\/api\/v1\/users\/[0-9a-fA-F-]+\/password\/?$/, rawJson, identityRelay);
     app.get("/api/v1/knowledge-types", relay);
     app.get(/^\/api\/v1\/tags\/?$/, relay);
     app.post(/^\/api\/v1\/tags\/?$/, rawJson, relay);

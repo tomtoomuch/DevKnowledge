@@ -1,4 +1,6 @@
 import logging
+import os
+import re
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -31,6 +33,11 @@ from app.services.knowledge_service import (
 
 
 logger = logging.getLogger(__name__)
+identity_mode = os.getenv("KMS_SERVICE_TOKEN_MODE", "legacy")
+if identity_mode not in ("legacy", "required"):
+    raise RuntimeError("Invalid KMS service token mode")
+if identity_mode == "required" and not re.fullmatch(r"[0-9a-fA-F]{64}", os.getenv("SUPERVISOR_KMS_TOKEN_KEY", "")):
+    raise RuntimeError("KMS service signing key is required")
 app = FastAPI(
     title="Knowledge Management System",
     description="Service local de gestion des connaissances de DevKnowledge/BrainBlox",
@@ -39,7 +46,8 @@ app = FastAPI(
 )
 app.middleware("http")(restrict_to_internal_peers)
 app.include_router(router)
-app.include_router(identity_router)
+if os.getenv("KMS_SERVICE_TOKEN_MODE") != "required":
+    app.include_router(identity_router)
 app.include_router(knowledge_types_router)
 app.include_router(tags_router)
 app.include_router(technologies_router)

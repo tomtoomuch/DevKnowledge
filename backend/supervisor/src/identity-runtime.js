@@ -3,17 +3,18 @@
 const { createMongoSessionLookup } = require("./mongo-session-lookup");
 const { createAuthorizationHandler } = require("./supervisor-authorization");
 
-const MODES = new Set(["disabled", "shadow"]);
+const MODES = new Set(["disabled", "shadow", "active"]);
 const HOST = /^[a-zA-Z0-9][a-zA-Z0-9.-]{0,252}$/;
 const DB_NAME = /^[a-zA-Z][a-zA-Z0-9_-]{0,62}$/;
 
 /**
- * Prepare a read-only MongoDB session authority for the Supervisor.
+ * Prepare the Supervisor's MongoDB identity authority.
  *
  * "shadow" enables the authenticated internal endpoint but does not change
  * Gateway routing, KMS authentication or user/session ownership. This provides
- * an independent integration checkpoint before the destructive cutover.
- * No admin bootstrap, index writes, schema migrations or volume resets.
+ * an independent integration checkpoint. In shadow mode no indexes or
+ * identity documents are written. Active mode owns accounts and sessions;
+ * the normal Compose configuration explicitly selects it.
  *
  * MongoClient is injected for fast, hermetic tests. The production entrypoint
  * lazily loads the official MongoDB Node driver only when explicitly enabled.
@@ -38,6 +39,7 @@ async function startIdentityAuthority({
     throw new Error("Supervisor MongoDB identity configuration is invalid");
   }
   if (typeof peerGuard !== "function") throw new Error("Supervisor peer guard required");
+  if (gatewayKey?.toLowerCase() === kmsKey?.toLowerCase()) throw new Error("Service secrets must be distinct");
   // Validate secrets and callable authorization dependencies BEFORE connecting.
   const preflight = createAuthorizationHandler({
     gatewayKey, kmsKey, lookupSession: async () => null,
@@ -56,6 +58,14 @@ async function startIdentityAuthority({
     await client.connect();
     const db = client.db(database);
     await db.command({ ping: 1 });
+    let identityHandler = null;
+    if (mode === "active") {
+      const { initializeIdentity } = require("./identity-users");
+      const { createIdentitySessionStore } = require("./identity-sessions");
+      const { createIdentityHandler } = require("./identity-http");
+      await initializeIdentity(db);
+      identityHandler = createIdentityHandler({ gatewayKey, sessionStore: createIdentitySessionStore(db), db });
+    }
     const lookupSession = createMongoSessionLookup(db);
     const handler = createAuthorizationHandler({ gatewayKey, kmsKey, lookupSession });
     const authorizationHandler = async (req, res) => {
@@ -71,9 +81,12 @@ async function startIdentityAuthority({
         res.writeHead(503).end(JSON.stringify({ detail: "Identity unavailable" }));
         return;
       }
-      return handler(req, res);
+      return new URL(req.url, "http://localhost").pathname === "/internal/v1/sessions/authorize"
+        ? handler(req, res) : identityHandler ? identityHandler(req, res)
+          : res.writeHead(404).end(JSON.stringify({ detail: "Not found" }));
     };
-    return { authorizationHandler, close: async () => client.close() };
+    return { authorizationHandler, identityHandler: identityHandler ? authorizationHandler : null,
+      close: async () => client.close() };
   } catch {
     await client.close();
     // Avoid propagating connection URI, credentials or MongoDB error strings.

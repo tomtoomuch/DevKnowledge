@@ -14,7 +14,7 @@ python scripts/mongodb_backup.py backup backups/avant-travail
 ```
 
 MongoDB doit être démarré. La commande interrompt temporairement les services
-Gateway/KMS qui étaient en marche, puis les redémarre même si le dump échoue.
+Gateway/KMS/Superviseur qui étaient en marche, puis les redémarre même si le dump échoue.
 Un service initialement arrêté reste arrêté. Pour une sauvegarde cohérente de
 ce MongoDB autonome, ne pas exécuter d'autres outils d'écriture directe pendant
 l'opération. L'outil compare aussi l'état avant et après le dump et refuse de
@@ -120,3 +120,6 @@ SQLite repose sur l'API de backup en ligne `node:sqlite.backup()` et
 le script `backend/supervisor/src/metrics-backup.js`, avec contrôle
 d'intégrité, refus d'écraser un fichier existant et copie de l'archive
 hors du volume. Voir [[operations/metrics-sqlite]].
+
+
+Depuis la migration identité, la restauration du Compose actif reprovisionne les deux comptes restreints (KMS métier / Superviseur identité) et vérifie leurs refus d’accès croisé. Voir [la procédure identité](identity-migration.md).

@@ -2,6 +2,14 @@
 
 ## État actuel et prochaines étapes
 
+- [[operations/identity-migration|Migration identité achevée dans le code local : qualification et procédure de bascule]]
+- [[iterations/identity-migration-2026-11-24|Qualification de la migration identité — 24 novembre 2026]]
+
+État du code et limites au 24 novembre 2026 : [[roadmap]]. Les rapports datés ci-dessous conservent leurs preuves historiques.
+
+- [Suivi des tickets Linear DOC](https://linear.app/documentation-perso/team/DOC/all)
+- [[iterations/issue-16-supervisor-session-store|Reprise des sessions du Superviseur — PR #21]]
+
 - [[iterations/revue-sortie-stabilisation-2026-11-09|Dossier de revue de sortie de stabilisation]]
 - [[operations/offline-runtime|Qualification du fonctionnement hors ligne]]
 - [[iterations/validation-stab08-2026-11-09|Validation STAB-08 — sauvegarde et concurrence]]
@@ -27,7 +35,7 @@
 
 - [[decisions/ADR-001-architecture|ADR 001 : architecture]]
 - [[decisions/ADR-002-stockage|ADR 002 : stockage historique MongoDB]]
-- [[decisions/ADR-003-identite-securite|ADR 003 : identité et sécurité — à valider]]
+- [[decisions/ADR-003-identite-securite|ADR 003 : identité et sécurité — acceptée pour le prototype local]]
 
 - [[iterations/iteration-4-search]] — Recherche globale et favoris via Gateway et KMS.
 
@@ -35,9 +43,9 @@
 
 - [[iterations/iteration-6-specializations]] — Huit spécialisations métier et catalogue des types (itération 6, PR #8).
 
-- [[iterations/iteration-7-tags]] — Catalogue, affectation et filtrage des tags (PR #9 en validation).
+- [[iterations/iteration-7-tags]] — Catalogue, affectation et filtrage des tags (PR #9 intégrée).
 
-- [[iterations/iteration-7b-technologies]] — Technologies, versions et associations aux connaissances (PR #10, dépendante de #9).
+- [[iterations/iteration-7b-technologies]] — Technologies, versions et associations aux connaissances (PR #10 intégrée).
 
 - [[iterations/iteration-8-knowledge-relations]] — Graphes typés de connaissances, prévention des doublons et révisions (PR #11).
 - [Gateway, authentification et ports locaux](operations/auth-gateway.md)

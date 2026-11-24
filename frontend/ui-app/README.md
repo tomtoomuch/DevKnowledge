@@ -2,7 +2,7 @@
 
 Interface locale du CRUD de connaissances. Le navigateur communique
 uniquement avec la Gateway Express. L'authentification locale est obligatoire
-en exploitation, et les permissions sont appliquées côté KMS.
+en exploitation. Le Superviseur porte les comptes et sessions ; le KMS vérifie les jetons internes et leurs permissions.
 
 ## Docker Compose (recommandé)
 
@@ -19,7 +19,7 @@ Si un Dockerfile est annoncé absent, vérifier la branche active avec
 Depuis un sous-dossier, revenir à la racine avant de lancer Compose ;
 ne pas utiliser une configuration `COMPOSE_FILE` pointant vers un autre dépôt.
 
-Avec la configuration .env locale existante, depuis la racine :
+Après préparation de la configuration et, pour une installation existante, la [migration identité](../../docs/operations/identity-migration.md), depuis la racine :
 
     docker compose config --quiet
     docker compose up -d --build
@@ -28,7 +28,7 @@ Avec la configuration .env locale existante, depuis la racine :
 À la première installation, les conteneurs démarrent mais les connaissances
 restent privées jusqu'à la création de l'administrateur. Depuis la racine :
 
-    docker compose exec api-kms python -m app.auth.bootstrap_admin --username admin
+    python scripts/bootstrap_supervisor.py --username admin
 
 La commande demande deux fois un mot de passe de 12 à 256 caractères, sans
 l'inscrire dans l'historique Git Bash ou dans .env. Ne l'exécuter qu'une

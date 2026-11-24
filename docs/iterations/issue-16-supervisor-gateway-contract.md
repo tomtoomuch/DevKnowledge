@@ -7,6 +7,11 @@ tags: [devknowledge, security, supervisor, gateway, migration]
 
 # Contrat d'autorisation Gateway → Superviseur
 
+> Étape historique, complétée le 24 novembre 2026 : le circuit actif (CRUD comptes, sessions, Gateway et jetons KMS) est désormais implémenté et qualifié localement. Les mentions de routes non montées ou de modes désactivés ci-dessous décrivent cette étape préparatoire. Voir [l’état courant et la procédure](../operations/identity-migration.md). L’installation existante n’a pas été basculée.
+
+
+> Actualisation du 24 novembre 2026 : ce document conserve le contrat initial de la PR #17. La PR #18 a depuis ajouté le branchement MongoDB et le montage de la route en mode `shadow`, désactivé par défaut ; voir [le mode shadow](issue-16-supervisor-shadow-mongodb.md). La PR #20 ajoute `users.manage`. La Gateway n'appelle toujours pas ce circuit dans `app.js`.
+
 La migration complète de l'autorité d'identité décrite dans
 [[decisions/ADR-004-superviseur-identite-securite]] n'est **pas achevée**.
 
@@ -54,19 +59,14 @@ Le client Gateway ne considère pas la syntaxe d'un JWT comme preuve cryptograph
 
 ## État du déploiement
 
-**Le client n'est pas encore appelé par `app.js` ; l'endpoint interne
-existe sous forme de gestionnaire testé mais n'est pas monté au démarrage
-normal. Aucun secret, route publique ni modification de `compose.yaml`
-n'est introduit à cette étape.**
+**Le client n'est pas encore appelé par `app.js`. Avec le mode par défaut `disabled`, la route est absente ; en mode `shadow` explicitement configuré, elle est montée avec connexion MongoDB de lecture et contrôle du pair Gateway. Les variables nécessaires sont présentes dans Compose depuis la PR #18.**
 Le routage historique continue donc d'être utilisé. Il serait incorrect
 d'activer `KMS_SERVICE_TOKEN_MODE=required` maintenant.
 
 ## Suite indispensable avant basculement
 
-- Initialisation du client MongoDB dans le processus Superviseur, droits d'accès
-  restreints, branchement de `createMongoSessionLookup` sur le gestionnaire HTTP,
-  ainsi que portage du CRUD comptes/sessions/RBAC.
-- Implémentation et tests du point d'entrée `/internal/v1/sessions/authorize`.
+- Qualifier le provisionnement du compte MongoDB de lecture et l'introspection `shadow` dans l'environnement cible ; leur implémentation existe.
+- Porter le CRUD comptes/sessions/RBAC. Le magasin de sessions de la PR #21 est repris localement ; ses gestionnaires login/logout restent non montés.
 - Injection du token interne côté proxy Gateway → KMS et bascule
   des routes d'identité vers le Superviseur.
 - Retrait de la session navigateur côté KMS et activation du mode obligatoire.

@@ -58,7 +58,8 @@ test("invalid session or insufficient permission is denied", async () => {
   for (const status of [401, 403]) {
     const client = createSupervisorClient("http://supervisor:9109/", secret, 4000,
       async () => response(status, {}));
-    assert.equal(await client(cookie, "knowledge.read"), null);
+    if (status === 401) assert.equal(await client(cookie, "knowledge.read"), null);
+    else await assert.rejects(client(cookie, "knowledge.read"), error => error.status === 403);
   }
 });
 
