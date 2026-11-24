@@ -30,7 +30,7 @@ Cette photographie décrit le code intégré dans `chat` au commit `a26ba97` du 
 | Connaissances | CRUD, huit spécialisations, recherche textuelle, filtres, favoris et pagination | Sources, pièces jointes, historique versionné ; recherche indexée sur gros corpus |
 | Classification | Tags, technologies et versions, API/UI et associations atomiques (PR #9/#10) | Administration des catalogues immuables et navigation avancée |
 | Relations | Cinq types, relations dirigées/symétriques, unicité, API/UI et révisions (PR #11) | Politique de traitement des liens vers les fiches supprimées et administration des types |
-| Identité locale | Sessions opaques, RBAC et CRUD complet des comptes, désormais portés par Superviseur dans le code local | Publication, CI distante et bascule explicite de l’installation |
+| Identité locale | Sessions opaques, RBAC et CRUD complet des comptes, désormais portés par Superviseur dans le code local | Revue/fusion de la PR #22 ; récupération locale du mot de passe disponible |
 | Superviseur | Métriques SQLite, login/logout, CRUD comptes, routage Gateway, jetons obligatoires et droits MongoDB limités qualifiés localement | Rotation à clés multiples, signature asymétrique et audits centralisés |
 | PostgreSQL/RNCP | Dix tables métier, migrations et API optionnelle protégée (PR #19) | Cohérence MongoDB/SQL, sauvegarde multi-moteurs, intégration complète et UI ; contenu officiel RNCP |
 | IA/RAG | Recherche textuelle littérale existante | Chunking, embeddings, index sémantique, Ollama, citations et évaluation |
@@ -42,15 +42,15 @@ Le MLD v0.2 contient **56 tables logiques candidates** ; ce nombre n'est pas cel
 
 L'[issue #16](https://github.com/tomtoomuch/DevKnowledge/issues/16) est implémentée dans le checkout local : le Compose normal impose l'autorité Superviseur et les jetons obligatoires côté KMS. Les routes d'identité KMS sont retirées dans ce mode ; aucune session navigateur n'est relayée au KMS. Les identifiants et sessions historiques restent compatibles.
 
-La PR #21 est reprise dans DOC-40 ; le lot suivant termine le CRUD, le routage et l'exploitation. Les tests couvrent les droits MongoDB distincts, la concurrence, la révocation, les pannes, le redémarrage et le retour de l'application sur une sauvegarde restaurée, sans téléchargements. Voir [[operations/identity-migration]] pour les preuves, commandes et limites. Les changements restent locaux ; aucune activation sur l'installation existante ni CI distante de la nouvelle révision.
+La PR #21 est reprise dans DOC-40 ; le lot suivant termine le CRUD, le routage et l'exploitation. Les tests couvrent les droits MongoDB distincts, la concurrence, la révocation, les pannes, le redémarrage et le retour de l'application sur une sauvegarde restaurée, sans téléchargements. Voir [[operations/identity-migration]] pour les preuves, commandes et limites. La PR #22 est publiée et sa CI #151 est verte sur 94789e5. L'installation locale a été basculée après sauvegarde/restauration vérifiée : cinq services sains et 14 collections d'origine conservées à l'identique. La revue/fusion reste ouverte.
 
 L'ADR-003 reste le contrat de données historique. L'ADR-004 décrit désormais un circuit local implémenté ; la signature asymétrique, la rotation `kid` sans interruption et l'audit centralisé restent des lots de durcissement.
 
 ## Prochaines étapes
 
 1. Maintenir README, index et présente feuille de route en accord avec le code et le suivi [Linear DOC](https://linear.app/documentation-perso/team/DOC/all).
-2. Publier et faire relire le lot de migration identité, avec CI complète sur la révision publiée ; conserver les preuves locales.
-3. Préparer la bascule de l'installation existante : sauvegarde et restauration vérifiée, provisionnement explicite des nouveaux comptes, arrêt des anciens écrivains et recette sur les données de l'utilisateur.
+2. Faire relire et intégrer la PR #22 de migration identité ; CI et activation locale réalisées, preuves conservées.
+3. Qualifier PostgreSQL/RNCP de bout en bout sur une pile isolée avec l'identité du Superviseur : axe de développement choisi le 24 novembre. Conserver le module optionnel dans l'installation existante.
 4. Préparer une promotion revue de `chat` vers `dev`, sur une révision précise avec CI complète et recette ; aucune fusion automatique vers `dev` ou `main`.
 5. Qualifier RNCP/PostgreSQL de bout en bout sur une pile isolée, notamment les références interbases, les interruptions et les sauvegardes cohérentes. Le Compose standard reste inchangé pendant cette préparation.
 6. Compléter sources et historique, puis construire RAG et MCP avec contrôle d'accès et évaluation.

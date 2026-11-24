@@ -44,3 +44,14 @@ Les deux rapports identité confirment le nettoyage des projets source, projets 
 La qualification utilise des données synthétiques sur des volumes jetables. Le mode hors ligne réutilise des images préparées ; il ne prouve pas une construction intégralement déconnectée. La page Angular est servie par la Gateway, mais tous les écrans n'ont pas fait l'objet d'une revue visuelle manuelle. La matrice Windows/Linux distante doit être exécutée après publication.
 
 La [procédure de migration](../operations/identity-migration.md) couvre le provisionnement contrôlé d'une installation existante, la vérification préalable d'une restauration, le bootstrap neuf, la reprise après verrou abandonné et le retour arrière. L'activation sur les données existantes et la promotion des branches sont distinctes de cette qualification locale. La signature asymétrique et la rotation avec plusieurs clés restent des travaux de durcissement de DOC-23.
+
+
+## Publication et activation ultérieures le 24 novembre
+
+La [PR #22](https://github.com/tomtoomuch/DevKnowledge/pull/22), candidat `94789e57587a40d1341b7e13ad216f5d0867b84b`, a passé les six jobs de [CI #151](https://github.com/tomtoomuch/DevKnowledge/actions/runs/45371011091), dont KMS Windows/Linux, frontend (36 tests) et recettes Docker identité normale/hors ligne. Elle reste ouverte pour revue.
+
+L'installation locale `devknowledge` a ensuite été basculée après sauvegarde MongoDB et restauration isolée vérifiée. Les cinq services sont sains ; les 14 collections d'origine conservent leurs documents, index et options. Les volumes originaux MongoDB/SQLite sont conservés. Le parcours HTTP de connexion, lecture, monitoring, refus RBAC et révocation a été testé avec un compte temporaire ensuite supprimé ; ce contrôle n'atteste pas une revue visuelle exhaustive. Le reçu opérationnel local est `test-results/identity-cutover-state.json` et le retour arrière est conservé sous `backups/identity-cutover-20261124-97603f03` (non versionné, accès restreint).
+
+Un refus administrateur initial provenait du nom de compte configuré, pas du mot de passe : le catalogue a été inspecté sur une copie arrêtée et isolée, puis seul le nom local d'initialisation root a été corrigé. Le Compose historique utilisait d'autres noms de variables lors de la création du volume. Ne pas déduire un mauvais mot de passe du seul code 18 ; vérifier la cause non sensible des journaux et le compte/base d'authentification.
+
+La commande `scripts/reset_local_password.py` permet ensuite la récupération d'un compte applicatif actif avec saisie masquée et révocation des sessions. Quatre tests Python et une recette MongoDB jetable ont validé le changement, les refus et la conservation des rôles/autres sessions. Le secret est choisi localement par l'utilisateur ; il n'est ni transmis au chat ni placé dans les arguments de processus.

@@ -1,6 +1,6 @@
 # Migration de l'identité vers le Superviseur
 
-État au 24 novembre 2026 : implémentation complète du circuit de l'issue GitHub #16, qualifiée localement et proposée à la revue dans DOC-41. La pile applicative existante n'a pas été basculée ; les recettes utilisent exclusivement des volumes jetables.
+État au 24 novembre 2026 : implémentation complète du circuit de l'issue GitHub #16, qualifiée localement et proposée à la revue dans DOC-41. La pile locale a été basculée le 24 novembre après sauvegarde et restauration vérifiée ; les recettes automatisées utilisent exclusivement des volumes jetables. Voir le rapport lié en fin de page pour distinguer qualification et activation.
 
 ## Circuit et responsabilités
 

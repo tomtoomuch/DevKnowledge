@@ -24,6 +24,18 @@ Pour un autre projet Compose, préciser `--project <nom-existant>` et éventuell
 
 Le navigateur conserve le cookie `dk_session` avec `HttpOnly`, `Path=/api/v1`, `SameSite=Strict` et une durée de huit heures. `AUTH_COOKIE_SECURE=true` ajoute Secure pour un accès HTTPS. Les URL Angular et le format public des comptes restent compatibles avec le circuit précédent.
 
+## Réinitialiser un mot de passe local existant
+
+Depuis un terminal interactif sur l'hôte Docker :
+
+```powershell
+python scripts/reset_local_password.py --username admin --project devknowledge --env-file .env
+```
+
+Saisir deux fois le nouveau mot de passe (12 à 256 caractères). La saisie est masquée et le secret est transmis uniquement par stdin. Le compte doit déjà exister et être actif ; son UUID, ses rôles et son statut sont conservés. Sa révision augmente et ses sessions précédentes sont révoquées. Cette commande d'exploitation locale nécessite l'accès Docker au Superviseur actif, sans connexion préalable à l'application ni accès root MongoDB. Elle réutilise le verrou et le contrôle de révision des opérations normales ; aucun endpoint de récupération public n'est ajouté. Elle fonctionne avec le conteneur déjà migré, sans reconstruction d'image.
+
+Le script ne crée pas de compte, ne réactive pas un compte désactivé et ne modifie aucun identifiant MongoDB ou secret du `.env`.
+
 ## Diagnostic
 
 - 401 : session absente, expirée ou révoquée, compte désactivé, ou mauvais identifiants.
